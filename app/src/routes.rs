@@ -1,0 +1,10 @@
+use axum::{Router, routing::get};
+
+use crate::handlers;
+use crate::state::AppState;
+
+pub fn build() -> Router<AppState> {
+    Router::new()
+        .route("/", get(|| async { "API is up!" }))
+        .route("/health", get(handlers::health))
+}
