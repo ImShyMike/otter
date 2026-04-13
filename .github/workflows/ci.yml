@@ -62,6 +62,8 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: app
+      - name: Install sqlx-cli
+        run: cargo install sqlx-cli --no-default-features --features postgres
       - name: Run migrations
         run: cargo sqlx migrate run
         working-directory: app
