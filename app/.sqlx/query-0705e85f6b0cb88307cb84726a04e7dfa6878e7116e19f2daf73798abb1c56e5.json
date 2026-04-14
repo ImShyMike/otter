@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id, display_name, description FROM projects WHERE embedding IS NULL AND deleted_at IS NULL",
+  "query": "SELECT id, display_name, description FROM projects WHERE embedding IS NULL AND deleted_at IS NULL AND description IS NOT NULL AND LENGTH(description) > 50",
   "describe": {
     "columns": [
       {
@@ -28,5 +28,5 @@
       true
     ]
   },
-  "hash": "07005235c0d616c6c4792bb374813000777f4191ef6434a9ec42d883ec359e8b"
+  "hash": "0705e85f6b0cb88307cb84726a04e7dfa6878e7116e19f2daf73798abb1c56e5"
 }

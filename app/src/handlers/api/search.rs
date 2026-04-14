@@ -75,7 +75,7 @@ pub async fn search(
                 id,
                 1.0 - (embedding <=> $2::vector) as similarity_score
             FROM projects
-            WHERE embedding IS NOT NULL AND deleted_at IS NULL
+            WHERE embedding IS NOT NULL AND deleted_at IS NULL AND description IS NOT NULL AND LENGTH(description) > 50
         )
         SELECT 
             p.id,

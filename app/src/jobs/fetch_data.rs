@@ -207,9 +207,11 @@ pub fn run<'a>(pg: &'a PgPool) -> Pin<Box<dyn Future<Output = anyhow::Result<()>
                 sep.push_unseparated(")");
             }
 
-            qb.push(") AS tmp(airtable_id, screenshot_url) \
+            qb.push(
+                ") AS tmp(airtable_id, screenshot_url) \
                 WHERE projects.airtable_id = tmp.airtable_id \
-                AND projects.screenshot_url IS DISTINCT FROM tmp.screenshot_url");
+                AND projects.screenshot_url IS DISTINCT FROM tmp.screenshot_url",
+            );
 
             qb.build().execute(pg).await?;
         }
@@ -238,7 +240,7 @@ pub fn run<'a>(pg: &'a PgPool) -> Pin<Box<dyn Future<Output = anyhow::Result<()>
 
 async fn embed_new_projects(pg: &PgPool) -> anyhow::Result<()> {
     let rows = sqlx::query!(
-        "SELECT id, display_name, description FROM projects WHERE embedding IS NULL AND deleted_at IS NULL"
+        "SELECT id, display_name, description FROM projects WHERE embedding IS NULL AND deleted_at IS NULL AND description IS NOT NULL AND LENGTH(description) > 50"
     )
     .fetch_all(pg)
     .await?;

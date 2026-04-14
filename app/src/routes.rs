@@ -11,6 +11,7 @@ pub fn build() -> Router<AppState> {
             "/api",
             Router::new()
                 .route("/search", get(handlers::search))
-                .route("/ysws_programs", get(handlers::ysws_programs)),
+                .route("/ysws_programs", get(handlers::ysws_programs))
+                .route("/query", get(handlers::query)),
         )
 }
