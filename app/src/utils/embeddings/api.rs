@@ -1,4 +1,4 @@
-use std::{env, time::Duration};
+use std::{env, sync::OnceLock, time::Duration};
 
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
@@ -6,6 +6,54 @@ use tracing::debug;
 
 const BATCH_SIZE: usize = 128;
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
+
+struct ApiConfig {
+    client: Client,
+    url: String,
+    key: String,
+    model: String,
+}
+
+static CONFIG: OnceLock<Result<ApiConfig, String>> = OnceLock::new();
+
+fn config() -> anyhow::Result<&'static ApiConfig> {
+    CONFIG
+        .get_or_init(|| {
+            (|| -> anyhow::Result<ApiConfig> {
+                let url = env::var("AI_API_URL")?;
+                let key = env::var("AI_API_KEY")?;
+                let model = env::var("AI_API_MODEL")?;
+
+                let api_host = reqwest::Url::parse(&url)?
+                    .host_str()
+                    .unwrap_or_default()
+                    .to_string();
+
+                let client = Client::builder()
+                    .timeout(REQUEST_TIMEOUT)
+                    .retry(
+                        reqwest::retry::for_host(api_host)
+                            .max_retries_per_request(3)
+                            .classify_fn(|req_rep| match req_rep.status() {
+                                Some(s) if s.is_server_error() => req_rep.retryable(),
+                                None => req_rep.retryable(),
+                                _ => req_rep.success(),
+                            }),
+                    )
+                    .build()?;
+
+                Ok(ApiConfig {
+                    client,
+                    url,
+                    key,
+                    model,
+                })
+            })()
+            .map_err(|e| e.to_string())
+        })
+        .as_ref()
+        .map_err(|e| anyhow::anyhow!("{e}"))
+}
 
 #[derive(Deserialize)]
 struct EmbeddingsResponse {
@@ -25,11 +73,7 @@ struct RequestData {
 }
 
 pub async fn get_embeddings(texts: &[String]) -> anyhow::Result<(String, Vec<Vec<f32>>)> {
-    let api_url = env::var("AI_API_URL")?;
-    let api_key = env::var("AI_API_KEY")?;
-    let api_model = env::var("AI_API_MODEL")?;
-
-    let client = Client::builder().timeout(REQUEST_TIMEOUT).build()?;
+    let cfg = config()?;
     let mut embeddings = Vec::new();
 
     for (i, batch) in texts.chunks(BATCH_SIZE).enumerate() {
@@ -39,12 +83,13 @@ pub async fn get_embeddings(texts: &[String]) -> anyhow::Result<(String, Vec<Vec
             "requesting api embeddings"
         );
 
-        let response = client
-            .post(&api_url)
-            .header("Authorization", format!("Bearer {api_key}"))
+        let response = cfg
+            .client
+            .post(&cfg.url)
+            .header("Authorization", format!("Bearer {}", cfg.key))
             .json(&RequestData {
                 input: batch.to_vec(),
-                model: api_model.clone(),
+                model: cfg.model.clone(),
                 dimensions: 1024,
             })
             .send()
@@ -60,8 +105,8 @@ pub async fn get_embeddings(texts: &[String]) -> anyhow::Result<(String, Vec<Vec
 
     debug!(
         count = embeddings.len(),
-        model = api_model,
+        model = cfg.model,
         "api embeddings complete"
     );
-    Ok((api_model, embeddings))
+    Ok((cfg.model.clone(), embeddings))
 }
