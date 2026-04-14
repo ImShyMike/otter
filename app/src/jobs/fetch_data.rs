@@ -1,4 +1,4 @@
-use std::pin::Pin;
+use std::{pin::Pin, time::Duration};
 
 use pgvector::Vector;
 use serde::Deserialize;
@@ -10,6 +10,7 @@ use crate::utils::embeddings;
 const API_URL: &str = "https://ships.hackclub.com/api/v1/ysws_entries?all=true";
 const BATCH_SIZE: usize = 1000;
 const EMBED_BATCH_SIZE: usize = 128;
+const REQUEST_TIMEOUT: Duration = Duration::from_secs(120);
 
 fn deserialize_timestamp<'de, D>(deserializer: D) -> Result<Option<OffsetDateTime>, D::Error>
 where
@@ -87,15 +88,47 @@ pub fn run<'a>(pg: &'a PgPool) -> Pin<Box<dyn Future<Output = anyhow::Result<()>
     Box::pin(async move {
         tracing::info!("starting");
 
-        let http_client = reqwest::Client::new();
+        let http_client = reqwest::Client::builder()
+            .timeout(REQUEST_TIMEOUT)
+            .build()?;
 
-        let body = http_client.get(API_URL).send().await?.text().await?;
+        let mut last_err = None;
+        let mut body = None;
+        for attempt in 1..=3u32 {
+            match async {
+                http_client
+                    .get(API_URL)
+                    .send()
+                    .await?
+                    .error_for_status()?
+                    .text()
+                    .await
+            }
+            .await
+            {
+                Ok(text) => {
+                    body = Some(text);
+                    break;
+                }
+                Err(e) if attempt < 3 => {
+                    tracing::warn!(attempt, "fetch failed, retrying: {e}");
+                    tokio::time::sleep(Duration::from_secs(2u64.pow(attempt))).await;
+                    last_err = Some(e);
+                }
+                Err(e) => {
+                    last_err = Some(e);
+                }
+            }
+        }
+        let body = match body {
+            Some(b) => b,
+            None => return Err(last_err.unwrap().into()),
+        };
+
+        tracing::info!("fetched data from API, deserializing");
 
         let entries: Vec<YswsEntry> = serde_json::from_str(&body).map_err(|e| {
-            tracing::error!(
-                "deserialization failed at byte {}: {e}",
-                e.column()
-            );
+            tracing::error!("deserialization failed at byte {}: {e}", e.column());
             e
         })?;
 
@@ -170,16 +203,10 @@ pub fn run<'a>(pg: &'a PgPool) -> Pin<Box<dyn Future<Output = anyhow::Result<()>
             .await?;
 
         if !deleted.is_empty() {
-            tracing::info!(
-                "soft-deleted {} missing projects",
-                deleted.len()
-            );
+            tracing::info!("soft-deleted {} missing projects", deleted.len());
         }
 
-        tracing::info!(
-            "synced {} entries ({modified} modified)",
-            entries.len()
-        );
+        tracing::info!("synced {} entries ({modified} modified)", entries.len());
 
         embed_new_projects(pg).await?;
 

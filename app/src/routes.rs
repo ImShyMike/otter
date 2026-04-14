@@ -7,4 +7,8 @@ pub fn build() -> Router<AppState> {
     Router::new()
         .route("/", get(|| async { "API is up!" }))
         .route("/health", get(handlers::health))
+        .nest(
+            "/api",
+            Router::new().route("/ysws_programs", get(handlers::ysws_programs)),
+        )
 }
