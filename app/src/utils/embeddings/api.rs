@@ -4,7 +4,7 @@ use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use tracing::debug;
 
-const BATCH_SIZE: usize = 64;
+const BATCH_SIZE: usize = 128;
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
 
 #[derive(Deserialize)]
@@ -21,6 +21,7 @@ struct EmbeddingData {
 struct RequestData {
     input: Vec<String>,
     model: String,
+    dimensions: u32,
 }
 
 pub async fn get_embeddings(texts: &[String]) -> anyhow::Result<(String, Vec<Vec<f32>>)> {
@@ -44,6 +45,7 @@ pub async fn get_embeddings(texts: &[String]) -> anyhow::Result<(String, Vec<Vec
             .json(&RequestData {
                 input: batch.to_vec(),
                 model: api_model.clone(),
+                dimensions: 1024,
             })
             .send()
             .await?
