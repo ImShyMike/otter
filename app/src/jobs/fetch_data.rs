@@ -85,7 +85,7 @@ struct YswsEntry {
 
 pub fn run<'a>(pg: &'a PgPool) -> Pin<Box<dyn Future<Output = anyhow::Result<()>> + Send + 'a>> {
     Box::pin(async move {
-        tracing::info!("fetch_data: starting");
+        tracing::info!("starting");
 
         let http_client = reqwest::Client::new();
 
@@ -93,13 +93,13 @@ pub fn run<'a>(pg: &'a PgPool) -> Pin<Box<dyn Future<Output = anyhow::Result<()>
 
         let entries: Vec<YswsEntry> = serde_json::from_str(&body).map_err(|e| {
             tracing::error!(
-                "fetch_data: deserialization failed at byte {}: {e}",
+                "deserialization failed at byte {}: {e}",
                 e.column()
             );
             e
         })?;
 
-        tracing::info!("fetch_data: fetched {} entries", entries.len());
+        tracing::info!("fetched {} entries", entries.len());
 
         let mut modified: u64 = 0;
 
@@ -171,19 +171,19 @@ pub fn run<'a>(pg: &'a PgPool) -> Pin<Box<dyn Future<Output = anyhow::Result<()>
 
         if !deleted.is_empty() {
             tracing::info!(
-                "fetch_data: soft-deleted {} missing projects",
+                "soft-deleted {} missing projects",
                 deleted.len()
             );
         }
 
         tracing::info!(
-            "fetch_data: synced {} entries ({modified} modified)",
+            "synced {} entries ({modified} modified)",
             entries.len()
         );
 
         embed_new_projects(pg).await?;
 
-        tracing::info!("fetch_data: done");
+        tracing::info!("done");
 
         Ok(())
     })
@@ -197,11 +197,11 @@ async fn embed_new_projects(pg: &PgPool) -> anyhow::Result<()> {
     .await?;
 
     if rows.is_empty() {
-        tracing::info!("fetch_data: no new projects to embed");
+        tracing::info!("no new projects to embed");
         return Ok(());
     }
 
-    tracing::info!("fetch_data: embedding {} new projects", rows.len());
+    tracing::info!("embedding {} new projects", rows.len());
 
     for (batch_idx, chunk) in rows.chunks(EMBED_BATCH_SIZE).enumerate() {
         let texts: Vec<String> = chunk
@@ -229,9 +229,9 @@ async fn embed_new_projects(pg: &PgPool) -> anyhow::Result<()> {
         }
 
         let done = batch_idx * EMBED_BATCH_SIZE + chunk.len();
-        tracing::info!("fetch_data: embedded {done}/{}", rows.len());
+        tracing::info!("embedded {done}/{}", rows.len());
     }
 
-    tracing::info!("fetch_data: embedding complete");
+    tracing::info!("embedding complete");
     Ok(())
 }
