@@ -10,6 +10,7 @@ use deadpool_redis::{Config, Runtime};
 use sqlx::PgPool;
 
 use state::AppState;
+use jobs::JobKind;
 
 const DEFAULT_DATABASE_URL: &str = "postgres://postgres:postgres@localhost:5432/otter";
 const DEFAULT_REDIS_URL: &str = "redis://localhost:6379";
@@ -36,6 +37,13 @@ async fn main() -> anyhow::Result<()> {
     sqlx::migrate!("./migrations").run(&pg).await?;
 
     jobs::schedule_all(&pg).await?;
+
+    let pg_startup = pg.clone();
+    tokio::spawn(async move {
+        if let Err(e) = jobs::run_job(&pg_startup, JobKind::FetchData).await {
+            tracing::error!("startup fetch_data failed: {e}");
+        }
+    });
 
     let state = AppState { pg, redis };
     let app = routes::build().with_state(state);

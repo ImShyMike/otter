@@ -1,48 +1,66 @@
-mod cleanup;
+mod fetch_data;
 
 use std::pin::Pin;
 
 use sqlx::PgPool;
 use tokio_cron_scheduler::{Job, JobScheduler};
 
-/// Job to lock ID mapping
-#[repr(i64)]
-enum LockId {
-    Cleanup = 1,
-}
-
 type JobFn =
     for<'a> fn(&'a PgPool) -> Pin<Box<dyn Future<Output = anyhow::Result<()>> + Send + 'a>>;
 
-/// Registers all jobs and starts the scheduler
+/// Job list
+pub enum JobKind {
+    FetchData,
+}
+
+impl JobKind {
+    const ALL: &[JobKind] = &[JobKind::FetchData];
+
+    fn lock_id(&self) -> i64 {
+        match self {
+            JobKind::FetchData => 1,
+        }
+    }
+
+    fn cron(&self) -> &'static str {
+        match self {
+            JobKind::FetchData => "0 0 */3 * * *",
+        }
+    }
+
+    fn run_fn(&self) -> JobFn {
+        match self {
+            JobKind::FetchData => fetch_data::run,
+        }
+    }
+}
+
+/// Run a specific job
+pub async fn run_job(pg: &PgPool, job: JobKind) -> anyhow::Result<()> {
+    with_lock(pg, job.lock_id(), job.run_fn()).await
+}
+
+/// Registers all scheduled jobs and starts the cron scheduler
 pub async fn schedule_all(pg: &PgPool) -> anyhow::Result<()> {
     let sched = JobScheduler::new().await?;
 
-    register(&sched, pg, "0 0 */3 * * *", LockId::Cleanup, cleanup::run).await?;
+    for kind in JobKind::ALL {
+        let pg = pg.clone();
+        let lock_id = kind.lock_id();
+        let f = kind.run_fn();
+        sched
+            .add(Job::new_async(kind.cron(), move |_uuid, _lock| {
+                let pg = pg.clone();
+                Box::pin(async move {
+                    if let Err(e) = with_lock(&pg, lock_id, f).await {
+                        tracing::error!("job failed: {e}");
+                    }
+                })
+            })?)
+            .await?;
+    }
 
     sched.start().await?;
-    Ok(())
-}
-
-async fn register(
-    sched: &JobScheduler,
-    pg: &PgPool,
-    cron: &str,
-    lock_id: LockId,
-    f: JobFn,
-) -> anyhow::Result<()> {
-    let pg = pg.clone();
-    let lock = lock_id as i64;
-    sched
-        .add(Job::new_async(cron, move |_uuid, _lock| {
-            let pg = pg.clone();
-            Box::pin(async move {
-                if let Err(e) = with_lock(&pg, lock, f).await {
-                    eprintln!("job failed: {e}");
-                }
-            })
-        })?)
-        .await?;
     Ok(())
 }
 
