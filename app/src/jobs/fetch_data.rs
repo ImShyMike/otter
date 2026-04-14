@@ -1,7 +1,7 @@
 use std::pin::Pin;
 
 use serde::Deserialize;
-use sqlx::{PgPool, QueryBuilder, Postgres};
+use sqlx::{PgPool, Postgres, QueryBuilder};
 use time::OffsetDateTime;
 
 const API_URL: &str = "https://ships.hackclub.com/api/v1/ysws_entries?all=true";
@@ -15,7 +15,9 @@ where
     use serde_json::Value;
     match Value::deserialize(deserializer)? {
         Value::Number(n) => {
-            let ts = n.as_i64().ok_or_else(|| serde::de::Error::custom("invalid timestamp"))?;
+            let ts = n
+                .as_i64()
+                .ok_or_else(|| serde::de::Error::custom("invalid timestamp"))?;
             OffsetDateTime::from_unix_timestamp(ts)
                 .map(Some)
                 .map_err(serde::de::Error::custom)
@@ -31,7 +33,10 @@ where
 {
     use serde_json::Value;
     match Value::deserialize(deserializer)? {
-        Value::Number(n) => n.as_i64().map(|v| Some(v as i32)).ok_or_else(|| serde::de::Error::custom("invalid number")),
+        Value::Number(n) => n
+            .as_i64()
+            .map(|v| Some(v as i32))
+            .ok_or_else(|| serde::de::Error::custom("invalid number")),
         Value::Null | Value::String(_) => Ok(None),
         _ => Err(serde::de::Error::custom("expected number, null, or string")),
     }
@@ -81,24 +86,21 @@ pub fn run<'a>(pg: &'a PgPool) -> Pin<Box<dyn Future<Output = anyhow::Result<()>
 
         let http_client = reqwest::Client::new();
 
-        let body = http_client
-            .get(API_URL)
-            .send()
-            .await?
-            .text()
-            .await?;
+        let body = http_client.get(API_URL).send().await?.text().await?;
 
-        let entries: Vec<YswsEntry> = serde_json::from_str(&body)
-            .map_err(|e| {
-                tracing::error!("fetch_data: deserialization failed at byte {}: {e}", e.column());
-                e
-            })?;
+        let entries: Vec<YswsEntry> = serde_json::from_str(&body).map_err(|e| {
+            tracing::error!(
+                "fetch_data: deserialization failed at byte {}: {e}",
+                e.column()
+            );
+            e
+        })?;
 
         tracing::info!("fetch_data: fetched {} entries", entries.len());
 
         for (batch_idx, chunk) in entries.chunks(BATCH_SIZE).enumerate() {
             let mut qb: QueryBuilder<Postgres> = QueryBuilder::new(
-                "INSERT INTO projects (airtable_id, ysws, approved_at, code_url, country, demo_url, description, github_username, hours, screenshot_url, github_stars, display_name, archived_demo, archived_repo) "
+                "INSERT INTO projects (airtable_id, ysws, approved_at, code_url, country, demo_url, description, github_username, hours, screenshot_url, github_stars, display_name, archived_demo, archived_repo) ",
             );
 
             qb.push_values(chunk, |mut b, entry| {
@@ -133,13 +135,13 @@ pub fn run<'a>(pg: &'a PgPool) -> Pin<Box<dyn Future<Output = anyhow::Result<()>
                  display_name = EXCLUDED.display_name, \
                  archived_demo = EXCLUDED.archived_demo, \
                  archived_repo = EXCLUDED.archived_repo, \
-                 deleted_at = NULL"
+                 deleted_at = NULL",
             );
 
             qb.build().execute(pg).await?;
 
             let upserted = batch_idx * BATCH_SIZE + chunk.len();
-            if upserted % LOG_INTERVAL == 0 || upserted == entries.len() {
+            if upserted.is_multiple_of(LOG_INTERVAL) || upserted == entries.len() {
                 tracing::info!("fetch_data: upserted {upserted}/{}", entries.len());
             }
         }
@@ -153,7 +155,10 @@ pub fn run<'a>(pg: &'a PgPool) -> Pin<Box<dyn Future<Output = anyhow::Result<()>
             .await?;
 
         if !deleted.is_empty() {
-            tracing::info!("fetch_data: soft-deleted {} missing projects", deleted.len());
+            tracing::info!(
+                "fetch_data: soft-deleted {} missing projects",
+                deleted.len()
+            );
         }
 
         tracing::info!("fetch_data: done");

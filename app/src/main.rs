@@ -9,8 +9,8 @@ use std::env;
 use deadpool_redis::{Config, Runtime};
 use sqlx::PgPool;
 
-use state::AppState;
 use jobs::JobKind;
+use state::AppState;
 
 const DEFAULT_DATABASE_URL: &str = "postgres://postgres:postgres@localhost:5432/otter";
 const DEFAULT_REDIS_URL: &str = "redis://localhost:6379";
