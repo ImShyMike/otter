@@ -67,10 +67,10 @@ pub async fn schedule_all(pg: &PgPool) -> anyhow::Result<()> {
 async fn with_lock(pg: &PgPool, lock_id: i64, f: JobFn) -> anyhow::Result<()> {
     let mut tx = pg.begin().await?;
 
-    let (acquired,): (bool,) = sqlx::query_as("SELECT pg_try_advisory_xact_lock($1)")
-        .bind(lock_id)
+    let acquired = sqlx::query_scalar!("SELECT pg_try_advisory_xact_lock($1)", lock_id)
         .fetch_one(&mut *tx)
-        .await?;
+        .await?
+        .unwrap_or(false);
 
     if !acquired {
         return Ok(());
