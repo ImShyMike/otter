@@ -1,12 +1,16 @@
 use std::pin::Pin;
 
+use pgvector::Vector;
 use serde::Deserialize;
 use sqlx::{PgPool, Postgres, QueryBuilder};
 use time::OffsetDateTime;
 
+use crate::utils::embeddings;
+
 const API_URL: &str = "https://ships.hackclub.com/api/v1/ysws_entries?all=true";
 const BATCH_SIZE: usize = 1000;
 const LOG_INTERVAL: usize = 5000;
+const EMBED_BATCH_SIZE: usize = 128;
 
 fn deserialize_timestamp<'de, D>(deserializer: D) -> Result<Option<OffsetDateTime>, D::Error>
 where
@@ -161,8 +165,57 @@ pub fn run<'a>(pg: &'a PgPool) -> Pin<Box<dyn Future<Output = anyhow::Result<()>
             );
         }
 
+        embed_new_projects(pg).await?;
+
         tracing::info!("fetch_data: done");
 
         Ok(())
     })
+}
+
+async fn embed_new_projects(pg: &PgPool) -> anyhow::Result<()> {
+    let rows: Vec<(i32, Option<String>, Option<String>)> = sqlx::query_as(
+        "SELECT id, display_name, description FROM projects WHERE embedding IS NULL AND deleted_at IS NULL",
+    )
+    .fetch_all(pg)
+    .await?;
+
+    if rows.is_empty() {
+        tracing::info!("fetch_data: no new projects to embed");
+        return Ok(());
+    }
+
+    tracing::info!("fetch_data: embedding {} new projects", rows.len());
+
+    for (batch_idx, chunk) in rows.chunks(EMBED_BATCH_SIZE).enumerate() {
+        let texts: Vec<String> = chunk
+            .iter()
+            .map(|(_, name, desc)| {
+                format!(
+                    "{} {}",
+                    name.as_deref().unwrap_or(""),
+                    desc.as_deref().unwrap_or("")
+                )
+                .trim()
+                .to_string()
+            })
+            .collect();
+
+        let (model_name, vectors) = embeddings::get_embeddings(&texts).await?;
+
+        for ((id, _, _), vec) in chunk.iter().zip(vectors) {
+            sqlx::query("UPDATE projects SET embedding = $1, embedding_model = $2 WHERE id = $3")
+                .bind(Vector::from(vec))
+                .bind(&model_name)
+                .bind(id)
+                .execute(pg)
+                .await?;
+        }
+
+        let done = batch_idx * EMBED_BATCH_SIZE + chunk.len();
+        tracing::info!("fetch_data: embedded {done}/{}", rows.len());
+    }
+
+    tracing::info!("fetch_data: embedding complete");
+    Ok(())
 }
