@@ -9,6 +9,8 @@ pub fn build() -> Router<AppState> {
         .route("/health", get(handlers::health))
         .nest(
             "/api",
-            Router::new().route("/ysws_programs", get(handlers::ysws_programs)),
+            Router::new()
+                .route("/search", get(handlers::search))
+                .route("/ysws_programs", get(handlers::ysws_programs)),
         )
 }
