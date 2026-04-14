@@ -1,0 +1,163 @@
+use std::pin::Pin;
+
+use serde::Deserialize;
+use sqlx::{PgPool, QueryBuilder, Postgres};
+use time::OffsetDateTime;
+
+const API_URL: &str = "https://ships.hackclub.com/api/v1/ysws_entries?all=true";
+const BATCH_SIZE: usize = 1000;
+const LOG_INTERVAL: usize = 5000;
+
+fn deserialize_timestamp<'de, D>(deserializer: D) -> Result<Option<OffsetDateTime>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    use serde_json::Value;
+    match Value::deserialize(deserializer)? {
+        Value::Number(n) => {
+            let ts = n.as_i64().ok_or_else(|| serde::de::Error::custom("invalid timestamp"))?;
+            OffsetDateTime::from_unix_timestamp(ts)
+                .map(Some)
+                .map_err(serde::de::Error::custom)
+        }
+        Value::Null | Value::String(_) => Ok(None),
+        _ => Err(serde::de::Error::custom("expected number, null, or string")),
+    }
+}
+
+fn deserialize_null_int<'de, D>(deserializer: D) -> Result<Option<i32>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    use serde_json::Value;
+    match Value::deserialize(deserializer)? {
+        Value::Number(n) => n.as_i64().map(|v| Some(v as i32)).ok_or_else(|| serde::de::Error::custom("invalid number")),
+        Value::Null | Value::String(_) => Ok(None),
+        _ => Err(serde::de::Error::custom("expected number, null, or string")),
+    }
+}
+
+fn deserialize_null_string<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let s: Option<String> = Option::deserialize(deserializer)?;
+    Ok(s.filter(|s| s != "null"))
+}
+
+#[derive(Deserialize)]
+struct YswsEntry {
+    id: String,
+    ysws: String,
+    #[serde(deserialize_with = "deserialize_timestamp")]
+    approved_at: Option<OffsetDateTime>,
+    #[serde(deserialize_with = "deserialize_null_string")]
+    code_url: Option<String>,
+    #[serde(deserialize_with = "deserialize_null_string")]
+    country: Option<String>,
+    #[serde(deserialize_with = "deserialize_null_string")]
+    demo_url: Option<String>,
+    #[serde(deserialize_with = "deserialize_null_string")]
+    description: Option<String>,
+    #[serde(deserialize_with = "deserialize_null_string")]
+    github_username: Option<String>,
+    #[serde(deserialize_with = "deserialize_null_int")]
+    hours: Option<i32>,
+    #[serde(deserialize_with = "deserialize_null_string")]
+    screenshot_url: Option<String>,
+    #[serde(default)]
+    github_stars: i32,
+    #[serde(deserialize_with = "deserialize_null_string")]
+    display_name: Option<String>,
+    #[serde(deserialize_with = "deserialize_null_string")]
+    archived_demo: Option<String>,
+    #[serde(deserialize_with = "deserialize_null_string")]
+    archived_repo: Option<String>,
+}
+
+pub fn run<'a>(pg: &'a PgPool) -> Pin<Box<dyn Future<Output = anyhow::Result<()>> + Send + 'a>> {
+    Box::pin(async move {
+        tracing::info!("fetch_data: starting");
+
+        let http_client = reqwest::Client::new();
+
+        let body = http_client
+            .get(API_URL)
+            .send()
+            .await?
+            .text()
+            .await?;
+
+        let entries: Vec<YswsEntry> = serde_json::from_str(&body)
+            .map_err(|e| {
+                tracing::error!("fetch_data: deserialization failed at byte {}: {e}", e.column());
+                e
+            })?;
+
+        tracing::info!("fetch_data: fetched {} entries", entries.len());
+
+        for (batch_idx, chunk) in entries.chunks(BATCH_SIZE).enumerate() {
+            let mut qb: QueryBuilder<Postgres> = QueryBuilder::new(
+                "INSERT INTO projects (airtable_id, ysws, approved_at, code_url, country, demo_url, description, github_username, hours, screenshot_url, github_stars, display_name, archived_demo, archived_repo) "
+            );
+
+            qb.push_values(chunk, |mut b, entry| {
+                b.push_bind(&entry.id)
+                    .push_bind(&entry.ysws)
+                    .push_bind(entry.approved_at)
+                    .push_bind(&entry.code_url)
+                    .push_bind(&entry.country)
+                    .push_bind(&entry.demo_url)
+                    .push_bind(&entry.description)
+                    .push_bind(&entry.github_username)
+                    .push_bind(entry.hours)
+                    .push_bind(&entry.screenshot_url)
+                    .push_bind(entry.github_stars)
+                    .push_bind(&entry.display_name)
+                    .push_bind(&entry.archived_demo)
+                    .push_bind(&entry.archived_repo);
+            });
+
+            qb.push(
+                " ON CONFLICT (airtable_id) DO UPDATE SET \
+                 ysws = EXCLUDED.ysws, \
+                 approved_at = EXCLUDED.approved_at, \
+                 code_url = EXCLUDED.code_url, \
+                 country = EXCLUDED.country, \
+                 demo_url = EXCLUDED.demo_url, \
+                 description = EXCLUDED.description, \
+                 github_username = EXCLUDED.github_username, \
+                 hours = EXCLUDED.hours, \
+                 screenshot_url = EXCLUDED.screenshot_url, \
+                 github_stars = EXCLUDED.github_stars, \
+                 display_name = EXCLUDED.display_name, \
+                 archived_demo = EXCLUDED.archived_demo, \
+                 archived_repo = EXCLUDED.archived_repo, \
+                 deleted_at = NULL"
+            );
+
+            qb.build().execute(pg).await?;
+
+            let upserted = batch_idx * BATCH_SIZE + chunk.len();
+            if upserted % LOG_INTERVAL == 0 || upserted == entries.len() {
+                tracing::info!("fetch_data: upserted {upserted}/{}", entries.len());
+            }
+        }
+
+        let airtable_ids: Vec<&str> = entries.iter().map(|e| e.id.as_str()).collect();
+        let deleted = sqlx::query_scalar::<_, i64>(
+            "UPDATE projects SET deleted_at = NOW() WHERE airtable_id != ALL($1) AND deleted_at IS NULL RETURNING 1"
+        )
+            .bind(&airtable_ids)
+            .fetch_all(pg)
+            .await?;
+
+        if !deleted.is_empty() {
+            tracing::info!("fetch_data: soft-deleted {} missing projects", deleted.len());
+        }
+
+        tracing::info!("fetch_data: done");
+
+        Ok(())
+    })
+}
