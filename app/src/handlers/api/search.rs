@@ -54,8 +54,10 @@ pub async fn search(
     let fts_weight = fts_weight / total_weight;
     let semantic_weight = semantic_weight / total_weight;
 
-    // Get embedding for semantic search
-    let (_, embeddings) = embeddings::get_embeddings(std::slice::from_ref(&params.q)).await?;
+    // Get embedding for semantic search (with caching)
+    let (_, embeddings) =
+        embeddings::get_embeddings_with_cache(std::slice::from_ref(&params.q), &state.redis)
+            .await?;
     let query_embedding = &embeddings[0];
 
     // Run hybrid search query
