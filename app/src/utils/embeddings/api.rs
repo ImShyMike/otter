@@ -90,7 +90,7 @@ pub async fn get_embeddings(texts: &[String]) -> anyhow::Result<(String, Vec<Vec
             .json(&RequestData {
                 input: batch.to_vec(),
                 model: cfg.model.clone(),
-                dimensions: 1024,
+                dimensions: 768,
             })
             .send()
             .await?

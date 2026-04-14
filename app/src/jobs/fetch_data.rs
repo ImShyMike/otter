@@ -168,7 +168,6 @@ pub fn run<'a>(pg: &'a PgPool) -> Pin<Box<dyn Future<Output = anyhow::Result<()>
                  description = EXCLUDED.description, \
                  github_username = EXCLUDED.github_username, \
                  hours = EXCLUDED.hours, \
-                 screenshot_url = EXCLUDED.screenshot_url, \
                  github_stars = EXCLUDED.github_stars, \
                  display_name = EXCLUDED.display_name, \
                  archived_demo = EXCLUDED.archived_demo, \
@@ -182,7 +181,6 @@ pub fn run<'a>(pg: &'a PgPool) -> Pin<Box<dyn Future<Output = anyhow::Result<()>
                  OR projects.description IS DISTINCT FROM EXCLUDED.description \
                  OR projects.github_username IS DISTINCT FROM EXCLUDED.github_username \
                  OR projects.hours IS DISTINCT FROM EXCLUDED.hours \
-                 OR projects.screenshot_url IS DISTINCT FROM EXCLUDED.screenshot_url \
                  OR projects.github_stars IS DISTINCT FROM EXCLUDED.github_stars \
                  OR projects.display_name IS DISTINCT FROM EXCLUDED.display_name \
                  OR projects.archived_demo IS DISTINCT FROM EXCLUDED.archived_demo \
@@ -192,6 +190,28 @@ pub fn run<'a>(pg: &'a PgPool) -> Pin<Box<dyn Future<Output = anyhow::Result<()>
 
             let result = qb.build().execute(pg).await?;
             modified += result.rows_affected();
+        }
+
+        // update screenshot urls separately
+        for chunk in entries.chunks(BATCH_SIZE) {
+            let mut qb: QueryBuilder<Postgres> = QueryBuilder::new(
+                "UPDATE projects SET screenshot_url = tmp.screenshot_url FROM (VALUES ",
+            );
+
+            let mut sep = qb.separated(", ");
+            for entry in chunk {
+                sep.push("(");
+                sep.push_bind_unseparated(&entry.id);
+                sep.push_unseparated(", ");
+                sep.push_bind_unseparated(&entry.screenshot_url);
+                sep.push_unseparated(")");
+            }
+
+            qb.push(") AS tmp(airtable_id, screenshot_url) \
+                WHERE projects.airtable_id = tmp.airtable_id \
+                AND projects.screenshot_url IS DISTINCT FROM tmp.screenshot_url");
+
+            qb.build().execute(pg).await?;
         }
 
         let airtable_ids: Vec<&str> = entries.iter().map(|e| e.id.as_str()).collect();

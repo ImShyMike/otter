@@ -1,7 +1,7 @@
 use fastembed::{EmbeddingModel, InitOptions, TextEmbedding};
 use tracing::debug;
 
-pub const MODEL_NAME: &str = "mixedbread-ai/mxbai-embed-large-v1-quantized";
+pub const MODEL_NAME: &str = "snowflake/snowflake-arctic-embed-m-quantized";
 
 pub fn get_embeddings(texts: &[String]) -> anyhow::Result<Vec<Vec<f32>>> {
     debug!(
@@ -11,7 +11,7 @@ pub fn get_embeddings(texts: &[String]) -> anyhow::Result<Vec<Vec<f32>>> {
     );
 
     let mut model = TextEmbedding::try_new(
-        InitOptions::new(EmbeddingModel::MxbaiEmbedLargeV1Q).with_show_download_progress(true),
+        InitOptions::new(EmbeddingModel::SnowflakeArcticEmbedMQ).with_show_download_progress(true),
     )?;
     let all_embeddings = model.embed(texts, None)?;
 
