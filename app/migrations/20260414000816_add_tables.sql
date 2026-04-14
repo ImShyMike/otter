@@ -18,7 +18,9 @@ CREATE TABLE IF NOT EXISTS projects (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     deleted_at TIMESTAMPTZ,
-    embedding vector(1536)
+    embedding vector(1024),
+    embedding_model TEXT,
+    tsv tsvector
 );
 
 CREATE INDEX ON projects USING hnsw (embedding vector_cosine_ops);
@@ -36,3 +38,28 @@ CREATE TRIGGER set_projects_updated_at
     BEFORE UPDATE ON projects
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
+
+--- auto update the tsv column
+CREATE OR REPLACE FUNCTION projects_tsv_trigger() RETURNS trigger AS $$
+begin
+  new.tsv := to_tsvector('english',
+    coalesce(new.ysws, '') || ' ' ||
+    left(coalesce(new.description, ''), 1000) || ' ' ||
+    coalesce(new.country, '') || ' ' ||
+    coalesce(new.display_name, '') || ' ' ||
+    coalesce(new.github_username, '')
+  );
+  return new;
+end;
+$$ LANGUAGE plpgsql;
+
+
+CREATE TRIGGER tsv_update
+    BEFORE INSERT OR UPDATE ON projects
+    FOR EACH ROW EXECUTE FUNCTION projects_tsv_trigger();
+
+--- full text search index
+CREATE INDEX idx_projects_tsv ON projects USING GIN (tsv);
+
+-- vector index for similarity search
+CREATE INDEX idx_projects_embedding ON projects USING hnsw (embedding vector_cosine_ops);

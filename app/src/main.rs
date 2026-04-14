@@ -3,6 +3,7 @@ mod handlers;
 mod jobs;
 mod routes;
 mod state;
+mod utils;
 
 use std::env;
 
