@@ -1,10 +1,10 @@
 use fastembed::{EmbeddingModel, InitOptions, TextEmbedding};
-use tracing::{debug, info};
+use tracing::debug;
 
 pub const MODEL_NAME: &str = "mixedbread-ai/mxbai-embed-large-v1-quantized";
 
 pub fn get_embeddings(texts: &[String]) -> anyhow::Result<Vec<Vec<f32>>> {
-    info!(
+    debug!(
         count = texts.len(),
         model = MODEL_NAME,
         "generating local embeddings"

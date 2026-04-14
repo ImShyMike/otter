@@ -9,7 +9,6 @@ use crate::utils::embeddings;
 
 const API_URL: &str = "https://ships.hackclub.com/api/v1/ysws_entries?all=true";
 const BATCH_SIZE: usize = 1000;
-const LOG_INTERVAL: usize = 5000;
 const EMBED_BATCH_SIZE: usize = 128;
 
 fn deserialize_timestamp<'de, D>(deserializer: D) -> Result<Option<OffsetDateTime>, D::Error>
@@ -102,7 +101,9 @@ pub fn run<'a>(pg: &'a PgPool) -> Pin<Box<dyn Future<Output = anyhow::Result<()>
 
         tracing::info!("fetch_data: fetched {} entries", entries.len());
 
-        for (batch_idx, chunk) in entries.chunks(BATCH_SIZE).enumerate() {
+        let mut modified: u64 = 0;
+
+        for chunk in entries.chunks(BATCH_SIZE) {
             let mut qb: QueryBuilder<Postgres> = QueryBuilder::new(
                 "INSERT INTO projects (airtable_id, ysws, approved_at, code_url, country, demo_url, description, github_username, hours, screenshot_url, github_stars, display_name, archived_demo, archived_repo) ",
             );
@@ -139,15 +140,25 @@ pub fn run<'a>(pg: &'a PgPool) -> Pin<Box<dyn Future<Output = anyhow::Result<()>
                  display_name = EXCLUDED.display_name, \
                  archived_demo = EXCLUDED.archived_demo, \
                  archived_repo = EXCLUDED.archived_repo, \
-                 deleted_at = NULL",
+                 deleted_at = NULL \
+                 WHERE projects.ysws IS DISTINCT FROM EXCLUDED.ysws \
+                 OR projects.approved_at IS DISTINCT FROM EXCLUDED.approved_at \
+                 OR projects.code_url IS DISTINCT FROM EXCLUDED.code_url \
+                 OR projects.country IS DISTINCT FROM EXCLUDED.country \
+                 OR projects.demo_url IS DISTINCT FROM EXCLUDED.demo_url \
+                 OR projects.description IS DISTINCT FROM EXCLUDED.description \
+                 OR projects.github_username IS DISTINCT FROM EXCLUDED.github_username \
+                 OR projects.hours IS DISTINCT FROM EXCLUDED.hours \
+                 OR projects.screenshot_url IS DISTINCT FROM EXCLUDED.screenshot_url \
+                 OR projects.github_stars IS DISTINCT FROM EXCLUDED.github_stars \
+                 OR projects.display_name IS DISTINCT FROM EXCLUDED.display_name \
+                 OR projects.archived_demo IS DISTINCT FROM EXCLUDED.archived_demo \
+                 OR projects.archived_repo IS DISTINCT FROM EXCLUDED.archived_repo \
+                 OR projects.deleted_at IS NOT NULL",
             );
 
-            qb.build().execute(pg).await?;
-
-            let upserted = batch_idx * BATCH_SIZE + chunk.len();
-            if upserted.is_multiple_of(LOG_INTERVAL) || upserted == entries.len() {
-                tracing::info!("fetch_data: upserted {upserted}/{}", entries.len());
-            }
+            let result = qb.build().execute(pg).await?;
+            modified += result.rows_affected();
         }
 
         let airtable_ids: Vec<&str> = entries.iter().map(|e| e.id.as_str()).collect();
@@ -164,6 +175,11 @@ pub fn run<'a>(pg: &'a PgPool) -> Pin<Box<dyn Future<Output = anyhow::Result<()>
                 deleted.len()
             );
         }
+
+        tracing::info!(
+            "fetch_data: synced {} entries ({modified} modified)",
+            entries.len()
+        );
 
         embed_new_projects(pg).await?;
 
