@@ -1,5 +1,5 @@
 mod api;
-mod local;
+pub mod local;
 
 use std::env;
 
@@ -75,6 +75,7 @@ async fn store_in_cache(
 pub async fn get_embeddings_with_cache(
     texts: &[String],
     redis: &Pool,
+    local_only: bool,
 ) -> anyhow::Result<(String, Vec<Vec<f32>>)> {
     let mut cached_embeddings: Vec<Option<(String, Vec<f32>)>> = vec![None; texts.len()];
     let mut uncached_indices = Vec::new();
@@ -97,43 +98,50 @@ pub async fn get_embeddings_with_cache(
         return Ok((model, embeddings));
     }
 
-    if !api_configured() {
-        debug!("api env vars not set, using local embeddings");
-        return run_local(texts).await;
-    }
-
     let uncached_texts: Vec<String> = uncached_indices.iter().map(|&i| texts[i].clone()).collect();
 
-    match api::get_embeddings(&uncached_texts).await {
-        Ok((model, uncached_embeddings)) => {
-            info!(
-                count = uncached_embeddings.len(),
-                model, "generated embeddings via api"
-            );
-            for (idx, (text, embedding)) in uncached_indices
-                .iter()
-                .zip(uncached_texts.iter().zip(uncached_embeddings.iter()))
-            {
-                let _ = store_in_cache(redis, text, &model, embedding).await;
-                cached_embeddings[*idx] = Some((model.clone(), embedding.clone()));
+    let (model, uncached_embeddings) = if !api_configured() {
+        debug!("api env vars not set, using local embeddings");
+        run_local(&uncached_texts).await?
+    } else if local_only {
+        run_local(&uncached_texts).await?
+    } else {
+        match api::get_embeddings(&uncached_texts).await {
+            Ok(result) => result,
+            Err(e) => {
+                warn!(error = %e, "api embeddings failed, falling back to local");
+                run_local(&uncached_texts).await?
             }
-            let embeddings = cached_embeddings
-                .iter()
-                .map(|c| c.as_ref().unwrap().1.clone())
-                .collect();
-            Ok((model, embeddings))
         }
-        Err(e) => {
-            warn!(error = %e, "api embeddings failed, falling back to local");
-            run_local(texts).await
-        }
+    };
+
+    info!(
+        count = uncached_embeddings.len(),
+        model, "generated embeddings"
+    );
+    for (idx, (text, embedding)) in uncached_indices
+        .iter()
+        .zip(uncached_texts.iter().zip(uncached_embeddings.iter()))
+    {
+        let _ = store_in_cache(redis, text, &model, embedding).await;
+        cached_embeddings[*idx] = Some((model.clone(), embedding.clone()));
     }
+    let embeddings = cached_embeddings
+        .iter()
+        .map(|c| c.as_ref().unwrap().1.clone())
+        .collect();
+    Ok((model, embeddings))
 }
 
 /// Get embeddings (prioritizing API and falling back to a local model)
-pub async fn get_embeddings(texts: &[String]) -> anyhow::Result<(String, Vec<Vec<f32>>)> {
+pub async fn get_embeddings(
+    texts: &[String],
+    local_only: bool,
+) -> anyhow::Result<(String, Vec<Vec<f32>>)> {
     if !api_configured() {
         debug!("api env vars not set, using local embeddings");
+        return run_local(texts).await;
+    } else if local_only {
         return run_local(texts).await;
     }
 
