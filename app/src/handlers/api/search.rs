@@ -3,6 +3,7 @@ use axum::extract::{Query, State};
 use serde::{Deserialize, Serialize};
 
 use crate::error::AppError;
+use crate::handlers::api::local_only;
 use crate::state::AppState;
 use crate::utils::embeddings;
 
@@ -55,9 +56,12 @@ pub async fn search(
     let semantic_weight = semantic_weight / total_weight;
 
     // Get embedding for semantic search (with caching)
-    let (_, embeddings) =
-        embeddings::get_embeddings_with_cache(std::slice::from_ref(&params.q), &state.redis)
-            .await?;
+    let (_, embeddings) = embeddings::get_embeddings_with_cache(
+        std::slice::from_ref(&params.q),
+        &state.redis,
+        local_only(),
+    )
+    .await?;
     let query_embedding = &embeddings[0];
 
     // Run hybrid search query

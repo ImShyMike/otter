@@ -1,4 +1,7 @@
-use axum::{Router, routing::get};
+use axum::{
+    Router,
+    routing::{get, post},
+};
 
 use crate::handlers;
 use crate::state::AppState;
@@ -14,6 +17,6 @@ pub fn build() -> Router<AppState> {
                 .route("/ysws_programs", get(handlers::ysws_programs))
                 .route("/query", get(handlers::query))
                 .route("/image/{id}", get(handlers::image))
-                .route("/image/{id}/r", get(handlers::image_redirect))
+                .route("/image/{id}/r", get(handlers::image_redirect)),
         )
 }
