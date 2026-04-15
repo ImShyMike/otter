@@ -1,5 +1,5 @@
 use axum::Json;
-use axum::extract::{State, Path};
+use axum::extract::{Path, State};
 use axum::response::Redirect;
 use serde::Serialize;
 
@@ -11,7 +11,10 @@ pub struct ApiResponse {
     screenshot_url: Option<String>,
 }
 
-pub async fn image(State(state): State<AppState>, Path(id): Path<String>) -> Result<Json<ApiResponse>, AppError> {
+pub async fn image(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+) -> Result<Json<ApiResponse>, AppError> {
     let row = get_image_url(&state, &id).await?;
 
     Ok(Json(ApiResponse {
@@ -19,13 +22,19 @@ pub async fn image(State(state): State<AppState>, Path(id): Path<String>) -> Res
     }))
 }
 
-pub async fn image_redirect(State(state): State<AppState>, Path(id): Path<String>) -> Result<Redirect, AppError> {
+pub async fn image_redirect(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+) -> Result<Redirect, AppError> {
     let url = get_image_url(&state, &id).await?;
 
     if let Some(url) = url {
         Ok(Redirect::to(&url))
     } else {
-        Err(AppError::not_found(format!("No image found for id: {}", id)))
+        Err(AppError::not_found(format!(
+            "No image found for id: {}",
+            id
+        )))
     }
 }
 
@@ -37,9 +46,12 @@ async fn get_image_url(state: &AppState, id: &str) -> Result<Option<String>, App
             .fetch_one(&state.pg)
             .await
     } else {
-        sqlx::query_scalar!("SELECT screenshot_url FROM projects WHERE airtable_id = $1", id)
-            .fetch_one(&state.pg)
-            .await
+        sqlx::query_scalar!(
+            "SELECT screenshot_url FROM projects WHERE airtable_id = $1",
+            id
+        )
+        .fetch_one(&state.pg)
+        .await
     };
 
     if let Err(sqlx::Error::RowNotFound) = url {
