@@ -11,6 +11,7 @@ const API_URL: &str = "https://ships.hackclub.com/api/v1/ysws_entries?all=true";
 const BATCH_SIZE: usize = 1000;
 const EMBED_BATCH_SIZE: usize = 128;
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(120);
+const MIN_DESCRIPTION_SIZE: i32 = 50;
 
 fn deserialize_timestamp<'de, D>(deserializer: D) -> Result<Option<OffsetDateTime>, D::Error>
 where
@@ -134,6 +135,7 @@ pub fn run<'a>(pg: &'a PgPool) -> Pin<Box<dyn Future<Output = anyhow::Result<()>
 
         tracing::info!("fetched {} entries", entries.len());
 
+        let mut tx = pg.begin().await?;
         let mut modified: u64 = 0;
 
         for chunk in entries.chunks(BATCH_SIZE) {
@@ -188,32 +190,25 @@ pub fn run<'a>(pg: &'a PgPool) -> Pin<Box<dyn Future<Output = anyhow::Result<()>
                  OR projects.deleted_at IS NOT NULL",
             );
 
-            let result = qb.build().execute(pg).await?;
+            let result = qb.build().execute(&mut *tx).await?;
             modified += result.rows_affected();
         }
 
         // update screenshot urls separately
-        for chunk in entries.chunks(BATCH_SIZE) {
-            let mut qb: QueryBuilder<Postgres> = QueryBuilder::new(
-                "UPDATE projects SET screenshot_url = tmp.screenshot_url FROM (VALUES ",
-            );
+        for chunk in entries.chunks(BATCH_SIZE * 5) {
+            let ids: Vec<&str> = chunk.iter().map(|e| e.id.as_str()).collect();
+            let urls: Vec<Option<&str>> =
+                chunk.iter().map(|e| e.screenshot_url.as_deref()).collect();
 
-            let mut sep = qb.separated(", ");
-            for entry in chunk {
-                sep.push("(");
-                sep.push_bind_unseparated(&entry.id);
-                sep.push_unseparated(", ");
-                sep.push_bind_unseparated(&entry.screenshot_url);
-                sep.push_unseparated(")");
-            }
-
-            qb.push(
-                ") AS tmp(airtable_id, screenshot_url) \
-                WHERE projects.airtable_id = tmp.airtable_id \
-                AND projects.screenshot_url IS DISTINCT FROM tmp.screenshot_url",
-            );
-
-            qb.build().execute(pg).await?;
+            sqlx::query(
+                "UPDATE projects SET screenshot_url = data.screenshot_url \
+                 FROM UNNEST($1::text[], $2::text[]) AS data(airtable_id, screenshot_url) \
+                 WHERE projects.airtable_id = data.airtable_id",
+            )
+            .bind(&ids)
+            .bind(&urls)
+            .execute(&mut *tx)
+            .await?;
         }
 
         let airtable_ids: Vec<&str> = entries.iter().map(|e| e.id.as_str()).collect();
@@ -221,12 +216,14 @@ pub fn run<'a>(pg: &'a PgPool) -> Pin<Box<dyn Future<Output = anyhow::Result<()>
             "UPDATE projects SET deleted_at = NOW() WHERE airtable_id != ALL($1) AND deleted_at IS NULL RETURNING 1 as count",
             &airtable_ids as &[&str]
         )
-            .fetch_all(pg)
+            .fetch_all(&mut *tx)
             .await?;
 
         if !deleted.is_empty() {
             tracing::info!("soft-deleted {} missing projects", deleted.len());
         }
+
+        tx.commit().await?;
 
         tracing::info!("synced {} entries ({modified} modified)", entries.len());
 
@@ -240,7 +237,8 @@ pub fn run<'a>(pg: &'a PgPool) -> Pin<Box<dyn Future<Output = anyhow::Result<()>
 
 async fn embed_new_projects(pg: &PgPool) -> anyhow::Result<()> {
     let rows = sqlx::query!(
-        "SELECT id, display_name, description FROM projects WHERE embedding IS NULL AND deleted_at IS NULL AND description IS NOT NULL AND LENGTH(description) > 50"
+        "SELECT id, display_name, description FROM projects WHERE embedding IS NULL AND deleted_at IS NULL AND description IS NOT NULL AND LENGTH(description) >= $1",
+        MIN_DESCRIPTION_SIZE
     )
     .fetch_all(pg)
     .await?;
@@ -266,7 +264,7 @@ async fn embed_new_projects(pg: &PgPool) -> anyhow::Result<()> {
             })
             .collect();
 
-        let (model_name, vectors) = embeddings::get_embeddings(&texts).await?;
+        let (model_name, vectors) = embeddings::get_embeddings(&texts, false).await?;
 
         for (row, vec) in chunk.iter().zip(vectors) {
             sqlx::query("UPDATE projects SET embedding = $1, embedding_model = $2 WHERE id = $3")
