@@ -29,6 +29,7 @@ async fn main() -> anyhow::Result<()> {
 
     let database_url = env::var("DATABASE_URL").unwrap_or(DEFAULT_DATABASE_URL.to_string());
     let redis_url = env::var("REDIS_URL").unwrap_or(DEFAULT_REDIS_URL.to_string());
+    let host = env::var("HOST").unwrap_or(DEFAULT_HOST.to_string());
 
     let pg = PgPool::connect(&database_url).await?;
 
@@ -49,8 +50,8 @@ async fn main() -> anyhow::Result<()> {
     let state = AppState { pg, redis };
     let app = routes::build().with_state(state);
 
-    let listener = tokio::net::TcpListener::bind(DEFAULT_HOST).await?;
-    tracing::info!("listening on http://{DEFAULT_HOST}");
+    let listener = tokio::net::TcpListener::bind(&host).await?;
+    tracing::info!("listening on http://{host}");
     axum::serve(listener, app).await?;
 
     Ok(())
