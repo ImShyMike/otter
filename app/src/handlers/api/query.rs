@@ -40,7 +40,7 @@ pub struct SearchResult {
     description: Option<String>,
     github_username: Option<String>,
     hours: Option<i32>,
-    screenshot_url: Option<String>,
+    has_screenshot: bool,
     github_stars: i32,
     display_name: Option<String>,
     archived_demo: Option<String>,
@@ -67,7 +67,7 @@ pub async fn query(
     }
 
     let mut query_builder = QueryBuilder::new(
-        "SELECT id, airtable_id, ysws, approved_at::text AS approved_at, code_url, country, demo_url, description, github_username, hours, screenshot_url, github_stars, display_name, archived_demo, archived_repo FROM projects WHERE deleted_at IS NULL",
+        "SELECT id, airtable_id, ysws, approved_at::text AS approved_at, code_url, country, demo_url, description, github_username, hours, (screenshot_url IS NOT NULL) AS has_screenshot, github_stars, display_name, archived_demo, archived_repo FROM projects WHERE deleted_at IS NULL",
     );
 
     if let Some(min_hours) = params.min_hours {
