@@ -4,6 +4,7 @@ use pgvector::Vector;
 use serde::Deserialize;
 use sqlx::{PgPool, Postgres, QueryBuilder};
 use time::OffsetDateTime;
+use tracing::{error, info, warn};
 
 use crate::utils::embeddings;
 
@@ -87,7 +88,7 @@ struct YswsEntry {
 
 pub fn run<'a>(pg: &'a PgPool) -> Pin<Box<dyn Future<Output = anyhow::Result<()>> + Send + 'a>> {
     Box::pin(async move {
-        tracing::info!("starting");
+        info!("starting");
 
         let http_client = reqwest::Client::builder()
             .timeout(REQUEST_TIMEOUT)
@@ -112,7 +113,7 @@ pub fn run<'a>(pg: &'a PgPool) -> Pin<Box<dyn Future<Output = anyhow::Result<()>
                     break;
                 }
                 Err(e) if attempt < 3 => {
-                    tracing::warn!(attempt, "fetch failed, retrying: {e}");
+                    warn!(attempt, "fetch failed, retrying: {e}");
                     tokio::time::sleep(Duration::from_secs(2u64.pow(attempt))).await;
                     last_err = Some(e);
                 }
@@ -126,14 +127,14 @@ pub fn run<'a>(pg: &'a PgPool) -> Pin<Box<dyn Future<Output = anyhow::Result<()>
             None => return Err(last_err.unwrap().into()),
         };
 
-        tracing::info!("fetched data from API, deserializing");
+        info!("fetched data from API, deserializing");
 
         let entries: Vec<YswsEntry> = serde_json::from_str(&body).map_err(|e| {
-            tracing::error!("deserialization failed at byte {}: {e}", e.column());
+            error!("deserialization failed at byte {}: {e}", e.column());
             e
         })?;
 
-        tracing::info!("fetched {} entries", entries.len());
+        info!("fetched {} entries", entries.len());
 
         let mut tx = pg.begin().await?;
         let mut modified: u64 = 0;
@@ -194,22 +195,29 @@ pub fn run<'a>(pg: &'a PgPool) -> Pin<Box<dyn Future<Output = anyhow::Result<()>
             modified += result.rows_affected();
         }
 
+        info!("upserted {} entries ({} modified)", entries.len(), modified);
+
         // update screenshot urls separately
-        for chunk in entries.chunks(BATCH_SIZE * 5) {
+        let mut urls_updated = 0;
+        for chunk in entries.chunks(BATCH_SIZE) {
             let ids: Vec<&str> = chunk.iter().map(|e| e.id.as_str()).collect();
             let urls: Vec<Option<&str>> =
                 chunk.iter().map(|e| e.screenshot_url.as_deref()).collect();
 
-            sqlx::query(
+            let result = sqlx::query(
                 "UPDATE projects SET screenshot_url = data.screenshot_url \
                  FROM UNNEST($1::text[], $2::text[]) AS data(airtable_id, screenshot_url) \
-                 WHERE projects.airtable_id = data.airtable_id",
+                 WHERE projects.airtable_id = data.airtable_id \
+                 AND projects.screenshot_url IS DISTINCT FROM data.screenshot_url",
             )
             .bind(&ids)
             .bind(&urls)
             .execute(&mut *tx)
             .await?;
+            urls_updated += result.rows_affected();
         }
+
+        info!("updated screenshot URLs for {} entries", urls_updated);
 
         let airtable_ids: Vec<&str> = entries.iter().map(|e| e.id.as_str()).collect();
         let deleted = sqlx::query_scalar!(
@@ -220,16 +228,14 @@ pub fn run<'a>(pg: &'a PgPool) -> Pin<Box<dyn Future<Output = anyhow::Result<()>
             .await?;
 
         if !deleted.is_empty() {
-            tracing::info!("soft-deleted {} missing projects", deleted.len());
+            info!("soft-deleted {} missing projects", deleted.len());
         }
 
         tx.commit().await?;
 
-        tracing::info!("synced {} entries ({modified} modified)", entries.len());
-
         embed_new_projects(pg).await?;
 
-        tracing::info!("done");
+        info!("done");
 
         Ok(())
     })
@@ -244,11 +250,11 @@ async fn embed_new_projects(pg: &PgPool) -> anyhow::Result<()> {
     .await?;
 
     if rows.is_empty() {
-        tracing::info!("no new projects to embed");
+        info!("no new projects to embed");
         return Ok(());
     }
 
-    tracing::info!("embedding {} new projects", rows.len());
+    info!("embedding {} new projects", rows.len());
 
     for (batch_idx, chunk) in rows.chunks(EMBED_BATCH_SIZE).enumerate() {
         let texts: Vec<String> = chunk
@@ -276,9 +282,9 @@ async fn embed_new_projects(pg: &PgPool) -> anyhow::Result<()> {
         }
 
         let done = batch_idx * EMBED_BATCH_SIZE + chunk.len();
-        tracing::info!("embedded {done}/{}", rows.len());
+        info!("embedded {done}/{}", rows.len());
     }
 
-    tracing::info!("embedding complete");
+    info!("embedding complete");
     Ok(())
 }
