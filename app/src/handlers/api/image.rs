@@ -22,7 +22,11 @@ pub async fn image(State(state): State<AppState>, Path(id): Path<String>) -> Res
 pub async fn image_redirect(State(state): State<AppState>, Path(id): Path<String>) -> Result<Redirect, AppError> {
     let url = get_image_url(&state, &id).await?;
 
-    Ok(Redirect::to(url.as_deref().unwrap_or("/")))
+    if let Some(url) = url {
+        Ok(Redirect::to(&url))
+    } else {
+        Err(AppError::not_found(format!("No image found for id: {}", id)))
+    }
 }
 
 async fn get_image_url(state: &AppState, id: &str) -> Result<Option<String>, AppError> {
@@ -31,12 +35,18 @@ async fn get_image_url(state: &AppState, id: &str) -> Result<Option<String>, App
     let url = if let Some(int_id) = int_id {
         sqlx::query_scalar!("SELECT screenshot_url FROM projects WHERE id = $1", int_id)
             .fetch_one(&state.pg)
-            .await?
+            .await
     } else {
         sqlx::query_scalar!("SELECT screenshot_url FROM projects WHERE airtable_id = $1", id)
             .fetch_one(&state.pg)
-            .await?
+            .await
     };
 
-    Ok(url)
+    if let Err(sqlx::Error::RowNotFound) = url {
+        return Ok(None);
+    } else if let Err(e) = url {
+        return Err(e.into());
+    }
+
+    Ok(url?)
 }
