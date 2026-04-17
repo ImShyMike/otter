@@ -9,6 +9,10 @@ axum = { version = "0.8.9", features = ["macros"] }
 deadpool-redis = "0.23.0"
 dotenvy = "0.15.7"
 fastembed = "5.13.2"
+opentelemetry = { version = "0.31", features = ["trace", "logs", "metrics"] }
+opentelemetry-appender-tracing = "0.31"
+opentelemetry-otlp = { version = "0.31", features = ["trace", "logs", "metrics", "http-proto"] }
+opentelemetry_sdk = { version = "0.31", features = ["trace", "logs", "metrics", "rt-tokio"] }
 pgvector = { version = "0.4.1", features = ["sqlx"] }
 redis = { version = "1.2.0", features = ["tokio-comp"] }
 reqwest = { version = "0.13.2", features = ["json", "gzip"] }
@@ -18,8 +22,10 @@ sqlx = { version = "0.8.6", features = ["macros", "postgres", "runtime-tokio", "
 time = "0.3.47"
 tokio = { version = "1.52.1", features = ["full"] }
 tokio-cron-scheduler = "0.15.1"
+tower-http = { version = "0.6", features = ["trace"] }
 tracing = "0.1.44"
-tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
+tracing-opentelemetry = "0.32"
+tracing-subscriber = { version = "0.3.23", features = ["env-filter", "registry"] }
 utoipa = { version = "5.4.0", features = ["macros"] }
 utoipa-axum = "0.2.0"
 utoipa-scalar = { version = "0.3.0", features = ["axum"] }

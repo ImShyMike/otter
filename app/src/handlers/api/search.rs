@@ -1,6 +1,7 @@
 use axum::Json;
 use axum::extract::{Query, State};
 use serde::{Deserialize, Serialize};
+use tracing::instrument;
 use utoipa::{IntoParams, ToSchema};
 
 use crate::error::AppError;
@@ -8,7 +9,7 @@ use crate::handlers::api::local_only;
 use crate::state::AppState;
 use crate::utils::embeddings;
 
-#[derive(Deserialize, IntoParams)]
+#[derive(Debug, Deserialize, IntoParams)]
 pub struct SearchQuery {
     q: String,
     #[serde(default)]
@@ -52,6 +53,7 @@ struct RawResult {
         (status = 400, description = "Bad request"),
     )
 )]
+#[instrument(skip(state), fields(q = %params.q, limit = params.limit))]
 pub async fn search(
     State(state): State<AppState>,
     Query(params): Query<SearchQuery>,

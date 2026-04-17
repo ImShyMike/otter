@@ -4,7 +4,7 @@ use pgvector::Vector;
 use serde::Deserialize;
 use sqlx::{PgPool, Postgres, QueryBuilder};
 use time::OffsetDateTime;
-use tracing::{error, info};
+use tracing::{error, info, instrument};
 
 use crate::utils::serde::{
     deserialize_null_float, deserialize_null_int, deserialize_null_string, deserialize_timestamp,
@@ -91,6 +91,7 @@ pub fn run<'a>(pg: &'a PgPool) -> Pin<Box<dyn Future<Output = anyhow::Result<()>
     })
 }
 
+#[instrument(skip_all)]
 async fn update_data(http_client: &reqwest::Client, pg: &PgPool) -> anyhow::Result<()> {
     let body = http::fetch_with_retries(http_client, SHIPS_API_URL, 3)
         .await?
@@ -207,6 +208,7 @@ async fn update_data(http_client: &reqwest::Client, pg: &PgPool) -> anyhow::Resu
     Ok(())
 }
 
+#[instrument(skip_all)]
 async fn update_true_hours(http_client: &reqwest::Client, pg: &PgPool) -> anyhow::Result<()> {
     info!("updating true hours using airbridge");
 
@@ -250,6 +252,7 @@ async fn update_true_hours(http_client: &reqwest::Client, pg: &PgPool) -> anyhow
     Ok(())
 }
 
+#[instrument(skip_all)]
 async fn embed_new_projects(pg: &PgPool) -> anyhow::Result<()> {
     let rows: Vec<EmbedRow> = sqlx::query_as(
         "SELECT p.id, p.display_name, p.description FROM projects p \

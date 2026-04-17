@@ -1,6 +1,7 @@
 use axum::Json;
 use axum::extract::State;
 use serde::Serialize;
+use tracing::instrument;
 use utoipa::ToSchema;
 
 use crate::error::AppError;
@@ -16,6 +17,7 @@ pub struct YSWSProgramsResponse(Vec<String>);
         (status = 200, description = "List of YSWS program names", body = Vec<String>),
     )
 )]
+#[instrument(skip(state))]
 pub async fn ysws_programs(
     State(state): State<AppState>,
 ) -> Result<Json<YSWSProgramsResponse>, AppError> {

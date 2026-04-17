@@ -2,6 +2,7 @@ use axum::Json;
 use axum::extract::{Path, State};
 use axum::response::Redirect;
 use serde::Serialize;
+use tracing::instrument;
 use utoipa::ToSchema;
 
 use crate::error::AppError;
@@ -23,6 +24,7 @@ pub struct ImageResponse {
         (status = 404, description = "Not found"),
     )
 )]
+#[instrument(skip(state))]
 pub async fn image(
     State(state): State<AppState>,
     Path(id): Path<String>,
@@ -45,6 +47,7 @@ pub async fn image(
         (status = 404, description = "Not found"),
     )
 )]
+#[instrument(skip(state))]
 pub async fn image_redirect(
     State(state): State<AppState>,
     Path(id): Path<String>,
