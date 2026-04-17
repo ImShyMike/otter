@@ -10,7 +10,12 @@ pub async fn fetch_with_retries(
 ) -> reqwest::Result<reqwest::Response> {
     let mut last_err = None;
     for attempt in 1..=retries {
-        match client.get(url).send().await?.error_for_status() {
+        match client
+            .get(url)
+            .send()
+            .await
+            .and_then(|r| r.error_for_status())
+        {
             Ok(resp) => return Ok(resp),
             Err(e) if attempt < retries => {
                 warn!(attempt, "fetch failed, retrying: {e}");

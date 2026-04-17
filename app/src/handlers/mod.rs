@@ -1,8 +1,4 @@
-mod api;
+pub mod api;
 mod health;
 
-pub use api::image::{image, image_redirect};
-pub use api::query::query;
-pub use api::search::search;
-pub use api::ysws_programs::ysws_programs;
 pub use health::health;
