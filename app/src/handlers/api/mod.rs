@@ -1,7 +1,7 @@
 pub mod image;
 pub mod query;
 pub mod search;
-pub mod ysws_programs;
+pub mod ysws;
 
 use utoipa_axum::router::OpenApiRouter;
 use utoipa_axum::routes;
@@ -14,7 +14,7 @@ use tracing::warn;
 pub fn router() -> OpenApiRouter<AppState> {
     OpenApiRouter::new()
         .routes(routes!(search::search))
-        .routes(routes!(ysws_programs::ysws_programs))
+        .routes(routes!(ysws::ysws_program_list))
         .routes(routes!(query::query))
         .routes(routes!(image::image))
         .routes(routes!(image::image_redirect))
