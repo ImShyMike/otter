@@ -147,7 +147,7 @@ pub async fn get_embeddings(
 
     match api::get_embeddings(texts).await {
         Ok((model, embeddings)) => {
-            info!(
+            debug!(
                 count = embeddings.len(),
                 model, "generated embeddings via api"
             );
@@ -163,7 +163,7 @@ pub async fn get_embeddings(
 async fn run_local(texts: &[String]) -> anyhow::Result<(String, Vec<Vec<f32>>)> {
     let texts = texts.to_vec();
     let embeddings = tokio::task::spawn_blocking(move || local::get_embeddings(&texts)).await??;
-    info!(
+    debug!(
         count = embeddings.len(),
         model = local::MODEL_NAME,
         "generated embeddings via local"
