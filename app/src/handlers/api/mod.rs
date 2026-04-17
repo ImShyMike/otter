@@ -3,9 +3,22 @@ pub mod query;
 pub mod search;
 pub mod ysws_programs;
 
+use utoipa_axum::router::OpenApiRouter;
+use utoipa_axum::routes;
+
+use crate::state::AppState;
 use crate::utils::embeddings;
 use std::sync::OnceLock;
 use tracing::warn;
+
+pub fn router() -> OpenApiRouter<AppState> {
+    OpenApiRouter::new()
+        .routes(routes!(search::search))
+        .routes(routes!(ysws_programs::ysws_programs))
+        .routes(routes!(query::query))
+        .routes(routes!(image::image))
+        .routes(routes!(image::image_redirect))
+}
 
 static LOCAL_ONLY: OnceLock<bool> = OnceLock::new();
 

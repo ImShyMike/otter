@@ -1,13 +1,14 @@
 use axum::Json;
 use axum::extract::{Query, State};
 use serde::{Deserialize, Serialize};
+use utoipa::{IntoParams, ToSchema};
 
 use crate::error::AppError;
 use crate::handlers::api::local_only;
 use crate::state::AppState;
 use crate::utils::embeddings;
 
-#[derive(Deserialize)]
+#[derive(Deserialize, IntoParams)]
 pub struct SearchQuery {
     q: String,
     #[serde(default)]
@@ -18,7 +19,7 @@ pub struct SearchQuery {
     semantic_weight: Option<f32>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, ToSchema)]
 pub struct SearchResult {
     id: i32,
     display_name: Option<String>,
@@ -42,6 +43,15 @@ struct RawResult {
     score: f64,
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/search",
+    params(SearchQuery),
+    responses(
+        (status = 200, description = "Search results", body = Vec<SearchResult>),
+        (status = 400, description = "Bad request"),
+    )
+)]
 pub async fn search(
     State(state): State<AppState>,
     Query(params): Query<SearchQuery>,

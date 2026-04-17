@@ -2,26 +2,49 @@ use axum::Json;
 use axum::extract::{Path, State};
 use axum::response::Redirect;
 use serde::Serialize;
+use utoipa::ToSchema;
 
 use crate::error::AppError;
 use crate::state::AppState;
 
-#[derive(Serialize)]
-pub struct ApiResponse {
+#[derive(Serialize, ToSchema)]
+pub struct ImageResponse {
     screenshot_url: Option<String>,
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/image/{id}",
+    params(
+        ("id" = String, Path, description = "Project ID or Airtable ID"),
+    ),
+    responses(
+        (status = 200, description = "Image URL", body = ImageResponse),
+        (status = 404, description = "Not found"),
+    )
+)]
 pub async fn image(
     State(state): State<AppState>,
     Path(id): Path<String>,
-) -> Result<Json<ApiResponse>, AppError> {
+) -> Result<Json<ImageResponse>, AppError> {
     let row = get_image_url(&state, &id).await?;
 
-    Ok(Json(ApiResponse {
+    Ok(Json(ImageResponse {
         screenshot_url: row.as_deref().map(|s| s.to_string()),
     }))
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/image/{id}/r",
+    params(
+        ("id" = String, Path, description = "Project ID or Airtable ID"),
+    ),
+    responses(
+        (status = 302, description = "Redirect to image URL"),
+        (status = 404, description = "Not found"),
+    )
+)]
 pub async fn image_redirect(
     State(state): State<AppState>,
     Path(id): Path<String>,

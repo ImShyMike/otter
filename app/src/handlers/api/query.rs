@@ -2,6 +2,7 @@ use axum::Json;
 use axum::extract::State;
 use serde::{Deserialize, Serialize};
 use sqlx::QueryBuilder;
+use utoipa::ToSchema;
 
 use crate::error::AppError;
 use crate::state::AppState;
@@ -21,81 +22,54 @@ enum FieldKind {
     Bool,
 }
 
-fn lookup_field(name: &str) -> Option<FieldDef> {
-    match name {
-        "airtable_id" => Some(FieldDef {
-            column: "airtable_id",
-            kind: FieldKind::Text,
-        }),
-        "ysws" => Some(FieldDef {
-            column: "ysws",
-            kind: FieldKind::Text,
-        }),
-        "country" => Some(FieldDef {
-            column: "country",
-            kind: FieldKind::Text,
-        }),
-        "description" => Some(FieldDef {
-            column: "description",
-            kind: FieldKind::Text,
-        }),
-        "github_username" => Some(FieldDef {
-            column: "github_username",
-            kind: FieldKind::Text,
-        }),
-        "display_name" => Some(FieldDef {
-            column: "display_name",
-            kind: FieldKind::Text,
-        }),
-        "code_url" => Some(FieldDef {
-            column: "code_url",
-            kind: FieldKind::Text,
-        }),
-        "demo_url" => Some(FieldDef {
-            column: "demo_url",
-            kind: FieldKind::Text,
-        }),
-        "archived_demo" => Some(FieldDef {
-            column: "archived_demo",
-            kind: FieldKind::Text,
-        }),
-        "archived_repo" => Some(FieldDef {
-            column: "archived_repo",
-            kind: FieldKind::Text,
-        }),
-        "hours" => Some(FieldDef {
-            column: "hours",
-            kind: FieldKind::Int,
-        }),
-        "true_hours" => Some(FieldDef {
-            column: "true_hours",
-            kind: FieldKind::Float,
-        }),
-        "github_stars" => Some(FieldDef {
-            column: "github_stars",
-            kind: FieldKind::Int,
-        }),
-        "approved_at" => Some(FieldDef {
-            column: "approved_at",
-            kind: FieldKind::Timestamp,
-        }),
-        "created_at" => Some(FieldDef {
-            column: "created_at",
-            kind: FieldKind::Timestamp,
-        }),
-        "updated_at" => Some(FieldDef {
-            column: "updated_at",
-            kind: FieldKind::Timestamp,
-        }),
-        "has_screenshot" => Some(FieldDef {
-            column: "screenshot_url",
-            kind: FieldKind::Bool,
-        }),
-        _ => None,
+#[derive(Debug, Clone, Copy, Deserialize, Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+enum Field {
+    AirtableId,
+    Ysws,
+    Country,
+    Description,
+    GithubUsername,
+    DisplayName,
+    CodeUrl,
+    DemoUrl,
+    ArchivedDemo,
+    ArchivedRepo,
+    Hours,
+    TrueHours,
+    GithubStars,
+    ApprovedAt,
+    CreatedAt,
+    UpdatedAt,
+    HasScreenshot,
+}
+
+impl Field {
+    #[rustfmt::skip]
+    fn def(self) -> FieldDef {
+        match self {
+            Field::AirtableId => FieldDef { column: "airtable_id", kind: FieldKind::Text },
+            Field::Ysws => FieldDef { column: "ysws", kind: FieldKind::Text },
+            Field::Country => FieldDef { column: "country", kind: FieldKind::Text },
+            Field::Description => FieldDef { column: "description", kind: FieldKind::Text },
+            Field::GithubUsername => FieldDef { column: "github_username", kind: FieldKind::Text },
+            Field::DisplayName => FieldDef { column: "display_name", kind: FieldKind::Text },
+            Field::CodeUrl => FieldDef { column: "code_url", kind: FieldKind::Text },
+            Field::DemoUrl => FieldDef { column: "demo_url", kind: FieldKind::Text },
+            Field::ArchivedDemo => FieldDef { column: "archived_demo", kind: FieldKind::Text },
+            Field::ArchivedRepo => FieldDef { column: "archived_repo", kind: FieldKind::Text },
+            Field::Hours => FieldDef { column: "hours", kind: FieldKind::Int },
+            Field::TrueHours => FieldDef { column: "true_hours", kind: FieldKind::Float },
+            Field::GithubStars => FieldDef { column: "github_stars", kind: FieldKind::Int },
+            Field::ApprovedAt => FieldDef { column: "approved_at", kind: FieldKind::Timestamp },
+            Field::CreatedAt => FieldDef { column: "created_at", kind: FieldKind::Timestamp },
+            Field::UpdatedAt => FieldDef { column: "updated_at", kind: FieldKind::Timestamp },
+            Field::HasScreenshot => FieldDef { column: "screenshot_url", kind: FieldKind::Bool },
+        }
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 enum FilterOp {
     Eq,
@@ -134,27 +108,27 @@ impl FilterOp {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema)]
 pub struct Filter {
-    field: String,
+    field: Field,
     op: FilterOp,
     #[serde(default)]
     value: Option<serde_json::Value>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema)]
 pub struct QueryRequest {
     #[serde(default)]
     filters: Vec<Filter>,
     #[serde(default)]
-    order_by: Option<String>,
+    order_by: Option<Field>,
     #[serde(default)]
     sort_direction: Option<String>,
     #[serde(default)]
     limit: Option<i64>,
 }
 
-#[derive(Serialize, sqlx::FromRow)]
+#[derive(Serialize, sqlx::FromRow, ToSchema)]
 pub struct QueryResult {
     id: i32,
     airtable_id: String,
@@ -174,10 +148,22 @@ pub struct QueryResult {
     archived_repo: Option<String>,
 }
 
+#[derive(Serialize, ToSchema)]
+pub struct QueryResults(Vec<QueryResult>);
+
+#[utoipa::path(
+    post,
+    path = "/api/query",
+    request_body = QueryRequest,
+    responses(
+        (status = 200, description = "Query results", body = QueryResults),
+        (status = 400, description = "Bad request"),
+    )
+)]
 pub async fn query(
     State(state): State<AppState>,
     Json(body): Json<QueryRequest>,
-) -> Result<Json<Vec<QueryResult>>, AppError> {
+) -> Result<Json<QueryResults>, AppError> {
     let limit = body.limit.unwrap_or(10).min(100);
 
     let mut qb: QueryBuilder<sqlx::Postgres> = QueryBuilder::new(
@@ -188,19 +174,18 @@ pub async fn query(
     );
 
     for filter in &body.filters {
-        let def = lookup_field(&filter.field)
-            .ok_or_else(|| AppError::bad_request(format!("Unknown field: {}", filter.field)))?;
+        let def = filter.field.def();
 
         if !filter.op.allowed_for(def.kind) {
             return Err(AppError::bad_request(format!(
-                "Operator {:?} is not valid for field '{}'",
+                "Operator {:?} is not valid for field '{:?}'",
                 filter.op, filter.field
             )));
         }
 
         if filter.op.requires_value() && filter.value.is_none() {
             return Err(AppError::bad_request(format!(
-                "Operator {:?} requires a value for field '{}'",
+                "Operator {:?} requires a value for field '{:?}'",
                 filter.op, filter.field
             )));
         }
@@ -231,7 +216,7 @@ pub async fn query(
                 }
                 _ => {
                     return Err(AppError::bad_request(format!(
-                        "Operator {:?} is not valid for boolean field '{}'",
+                        "Operator {:?} is not valid for boolean field '{:?}'",
                         filter.op, filter.field
                     )));
                 }
@@ -386,12 +371,8 @@ pub async fn query(
         }
     }
 
-    let order_column = match body.order_by.as_deref() {
-        Some(field) => {
-            let def = lookup_field(field)
-                .ok_or_else(|| AppError::bad_request(format!("Unknown order_by field: {field}")))?;
-            def.column
-        }
+    let order_column = match body.order_by {
+        Some(field) => field.def().column,
         None => "approved_at",
     };
     let order_dir = match body.sort_direction.as_deref() {
@@ -410,7 +391,7 @@ pub async fn query(
         .fetch_all(&state.pg)
         .await?;
 
-    Ok(Json(results))
+    Ok(Json(QueryResults(results)))
 }
 
 fn parse_text(value: &Option<serde_json::Value>) -> Result<String, AppError> {
