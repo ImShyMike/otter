@@ -14,7 +14,7 @@ pub struct ImageResponse {
 
 #[utoipa::path(
     get,
-    path = "/api/image/{id}",
+    path = "/image/{id}",
     params(
         ("id" = String, Path, description = "Project ID or Airtable ID"),
     ),
@@ -36,7 +36,7 @@ pub async fn image(
 
 #[utoipa::path(
     get,
-    path = "/api/image/{id}/r",
+    path = "/image/{id}/r",
     params(
         ("id" = String, Path, description = "Project ID or Airtable ID"),
     ),

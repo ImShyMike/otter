@@ -11,7 +11,7 @@ pub struct YSWSProgramsResponse(Vec<String>);
 
 #[utoipa::path(
     get,
-    path = "/api/ysws_programs",
+    path = "/ysws_programs",
     responses(
         (status = 200, description = "List of YSWS program names", body = Vec<String>),
     )
