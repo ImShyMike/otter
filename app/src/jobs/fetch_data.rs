@@ -195,8 +195,6 @@ pub fn run<'a>(pg: &'a PgPool) -> Pin<Box<dyn Future<Output = anyhow::Result<()>
             modified += result.rows_affected();
         }
 
-        info!("upserted {} entries ({} modified)", entries.len(), modified);
-
         // update screenshot urls separately
         let mut urls_updated = 0;
         for chunk in entries.chunks(BATCH_SIZE) {
@@ -217,6 +215,7 @@ pub fn run<'a>(pg: &'a PgPool) -> Pin<Box<dyn Future<Output = anyhow::Result<()>
             urls_updated += result.rows_affected();
         }
 
+        info!("upserted {} entries ({} modified)", entries.len(), modified);
         info!("updated screenshot URLs for {} entries", urls_updated);
 
         let airtable_ids: Vec<&str> = entries.iter().map(|e| e.id.as_str()).collect();
@@ -241,11 +240,21 @@ pub fn run<'a>(pg: &'a PgPool) -> Pin<Box<dyn Future<Output = anyhow::Result<()>
     })
 }
 
+#[derive(sqlx::FromRow)]
+struct EmbedRow {
+    id: i32,
+    display_name: Option<String>,
+    description: Option<String>,
+}
+
 async fn embed_new_projects(pg: &PgPool) -> anyhow::Result<()> {
-    let rows = sqlx::query!(
-        "SELECT id, display_name, description FROM projects WHERE embedding IS NULL AND deleted_at IS NULL AND description IS NOT NULL AND LENGTH(description) >= $1",
-        MIN_DESCRIPTION_SIZE
+    let rows: Vec<EmbedRow> = sqlx::query_as(
+        "SELECT p.id, p.display_name, p.description FROM projects p \
+         LEFT JOIN project_embeddings pe ON p.id = pe.project_id \
+         WHERE pe.project_id IS NULL AND p.deleted_at IS NULL \
+         AND p.description IS NOT NULL AND LENGTH(p.description) >= $1",
     )
+    .bind(MIN_DESCRIPTION_SIZE)
     .fetch_all(pg)
     .await?;
 
@@ -273,12 +282,16 @@ async fn embed_new_projects(pg: &PgPool) -> anyhow::Result<()> {
         let (model_name, vectors) = embeddings::get_embeddings(&texts, false).await?;
 
         for (row, vec) in chunk.iter().zip(vectors) {
-            sqlx::query("UPDATE projects SET embedding = $1, embedding_model = $2 WHERE id = $3")
-                .bind(Vector::from(vec))
-                .bind(&model_name)
-                .bind(row.id)
-                .execute(pg)
-                .await?;
+            sqlx::query(
+                "INSERT INTO project_embeddings (project_id, embedding, model) \
+                 VALUES ($1, $2, $3) \
+                 ON CONFLICT (project_id) DO UPDATE SET embedding = $2, model = $3, updated_at = NOW()",
+            )
+            .bind(row.id)
+            .bind(Vector::from(vec))
+            .bind(&model_name)
+            .execute(pg)
+            .await?;
         }
 
         let done = batch_idx * EMBED_BATCH_SIZE + chunk.len();
