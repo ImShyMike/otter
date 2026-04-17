@@ -16,6 +16,7 @@ struct FieldDef {
 enum FieldKind {
     Text,
     Int,
+    Float,
     Timestamp,
     Bool,
 }
@@ -65,6 +66,10 @@ fn lookup_field(name: &str) -> Option<FieldDef> {
         "hours" => Some(FieldDef {
             column: "hours",
             kind: FieldKind::Int,
+        }),
+        "true_hours" => Some(FieldDef {
+            column: "true_hours",
+            kind: FieldKind::Float,
         }),
         "github_stars" => Some(FieldDef {
             column: "github_stars",
@@ -116,7 +121,10 @@ impl FilterOp {
         match self {
             FilterOp::Eq | FilterOp::Neq | FilterOp::IsNull | FilterOp::IsNotNull => true,
             FilterOp::Gt | FilterOp::Gte | FilterOp::Lt | FilterOp::Lte => {
-                matches!(kind, FieldKind::Int | FieldKind::Timestamp)
+                matches!(
+                    kind,
+                    FieldKind::Int | FieldKind::Timestamp | FieldKind::Float
+                )
             }
             FilterOp::Contains
             | FilterOp::NotContains
@@ -158,6 +166,7 @@ pub struct QueryResult {
     description: Option<String>,
     github_username: Option<String>,
     hours: Option<i32>,
+    true_hours: Option<f64>,
     has_screenshot: bool,
     github_stars: i32,
     display_name: Option<String>,
@@ -173,7 +182,7 @@ pub async fn query(
 
     let mut qb: QueryBuilder<sqlx::Postgres> = QueryBuilder::new(
         "SELECT id, airtable_id, ysws, EXTRACT(EPOCH FROM approved_at)::bigint AS approved_at, code_url, country, \
-         demo_url, description, github_username, hours, \
+         demo_url, description, github_username, hours, true_hours, \
          (screenshot_url IS NOT NULL) AS has_screenshot, github_stars, display_name, \
          archived_demo, archived_repo FROM projects WHERE deleted_at IS NULL",
     );
@@ -252,6 +261,10 @@ pub async fn query(
                         .push_bind(v)
                         .push("::timestamptz");
                 }
+                FieldKind::Float => {
+                    let v = parse_float(&filter.value)?;
+                    qb.push(format_args!(" AND {} = ", def.column)).push_bind(v);
+                }
                 FieldKind::Bool => unreachable!(),
             },
             FilterOp::Neq => match def.kind {
@@ -271,11 +284,20 @@ pub async fn query(
                         .push_bind(v)
                         .push("::timestamptz");
                 }
+                FieldKind::Float => {
+                    let v = parse_float(&filter.value)?;
+                    qb.push(format_args!(" AND {} != ", def.column))
+                        .push_bind(v);
+                }
                 FieldKind::Bool => unreachable!(),
             },
             FilterOp::Gt => match def.kind {
                 FieldKind::Int => {
                     let v = parse_int(&filter.value)?;
+                    qb.push(format_args!(" AND {} > ", def.column)).push_bind(v);
+                }
+                FieldKind::Float => {
+                    let v = parse_float(&filter.value)?;
                     qb.push(format_args!(" AND {} > ", def.column)).push_bind(v);
                 }
                 FieldKind::Timestamp => {
@@ -292,6 +314,11 @@ pub async fn query(
                     qb.push(format_args!(" AND {} >= ", def.column))
                         .push_bind(v);
                 }
+                FieldKind::Float => {
+                    let v = parse_float(&filter.value)?;
+                    qb.push(format_args!(" AND {} >= ", def.column))
+                        .push_bind(v);
+                }
                 FieldKind::Timestamp => {
                     let v = parse_text(&filter.value)?;
                     qb.push(format_args!(" AND {} >= ", def.column))
@@ -305,6 +332,10 @@ pub async fn query(
                     let v = parse_int(&filter.value)?;
                     qb.push(format_args!(" AND {} < ", def.column)).push_bind(v);
                 }
+                FieldKind::Float => {
+                    let v = parse_float(&filter.value)?;
+                    qb.push(format_args!(" AND {} < ", def.column)).push_bind(v);
+                }
                 FieldKind::Timestamp => {
                     let v = parse_text(&filter.value)?;
                     qb.push(format_args!(" AND {} < ", def.column))
@@ -316,6 +347,11 @@ pub async fn query(
             FilterOp::Lte => match def.kind {
                 FieldKind::Int => {
                     let v = parse_int(&filter.value)?;
+                    qb.push(format_args!(" AND {} <= ", def.column))
+                        .push_bind(v);
+                }
+                FieldKind::Float => {
+                    let v = parse_float(&filter.value)?;
                     qb.push(format_args!(" AND {} <= ", def.column))
                         .push_bind(v);
                 }
@@ -394,6 +430,18 @@ fn parse_int(value: &Option<serde_json::Value>) -> Result<i64, AppError> {
             .parse::<i64>()
             .map_err(|_| AppError::bad_request("Expected integer value")),
         _ => Err(AppError::bad_request("Expected integer value")),
+    }
+}
+
+fn parse_float(value: &Option<serde_json::Value>) -> Result<f64, AppError> {
+    match value {
+        Some(serde_json::Value::Number(n)) => n
+            .as_f64()
+            .ok_or_else(|| AppError::bad_request("Expected float value")),
+        Some(serde_json::Value::String(s)) => s
+            .parse::<f64>()
+            .map_err(|_| AppError::bad_request("Expected float value")),
+        _ => Err(AppError::bad_request("Expected float value")),
     }
 }
 

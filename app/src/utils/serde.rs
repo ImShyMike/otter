@@ -1,0 +1,64 @@
+use serde::Deserialize;
+use time::OffsetDateTime;
+
+pub fn deserialize_timestamp<'de, D>(deserializer: D) -> Result<Option<OffsetDateTime>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    use serde_json::Value;
+    match Value::deserialize(deserializer)? {
+        Value::Number(n) => {
+            let ts = n
+                .as_i64()
+                .ok_or_else(|| serde::de::Error::custom("invalid timestamp"))?;
+            OffsetDateTime::from_unix_timestamp(ts)
+                .map(Some)
+                .map_err(serde::de::Error::custom)
+        }
+        Value::Null | Value::String(_) => Ok(None),
+        _ => Err(serde::de::Error::custom("expected number, null, or string")),
+    }
+}
+
+pub fn deserialize_null_int<'de, D>(deserializer: D) -> Result<Option<i32>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    use serde_json::Value;
+    match Value::deserialize(deserializer)? {
+        Value::Number(n) => n
+            .as_i64()
+            .map(|v| Some(v as i32))
+            .ok_or_else(|| serde::de::Error::custom("invalid number")),
+        Value::Null | Value::String(_) => Ok(None),
+        _ => Err(serde::de::Error::custom("expected number, null, or string")),
+    }
+}
+
+pub fn deserialize_null_string<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let s: Option<String> = Option::deserialize(deserializer)?;
+    Ok(s.filter(|s| s != "null"))
+}
+
+pub fn deserialize_null_float<'de, D>(deserializer: D) -> Result<Option<f64>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    use serde_json::Value;
+    match Value::deserialize(deserializer)? {
+        Value::Number(n) => n
+            .as_f64()
+            .map(Some)
+            .ok_or_else(|| serde::de::Error::custom("invalid number")),
+        Value::Array(v) => v
+            .first()
+            .and_then(|v| v.as_f64())
+            .map(Some)
+            .ok_or_else(|| serde::de::Error::custom("invalid array of numbers")),
+        Value::Null | Value::String(_) => Ok(None),
+        _ => Err(serde::de::Error::custom("expected number, null, or string")),
+    }
+}
