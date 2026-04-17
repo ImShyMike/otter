@@ -1,4 +1,20 @@
 services:
+  app:
+    build: .
+    container_name: otter-app
+    restart: unless-stopped
+    depends_on:
+      - db
+      - redis
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: postgres://postgres:postgres@db:5432/otter
+      REDIS_URL: redis://redis:6379
+      HOST: 0.0.0.0:3000
+    volumes:
+      - fastembed_cache:/app/.fastembed_cache
+
   db:
     image: ankane/pgvector:latest
     container_name: pgvector-db
@@ -28,3 +44,4 @@ services:
 volumes:
   pgdata:
   redisdata:
+  fastembed_cache:

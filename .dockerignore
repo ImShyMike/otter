@@ -1,0 +1,3 @@
+app/target/
+app/.fastembed_cache/
+.env
