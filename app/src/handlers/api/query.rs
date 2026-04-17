@@ -153,7 +153,7 @@ pub struct QueryResults(Vec<QueryResult>);
 
 #[utoipa::path(
     post,
-    path = "/api/query",
+    path = "/query",
     request_body = QueryRequest,
     responses(
         (status = 200, description = "Query results", body = QueryResults),

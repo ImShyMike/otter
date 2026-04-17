@@ -45,7 +45,7 @@ struct RawResult {
 
 #[utoipa::path(
     get,
-    path = "/api/search",
+    path = "/search",
     params(SearchQuery),
     responses(
         (status = 200, description = "Search results", body = Vec<SearchResult>),
