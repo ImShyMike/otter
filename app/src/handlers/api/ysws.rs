@@ -1,5 +1,5 @@
 use axum::Json;
-use axum::extract::{Path, State};
+use axum::extract::State;
 use serde::Serialize;
 use tracing::instrument;
 use utoipa::ToSchema;
@@ -28,16 +28,4 @@ pub async fn ysws_program_list(
     Ok(Json(YSWSProgramsResponse(
         row.into_iter().filter_map(Some).collect(),
     )))
-}
-
-#[derive(Serialize, ToSchema)]
-pub struct YSWSProjectsResponse {
-    id: i32,
-    airtable_id: Option<String>,
-    display_name: Option<String>,
-    description: Option<String>,
-    ysws: String,
-    country: Option<String>,
-    code_url: Option<String>,
-    demo_url: Option<String>,
 }
