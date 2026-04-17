@@ -111,7 +111,7 @@ const NO_VALUE_OPS = new Set(['is_null','is_not_null']);
 let filterCount = 0;
 let yswsPrograms = [];
 
-fetch('/api/ysws_programs').then(r => r.json()).then(data => {
+fetch('/api/ysws/list').then(r => r.json()).then(data => {
   yswsPrograms = data.sort();
 }).catch(() => {});
 
