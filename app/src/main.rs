@@ -3,6 +3,7 @@ mod handlers;
 mod jobs;
 mod routes;
 mod state;
+mod telemetry;
 mod utils;
 
 use std::env;
@@ -21,11 +22,7 @@ const DEFAULT_HOST: &str = "0.0.0.0:3000";
 async fn main() -> anyhow::Result<()> {
     dotenvy::dotenv().ok();
 
-    tracing_subscriber::fmt()
-        .with_env_filter(
-            tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| "info".into()),
-        )
-        .init();
+    telemetry::init();
 
     let database_url = env::var("DATABASE_URL").unwrap_or(DEFAULT_DATABASE_URL.to_string());
     let redis_url = env::var("REDIS_URL").unwrap_or(DEFAULT_REDIS_URL.to_string());

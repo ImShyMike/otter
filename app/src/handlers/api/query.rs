@@ -2,6 +2,7 @@ use axum::Json;
 use axum::extract::State;
 use serde::{Deserialize, Serialize};
 use sqlx::QueryBuilder;
+use tracing::instrument;
 use utoipa::ToSchema;
 
 use crate::error::AppError;
@@ -160,6 +161,7 @@ pub struct QueryResults(Vec<QueryResult>);
         (status = 400, description = "Bad request"),
     )
 )]
+#[instrument(skip(state, body), fields(filters = body.filters.len(), limit = body.limit))]
 pub async fn query(
     State(state): State<AppState>,
     Json(body): Json<QueryRequest>,

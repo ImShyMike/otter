@@ -7,7 +7,7 @@ use deadpool_redis::Pool;
 use serde::{Deserialize, Serialize};
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
-use tracing::{debug, info, warn};
+use tracing::{debug, info, instrument, warn};
 
 const CACHE_TTL_SECONDS: usize = 60 * 60 * 24; // 24 hours
 
@@ -72,6 +72,7 @@ async fn store_in_cache(
 }
 
 /// Get embeddings (prioritizing API and falling back to a local model) with caching
+#[instrument(skip(texts, redis), fields(count = texts.len()))]
 pub async fn get_embeddings_with_cache(
     texts: &[String],
     redis: &Pool,
@@ -134,6 +135,7 @@ pub async fn get_embeddings_with_cache(
 }
 
 /// Get embeddings (prioritizing API and falling back to a local model)
+#[instrument(skip(texts), fields(count = texts.len()))]
 pub async fn get_embeddings(
     texts: &[String],
     local_only: bool,
