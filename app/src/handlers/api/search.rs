@@ -76,10 +76,11 @@ pub async fn search(
         ),
         embedding_results AS (
             SELECT 
-                id,
-                1.0 - (embedding <=> $2::vector) as similarity_score
-            FROM projects
-            WHERE embedding IS NOT NULL AND deleted_at IS NULL AND description IS NOT NULL AND LENGTH(description) > 50
+                p.id,
+                1.0 - (pe.embedding <=> $2::vector) as similarity_score
+            FROM projects p
+            INNER JOIN project_embeddings pe ON p.id = pe.project_id
+            WHERE p.deleted_at IS NULL AND p.description IS NOT NULL AND LENGTH(p.description) > 50
         )
         SELECT 
             p.id,
