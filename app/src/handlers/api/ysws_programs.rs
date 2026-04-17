@@ -1,15 +1,29 @@
 use axum::Json;
 use axum::extract::State;
+use serde::Serialize;
+use utoipa::ToSchema;
 
 use crate::error::AppError;
 use crate::state::AppState;
 
-type ApiResponse = Vec<String>;
+#[derive(Serialize, ToSchema)]
+pub struct YSWSProgramsResponse(Vec<String>);
 
-pub async fn ysws_programs(State(state): State<AppState>) -> Result<Json<ApiResponse>, AppError> {
+#[utoipa::path(
+    get,
+    path = "/api/ysws_programs",
+    responses(
+        (status = 200, description = "List of YSWS program names", body = Vec<String>),
+    )
+)]
+pub async fn ysws_programs(
+    State(state): State<AppState>,
+) -> Result<Json<YSWSProgramsResponse>, AppError> {
     let row = sqlx::query_scalar!("SELECT DISTINCT ysws FROM projects")
         .fetch_all(&state.pg)
         .await?;
 
-    Ok(Json(row))
+    Ok(Json(YSWSProgramsResponse(
+        row.into_iter().filter_map(Some).collect(),
+    )))
 }
