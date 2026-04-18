@@ -1,10 +1,10 @@
 # ── Build stage ──
-FROM rust:1-bookworm AS builder
+FROM rust:1-trixie AS builder
 
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    pkg-config libssl-dev && \
+    pkg-config libssl-dev g++ && \
     rm -rf /var/lib/apt/lists/*
 
 COPY app/Cargo.toml app/Cargo.lock ./
@@ -21,7 +21,7 @@ ENV SQLX_OFFLINE=true
 RUN touch src/main.rs && cargo build --release
 
 # ── Runtime stage ──
-FROM debian:bookworm-slim
+FROM debian:trixie-slim
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates libssl3 && \
