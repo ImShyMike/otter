@@ -4,7 +4,7 @@ use pgvector::Vector;
 use serde::Deserialize;
 use sqlx::{PgPool, Postgres, QueryBuilder};
 use time::OffsetDateTime;
-use tracing::{error, info, instrument};
+use tracing::{Instrument, error, info, instrument};
 
 use crate::utils::serde::{
     deserialize_null_float, deserialize_null_int, deserialize_null_string, deserialize_timestamp,
@@ -72,41 +72,58 @@ struct EmbedRow {
 }
 
 pub fn run<'a>(pg: &'a PgPool) -> Pin<Box<dyn Future<Output = anyhow::Result<()>> + Send + 'a>> {
-    Box::pin(async move {
-        info!("starting");
+    Box::pin(
+        async move {
+            info!("starting");
 
-        let http_client = reqwest::Client::builder()
-            .timeout(REQUEST_TIMEOUT)
-            .build()?;
+            let http_client = reqwest::Client::builder()
+                .timeout(REQUEST_TIMEOUT)
+                .build()?;
 
-        update_data(&http_client, pg).await?;
+            update_data(&http_client, pg).await?;
 
-        update_true_hours(&http_client, pg).await?;
+            update_true_hours(&http_client, pg).await?;
 
-        embed_new_projects(pg).await?;
+            embed_new_projects(pg).await?;
 
-        info!("done");
+            info!("done");
 
-        Ok(())
-    })
+            Ok(())
+        }
+        .instrument(tracing::info_span!("fetch_data")),
+    )
 }
 
 #[instrument(skip_all)]
 async fn update_data(http_client: &reqwest::Client, pg: &PgPool) -> anyhow::Result<()> {
-    let body = http::fetch_with_retries(http_client, SHIPS_API_URL, 3)
-        .await?
-        .text()
-        .await?;
+    let body = fetch_ships_data(http_client).await?;
 
-    info!("fetched data from API, deserializing");
-
-    let entries: Vec<YswsEntry> = serde_json::from_str(&body).map_err(|e| {
-        error!("deserialization failed at byte {}: {e}", e.column());
-        e
+    let entries: Vec<YswsEntry> = tracing::info_span!("deserialize_entries").in_scope(|| {
+        serde_json::from_str(&body).map_err(|e| {
+            error!("deserialization failed at byte {}: {e}", e.column());
+            anyhow::Error::from(e)
+        })
     })?;
 
     info!("fetched {} entries", entries.len());
 
+    upsert_projects(&entries, pg).await?;
+    update_screenshot_urls(&entries, pg).await?;
+    soft_delete_missing(&entries, pg).await?;
+
+    Ok(())
+}
+
+#[instrument(skip_all)]
+async fn fetch_ships_data(http_client: &reqwest::Client) -> anyhow::Result<String> {
+    Ok(http::fetch_with_retries(http_client, SHIPS_API_URL, 3)
+        .await?
+        .text()
+        .await?)
+}
+
+#[instrument(skip_all)]
+async fn upsert_projects(entries: &[YswsEntry], pg: &PgPool) -> anyhow::Result<()> {
     let mut tx = pg.begin().await?;
     let mut modified: u64 = 0;
 
@@ -169,7 +186,11 @@ async fn update_data(http_client: &reqwest::Client, pg: &PgPool) -> anyhow::Resu
     tx.commit().await?;
     info!("upserted {} entries ({} modified)", entries.len(), modified);
 
-    // update screenshot urls separately
+    Ok(())
+}
+
+#[instrument(skip_all)]
+async fn update_screenshot_urls(entries: &[YswsEntry], pg: &PgPool) -> anyhow::Result<()> {
     let mut tx = pg.begin().await?;
     let mut urls_updated = 0;
     for chunk in entries.chunks(BATCH_SIZE) {
@@ -189,41 +210,39 @@ async fn update_data(http_client: &reqwest::Client, pg: &PgPool) -> anyhow::Resu
         urls_updated += result.rows_affected();
     }
 
+    tx.commit().await?;
     info!("updated screenshot URLs for {} entries", urls_updated);
 
+    Ok(())
+}
+
+#[instrument(skip_all)]
+async fn soft_delete_missing(entries: &[YswsEntry], pg: &PgPool) -> anyhow::Result<()> {
     let airtable_ids: Vec<&str> = entries.iter().map(|e| e.id.as_str()).collect();
     let deleted = sqlx::query_scalar!(
         "UPDATE projects SET deleted_at = NOW() WHERE airtable_id != ALL($1) AND deleted_at IS NULL RETURNING 1 as count",
         &airtable_ids as &[&str]
     )
-        .fetch_all(&mut *tx)
+        .fetch_all(pg)
         .await?;
 
     if !deleted.is_empty() {
         info!("soft-deleted {} missing projects", deleted.len());
     }
 
-    tx.commit().await?;
-
     Ok(())
 }
 
 #[instrument(skip_all)]
-async fn update_true_hours(http_client: &reqwest::Client, pg: &PgPool) -> anyhow::Result<()> {
-    info!("updating true hours using airbridge");
-
-    let body = http::fetch_with_retries(http_client, AIRBRIDGE_API_URL, 3)
+async fn fetch_airbridge_data(http_client: &reqwest::Client) -> anyhow::Result<String> {
+    Ok(http::fetch_with_retries(http_client, AIRBRIDGE_API_URL, 3)
         .await?
         .text()
-        .await?;
+        .await?)
+}
 
-    let entries: Vec<AirbridgeEntry> = serde_json::from_str(&body).map_err(|e| {
-        error!("deserialization failed at byte {}: {e}", e.column());
-        e
-    })?;
-
-    info!("fetched {} entries from airbridge", entries.len());
-
+#[instrument(skip_all)]
+async fn update_true_hours_entries(entries: Vec<AirbridgeEntry>, pg: &PgPool) -> anyhow::Result<()> {
     let mut tx = pg.begin().await?;
     let mut hours_updated = 0;
 
@@ -248,6 +267,24 @@ async fn update_true_hours(http_client: &reqwest::Client, pg: &PgPool) -> anyhow
     tx.commit().await?;
 
     info!("updated true hours for {} entries", hours_updated);
+
+    Ok(())
+}
+
+#[instrument(skip_all)]
+async fn update_true_hours(http_client: &reqwest::Client, pg: &PgPool) -> anyhow::Result<()> {
+    info!("updating true hours using airbridge");
+
+    let body = fetch_airbridge_data(http_client).await?;
+
+    let entries: Vec<AirbridgeEntry> = serde_json::from_str(&body).map_err(|e| {
+        error!("deserialization failed at byte {}: {e}", e.column());
+        e
+    })?;
+
+    info!("fetched {} entries from airbridge", entries.len());
+
+    update_true_hours_entries(entries, pg).await?;
 
     Ok(())
 }
