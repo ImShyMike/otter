@@ -280,10 +280,13 @@ async fn update_true_hours(http_client: &reqwest::Client, pg: &PgPool) -> anyhow
 
     let body = fetch_airbridge_data(http_client).await?;
 
-    let entries: Vec<AirbridgeEntry> = serde_json::from_str(&body).map_err(|e| {
-        error!("deserialization failed at byte {}: {e}", e.column());
-        e
-    })?;
+    let entries: Vec<AirbridgeEntry> =
+        tracing::info_span!("deserialize_entries").in_scope(|| {
+            serde_json::from_str(&body).map_err(|e| {
+                error!("deserialization failed at byte {}: {e}", e.column());
+                e
+            })
+        })?;
 
     info!("fetched {} entries from airbridge", entries.len());
 
