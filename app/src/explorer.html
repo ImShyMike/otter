@@ -274,7 +274,7 @@ async function runQuery() {
       else if (c === 'demo_url' && v) v = `<a href="${v}" target="_blank">link</a>`;
       else if (c === 'ysws') v = `<span class="tag">${v}</span>`;
       else if (typeof v === 'boolean') v = v ? '✅' : '❌';
-      else if (typeof v === 'number') v = v.toFixed(2);
+      else if (typeof v === 'number') v = Math.round(v) == v ? v : v.toFixed(2);
       html += `<td>${v}</td>`;
     }
     html += '</tr>';
