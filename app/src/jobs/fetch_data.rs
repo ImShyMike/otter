@@ -242,7 +242,10 @@ async fn fetch_airbridge_data(http_client: &reqwest::Client) -> anyhow::Result<S
 }
 
 #[instrument(skip_all)]
-async fn update_true_hours_entries(entries: Vec<AirbridgeEntry>, pg: &PgPool) -> anyhow::Result<()> {
+async fn update_true_hours_entries(
+    entries: Vec<AirbridgeEntry>,
+    pg: &PgPool,
+) -> anyhow::Result<()> {
     let mut tx = pg.begin().await?;
     let mut hours_updated = 0;
 
