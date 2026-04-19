@@ -6,6 +6,7 @@
 	import ExternalLink from '@lucide/svelte/icons/external-link';
 	import { imageUrl, title, truncate, tryVideoOnError } from '$lib/search';
 	import type { SearchResult } from '$lib/types';
+	import { formatHours, formatApproved } from '$lib/utils';
 
 	let { results }: { results: SearchResult[] } = $props();
 </script>
@@ -29,19 +30,52 @@
 				</div>
 			{/if}
 			<Card.Header>
-				<div class="flex items-center gap-2">
+				<div class="flex flex-wrap items-center gap-2">
 					<Card.Title class="text-base">{title(r)}</Card.Title>
 					<Badge variant="secondary" class="text-xs">{r.ysws}</Badge>
+					{#if r.github_stars > 0}
+						<Badge variant="outline" class="text-xs">{r.github_stars} stars</Badge>
+					{/if}
+					{#if formatHours(r)}
+						<Badge variant="outline" class="text-xs">{formatHours(r)}</Badge>
+					{/if}
 				</div>
-				{#if r.country}
-					<Card.Description>{r.country}</Card.Description>
+				{#if r.country || r.github_username || formatApproved(r.approved_at)}
+					<Card.Description>
+						{r.country ?? ''}
+						{#if r.country && r.github_username}
+							·
+						{/if}
+						{#if r.github_username}
+							<a
+								class="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+								href={`https://github.com/${r.github_username}`}
+								target="_blank"
+								rel="noopener external">@{r.github_username}</a
+							>
+						{/if}
+						{#if (r.country || r.github_username) && formatApproved(r.approved_at)}
+							·
+						{/if}
+						{#if formatApproved(r.approved_at)}
+							Approved {formatApproved(r.approved_at)}
+						{/if}
+					</Card.Description>
 				{/if}
 			</Card.Header>
 			<Card.Content class="flex-1">
 				<p class="text-sm text-muted-foreground">{truncate(r.description, 120)}</p>
+				<p class="mt-2 text-xs text-muted-foreground">#{r.airtable_id}</p>
 			</Card.Content>
-			{#if r.code_url || r.demo_url}
+			{#if r.code_url || r.demo_url || r.archived_repo || r.archived_demo}
 				<Card.Footer class="gap-2">
+					{#if r.demo_url}
+						<a href={r.demo_url} target="_blank" rel="noopener external">
+							<Button variant="outline" size="sm">
+								<ExternalLink class="mr-1 h-3 w-3" /> Demo
+							</Button>
+						</a>
+					{/if}
 					{#if r.code_url}
 						<a href={r.code_url} target="_blank" rel="noopener external">
 							<Button variant="outline" size="sm">
@@ -49,10 +83,17 @@
 							</Button>
 						</a>
 					{/if}
-					{#if r.demo_url}
-						<a href={r.demo_url} target="_blank" rel="noopener external">
+					{#if r.archived_demo}
+						<a href={r.archived_demo} target="_blank" rel="noopener external">
 							<Button variant="outline" size="sm">
-								<ExternalLink class="mr-1 h-3 w-3" /> Demo
+								<ExternalLink class="mr-1 h-3 w-3" /> Archived Demo
+							</Button>
+						</a>
+					{/if}
+					{#if r.archived_repo}
+						<a href={r.archived_repo} target="_blank" rel="noopener external">
+							<Button variant="outline" size="sm">
+								<Code class="mr-1 h-3 w-3" /> Archived Repo
 							</Button>
 						</a>
 					{/if}

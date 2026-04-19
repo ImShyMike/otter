@@ -25,7 +25,7 @@
 		loading = true;
 		searched = true;
 		try {
-			const res = await fetch(`${API_BASE}/api/search?q=${encodeURIComponent(q)}&limit=25`);
+			const res = await fetch(`${API_BASE}/api/search?q=${encodeURIComponent(q)}&limit=30`);
 			results = await res.json();
 		} catch {
 			results = [];
