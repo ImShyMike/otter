@@ -102,6 +102,7 @@ pub fn run<'a>(pg: &'a PgPool) -> Pin<Box<dyn Future<Output = anyhow::Result<()>
             );
 
             upsert_entries(&entries, pg).await?;
+            update_screenshot_urls(&entries, pg).await?;
             soft_delete_missing(&entries, pg).await?;
 
             info!("done");
@@ -127,7 +128,7 @@ async fn upsert_entries(entries: &[AirbridgeEntry], pg: &PgPool) -> anyhow::Resu
 
     for chunk in entries.chunks(BATCH_SIZE) {
         let mut qb: QueryBuilder<Postgres> = QueryBuilder::new(
-            "INSERT INTO projects (airtable_id, ysws, approved_at, code_url, demo_url, github_username, screenshot_url, true_hours) ",
+            "INSERT INTO projects (airtable_id, ysws, approved_at, code_url, demo_url, github_username, true_hours) ",
         );
 
         qb.push_values(chunk, |mut b, entry| {
@@ -137,7 +138,6 @@ async fn upsert_entries(entries: &[AirbridgeEntry], pg: &PgPool) -> anyhow::Resu
                 .push_bind(&entry.fields.code_url)
                 .push_bind(&entry.fields.playable_url)
                 .push_bind(&entry.fields.github_username)
-                .push_bind(&entry.fields.screenshot_url)
                 .push_bind(entry.fields.hours_spent);
         });
 
@@ -148,7 +148,6 @@ async fn upsert_entries(entries: &[AirbridgeEntry], pg: &PgPool) -> anyhow::Resu
                 code_url = EXCLUDED.code_url, \
                 demo_url = EXCLUDED.demo_url, \
                 github_username = EXCLUDED.github_username, \
-                screenshot_url = EXCLUDED.screenshot_url, \
                 true_hours = EXCLUDED.true_hours, \
                 deleted_at = NULL \
                 WHERE projects.ysws IS DISTINCT FROM EXCLUDED.ysws \
@@ -156,7 +155,6 @@ async fn upsert_entries(entries: &[AirbridgeEntry], pg: &PgPool) -> anyhow::Resu
                 OR projects.code_url IS DISTINCT FROM EXCLUDED.code_url \
                 OR projects.demo_url IS DISTINCT FROM EXCLUDED.demo_url \
                 OR projects.github_username IS DISTINCT FROM EXCLUDED.github_username \
-                OR projects.screenshot_url IS DISTINCT FROM EXCLUDED.screenshot_url \
                 OR projects.true_hours IS DISTINCT FROM EXCLUDED.true_hours \
                 OR projects.deleted_at IS NOT NULL",
         );
@@ -167,6 +165,37 @@ async fn upsert_entries(entries: &[AirbridgeEntry], pg: &PgPool) -> anyhow::Resu
 
     tx.commit().await?;
     info!("upserted {} entries ({} modified)", entries.len(), modified);
+
+    Ok(())
+}
+
+#[instrument(skip_all)]
+async fn update_screenshot_urls(entries: &[AirbridgeEntry], pg: &PgPool) -> anyhow::Result<()> {
+    let mut tx = pg.begin().await?;
+    let mut urls_updated = 0;
+
+    for chunk in entries.chunks(BATCH_SIZE) {
+        let ids: Vec<&str> = chunk.iter().map(|e| e.id.as_str()).collect();
+        let urls: Vec<Option<&str>> = chunk
+            .iter()
+            .map(|e| e.fields.screenshot_url.as_deref())
+            .collect();
+
+        let result = sqlx::query(
+            "UPDATE projects SET screenshot_url = data.screenshot_url \
+                FROM UNNEST($1::text[], $2::text[]) AS data(airtable_id, screenshot_url) \
+                WHERE projects.airtable_id = data.airtable_id \
+                AND projects.screenshot_url IS DISTINCT FROM data.screenshot_url",
+        )
+        .bind(&ids)
+        .bind(&urls)
+        .execute(&mut *tx)
+        .await?;
+        urls_updated += result.rows_affected();
+    }
+
+    tx.commit().await?;
+    info!("updated screenshot URLs for {} entries", urls_updated);
 
     Ok(())
 }
