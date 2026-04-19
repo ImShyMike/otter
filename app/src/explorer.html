@@ -47,6 +47,7 @@ label{font-size:13px;color:#8b949e}
     <select id="order_by">
       <option value="">approved_at (default)</option>
       <option value="hours">hours</option>
+      <option value="true_hours">true_hours</option>
       <option value="github_stars">github_stars</option>
       <option value="created_at">created_at</option>
       <option value="updated_at">updated_at</option>
@@ -64,10 +65,15 @@ label{font-size:13px;color:#8b949e}
   <label>Limit
     <input type="number" id="limit" value="25" min="1" max="100">
   </label>
-  <button class="btn" onclick="runQuery()">Run Query</button>
+  <button class="btn" onclick="runQuery(1)">Run Query</button>
 </div>
 
 <div id="status" class="status"></div>
+<div id="pagination" class="controls" style="display:none">
+  <button class="btn-secondary" id="prevBtn" onclick="prevPage()">← Prev</button>
+  <span id="pageInfo" style="font-size:13px;color:#8b949e"></span>
+  <button class="btn-secondary" id="nextBtn" onclick="nextPage()">Next →</button>
+</div>
 <div id="error" class="error" style="display:none"></div>
 <table class="results-table" id="results"></table>
 
@@ -110,6 +116,8 @@ const NO_VALUE_OPS = new Set(['is_null','is_not_null']);
 
 let filterCount = 0;
 let yswsPrograms = [];
+let currentPage = 1;
+let totalPages = 1;
 
 fetch('/api/ysws/list').then(r => r.json()).then(data => {
   yswsPrograms = data.sort();
@@ -223,11 +231,15 @@ function buildFilters() {
   return filters;
 }
 
-async function runQuery() {
+function prevPage() { if (currentPage > 1) runQuery(currentPage - 1); }
+function nextPage() { if (currentPage < totalPages) runQuery(currentPage + 1); }
+
+async function runQuery(page) {
+  currentPage = page || 1;
   const errEl = document.getElementById('error');
   errEl.style.display = 'none';
 
-  const body = { filters: buildFilters(), limit: parseInt(document.getElementById('limit').value,10) || 25 };
+  const body = { filters: buildFilters(), limit: parseInt(document.getElementById('limit').value,10) || 25, page: currentPage };
   const ob = document.getElementById('order_by').value;
   if (ob) body.order_by = ob;
   body.sort_direction = document.getElementById('sort_dir').value;
@@ -252,9 +264,22 @@ async function runQuery() {
     return;
   }
 
-  const data = await res.json();
+  const json = await res.json();
+  const data = json.data;
+  const total = json.total;
+  totalPages = Math.max(1, Math.ceil(total / json.per_page));
   const ms = (performance.now() - t0).toFixed(0);
-  document.getElementById('status').innerHTML = `<span class="count">${data.length}</span> results in ${ms}ms`;
+  document.getElementById('status').innerHTML = `<span class="count">${total}</span> total results, showing ${data.length} in ${ms}ms`;
+
+  const pagDiv = document.getElementById('pagination');
+  if (total > json.per_page) {
+    pagDiv.style.display = '';
+    document.getElementById('pageInfo').textContent = `Page ${currentPage} of ${totalPages}`;
+    document.getElementById('prevBtn').disabled = currentPage <= 1;
+    document.getElementById('nextBtn').disabled = currentPage >= totalPages;
+  } else {
+    pagDiv.style.display = 'none';
+  }
 
   const table = document.getElementById('results');
   if (!data.length) { table.innerHTML = '<tr><td>No results found.</td></tr>'; return; }
