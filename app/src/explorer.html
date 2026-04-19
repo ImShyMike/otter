@@ -200,7 +200,10 @@ function addFilter() {
 
   const removeBtn = document.createElement('button');
   removeBtn.textContent = '✕';
-  removeBtn.onclick = () => div.remove();
+  removeBtn.onclick = () => {
+    div.remove();
+    runQuery(1);
+  };
 
   div.append(fieldSel, opSel, valInput, removeBtn);
   document.getElementById('filters').appendChild(div);
@@ -315,8 +318,8 @@ async function runQuery(page) {
         const labels = {
           code_url: 'code',
           demo_url: 'demo',
-          archived_repo: 'archive code',
-          archived_demo: 'archive demo',
+          archived_repo: 'code archive',
+          archived_demo: 'demo archive',
         };
         v = renderExternalLink(v, labels[c]);
       }

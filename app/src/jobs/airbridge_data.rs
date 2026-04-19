@@ -15,7 +15,7 @@ use crate::utils::{
 
 const AIRBRIDGE_API_URL: &str =
     "https://api2.hackclub.com/v0.1/Unified%20YSWS%20Projects%20DB/Approved%20Projects";
-const REQUEST_TIMEOUT: Duration = Duration::from_secs(120);
+const REQUEST_TIMEOUT: Duration = Duration::from_secs(180);
 const BATCH_SIZE: usize = 1000;
 
 #[derive(Deserialize)]
