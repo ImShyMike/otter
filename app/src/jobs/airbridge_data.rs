@@ -102,7 +102,7 @@ pub fn run<'a>(pg: &'a PgPool) -> Pin<Box<dyn Future<Output = anyhow::Result<()>
             );
 
             upsert_entries(&entries, pg).await?;
-            update_screenshot_urls(&entries, pg).await?;
+            update_media_urls(&entries, pg).await?;
             soft_delete_missing(&entries, pg).await?;
 
             info!("done");
@@ -170,7 +170,7 @@ async fn upsert_entries(entries: &[AirbridgeEntry], pg: &PgPool) -> anyhow::Resu
 }
 
 #[instrument(skip_all)]
-async fn update_screenshot_urls(entries: &[AirbridgeEntry], pg: &PgPool) -> anyhow::Result<()> {
+async fn update_media_urls(entries: &[AirbridgeEntry], pg: &PgPool) -> anyhow::Result<()> {
     let mut tx = pg.begin().await?;
     let mut urls_updated = 0;
 
@@ -182,10 +182,10 @@ async fn update_screenshot_urls(entries: &[AirbridgeEntry], pg: &PgPool) -> anyh
             .collect();
 
         let result = sqlx::query(
-            "UPDATE projects SET screenshot_url = data.screenshot_url \
+            "UPDATE projects SET media_url = data.screenshot_url \
                 FROM UNNEST($1::text[], $2::text[]) AS data(airtable_id, screenshot_url) \
                 WHERE projects.airtable_id = data.airtable_id \
-                AND projects.screenshot_url IS DISTINCT FROM data.screenshot_url",
+                AND projects.media_url IS DISTINCT FROM data.screenshot_url",
         )
         .bind(&ids)
         .bind(&urls)

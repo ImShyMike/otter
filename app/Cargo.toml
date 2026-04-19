@@ -22,7 +22,7 @@ sqlx = { version = "0.8.6", features = ["macros", "postgres", "runtime-tokio", "
 time = "0.3.47"
 tokio = { version = "1.52.1", features = ["full"] }
 tokio-cron-scheduler = "0.15.1"
-tower-http = { version = "0.6", features = ["trace"] }
+tower-http = { version = "0.6", features = ["trace", "cors"] }
 tracing = "0.1.44"
 tracing-opentelemetry = "0.32"
 tracing-subscriber = { version = "0.3.23", features = ["env-filter", "registry"] }

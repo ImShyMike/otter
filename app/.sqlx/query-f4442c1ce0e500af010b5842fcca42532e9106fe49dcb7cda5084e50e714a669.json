@@ -1,22 +1,22 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT screenshot_url FROM projects WHERE id = $1",
+  "query": "SELECT media_url FROM projects WHERE airtable_id = $1",
   "describe": {
     "columns": [
       {
         "ordinal": 0,
-        "name": "screenshot_url",
+        "name": "media_url",
         "type_info": "Text"
       }
     ],
     "parameters": {
       "Left": [
-        "Int4"
+        "Text"
       ]
     },
     "nullable": [
       true
     ]
   },
-  "hash": "53f3829f352cd6bfa861de0a908ef322a0f5168f8027cc2ff2146a1dfcfc7f8c"
+  "hash": "f4442c1ce0e500af010b5842fcca42532e9106fe49dcb7cda5084e50e714a669"
 }
