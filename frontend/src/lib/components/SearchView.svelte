@@ -56,26 +56,6 @@
 							<Code class="h-3 w-3" /> Code
 						</a>
 					{/if}
-					{#if r.archived_demo}
-						<a
-							href={r.archived_demo}
-							target="_blank"
-							rel="noopener external"
-							class="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
-						>
-							<Globe class="h-3 w-3" /> Archived Demo
-						</a>
-					{/if}
-					{#if r.archived_repo}
-						<a
-							href={r.archived_repo}
-							target="_blank"
-							rel="noopener external"
-							class="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
-						>
-							<Code class="h-3 w-3" /> Archived Repo
-						</a>
-					{/if}
 					<span class="text-xs text-muted-foreground">
 						Score: {r.score.toFixed(3)}
 					</span>

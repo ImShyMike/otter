@@ -2,9 +2,10 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Badge } from '$lib/components/ui/badge';
 	import * as Card from '$lib/components/ui/card';
+	import { Image } from '$lib/components/ui/image';
 	import Code from '@lucide/svelte/icons/code';
 	import ExternalLink from '@lucide/svelte/icons/external-link';
-	import { imageUrl, title, truncate, tryVideoOnError } from '$lib/search';
+	import { imageUrl, title, truncate } from '$lib/search';
 	import type { SearchResult } from '$lib/types';
 	import { formatHours, formatApproved } from '$lib/utils';
 
@@ -15,12 +16,12 @@
 	{#each results as r (r.id)}
 		<Card.Card class="flex flex-col">
 			{#if r.has_media}
-				<img
+				<Image
 					src={imageUrl(r.id)}
 					alt={title(r)}
 					class="h-60 w-full border-b bg-muted object-cover"
 					loading="lazy"
-					onerror={tryVideoOnError}
+					onerror={() => (r.has_media = false)}
 				/>
 			{:else}
 				<div
@@ -65,7 +66,6 @@
 			</Card.Header>
 			<Card.Content class="flex-1">
 				<p class="text-sm text-muted-foreground">{truncate(r.description, 120)}</p>
-				<p class="mt-2 text-xs text-muted-foreground">#{r.airtable_id}</p>
 			</Card.Content>
 			{#if r.code_url || r.demo_url || r.archived_repo || r.archived_demo}
 				<Card.Footer class="gap-2">
@@ -80,20 +80,6 @@
 						<a href={r.code_url} target="_blank" rel="noopener external">
 							<Button variant="outline" size="sm">
 								<Code class="mr-1 h-3 w-3" /> Code
-							</Button>
-						</a>
-					{/if}
-					{#if r.archived_demo}
-						<a href={r.archived_demo} target="_blank" rel="noopener external">
-							<Button variant="outline" size="sm">
-								<ExternalLink class="mr-1 h-3 w-3" /> Archived Demo
-							</Button>
-						</a>
-					{/if}
-					{#if r.archived_repo}
-						<a href={r.archived_repo} target="_blank" rel="noopener external">
-							<Button variant="outline" size="sm">
-								<Code class="mr-1 h-3 w-3" /> Archived Repo
 							</Button>
 						</a>
 					{/if}
