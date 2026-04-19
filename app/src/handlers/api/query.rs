@@ -127,9 +127,32 @@ pub struct QueryRequest {
     sort_direction: Option<String>,
     #[serde(default)]
     limit: Option<i64>,
+    #[serde(default)]
+    page: Option<i64>,
 }
 
-#[derive(Serialize, sqlx::FromRow, ToSchema)]
+#[derive(sqlx::FromRow)]
+struct QueryRow {
+    id: i32,
+    airtable_id: String,
+    ysws: String,
+    approved_at: Option<i64>,
+    code_url: Option<String>,
+    country: Option<String>,
+    demo_url: Option<String>,
+    description: Option<String>,
+    github_username: Option<String>,
+    hours: Option<i32>,
+    true_hours: Option<f64>,
+    has_screenshot: bool,
+    github_stars: i32,
+    display_name: Option<String>,
+    archived_demo: Option<String>,
+    archived_repo: Option<String>,
+    _total: i64,
+}
+
+#[derive(Serialize, ToSchema)]
 pub struct QueryResult {
     id: i32,
     airtable_id: String,
@@ -150,7 +173,12 @@ pub struct QueryResult {
 }
 
 #[derive(Serialize, ToSchema)]
-pub struct QueryResults(Vec<QueryResult>);
+pub struct QueryResults {
+    data: Vec<QueryResult>,
+    total: i64,
+    page: i64,
+    per_page: i64,
+}
 
 #[utoipa::path(
     post,
@@ -166,13 +194,15 @@ pub async fn query(
     State(state): State<AppState>,
     Json(body): Json<QueryRequest>,
 ) -> Result<Json<QueryResults>, AppError> {
-    let limit = body.limit.unwrap_or(10).min(100);
+    let limit = body.limit.unwrap_or(25).min(100);
+    let page = body.page.unwrap_or(1).max(1);
+    let offset = (page - 1) * limit;
 
     let mut qb: QueryBuilder<sqlx::Postgres> = QueryBuilder::new(
         "SELECT id, airtable_id, ysws, EXTRACT(EPOCH FROM approved_at)::bigint AS approved_at, code_url, country, \
          demo_url, description, github_username, hours, true_hours, \
          (screenshot_url IS NOT NULL) AS has_screenshot, github_stars, display_name, \
-         archived_demo, archived_repo FROM projects WHERE deleted_at IS NULL",
+         archived_demo, archived_repo, COUNT(*) OVER() AS _total FROM projects WHERE deleted_at IS NULL",
     );
 
     for filter in &body.filters {
@@ -386,14 +416,41 @@ pub async fn query(
         " ORDER BY {} {} LIMIT ",
         order_column, order_dir
     ))
-    .push_bind(limit);
+    .push_bind(limit)
+    .push(" OFFSET ")
+    .push_bind(offset);
 
-    let results = qb
-        .build_query_as::<QueryResult>()
-        .fetch_all(&state.pg)
-        .await?;
+    let rows = qb.build_query_as::<QueryRow>().fetch_all(&state.pg).await?;
 
-    Ok(Json(QueryResults(results)))
+    let total = rows.first().map(|r| r._total).unwrap_or(0);
+    let data = rows
+        .into_iter()
+        .map(|r| QueryResult {
+            id: r.id,
+            airtable_id: r.airtable_id,
+            ysws: r.ysws,
+            approved_at: r.approved_at,
+            code_url: r.code_url,
+            country: r.country,
+            demo_url: r.demo_url,
+            description: r.description,
+            github_username: r.github_username,
+            hours: r.hours,
+            true_hours: r.true_hours,
+            has_screenshot: r.has_screenshot,
+            github_stars: r.github_stars,
+            display_name: r.display_name,
+            archived_demo: r.archived_demo,
+            archived_repo: r.archived_repo,
+        })
+        .collect();
+
+    Ok(Json(QueryResults {
+        data,
+        total,
+        page,
+        per_page: limit,
+    }))
 }
 
 fn parse_text(value: &Option<serde_json::Value>) -> Result<String, AppError> {
