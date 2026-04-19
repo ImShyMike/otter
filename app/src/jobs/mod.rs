@@ -1,4 +1,5 @@
-mod fetch_data;
+mod airbridge_data;
+mod ships_data;
 
 use std::pin::Pin;
 
@@ -10,27 +11,31 @@ type JobFn =
 
 /// Job list
 pub enum JobKind {
-    FetchData,
+    ShipsData,
+    AirbridgeData,
 }
 
 impl JobKind {
-    const ALL: &[JobKind] = &[JobKind::FetchData];
+    const ALL: &[JobKind] = &[JobKind::ShipsData, JobKind::AirbridgeData];
 
     fn lock_id(&self) -> i64 {
         match self {
-            JobKind::FetchData => 1,
+            JobKind::ShipsData => 1,
+            JobKind::AirbridgeData => 2,
         }
     }
 
     fn cron(&self) -> &'static str {
         match self {
-            JobKind::FetchData => "0 0 */3 * * *",
+            JobKind::ShipsData => "0 0 */3 * * *",
+            JobKind::AirbridgeData => "0 0 */1 * * *",
         }
     }
 
     fn run_fn(&self) -> JobFn {
         match self {
-            JobKind::FetchData => fetch_data::run,
+            JobKind::ShipsData => ships_data::run,
+            JobKind::AirbridgeData => airbridge_data::run,
         }
     }
 }
