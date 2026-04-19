@@ -9,6 +9,7 @@
 	import TableView from '$lib/components/TableView.svelte';
 	import { API_BASE } from '$lib/search';
 	import type { SearchResult } from '$lib/types';
+	import Spinner from '$lib/components/ui/spinner/spinner.svelte';
 
 	type ViewMode = 'search' | 'cards' | 'table';
 
@@ -63,9 +64,9 @@
 
 	{#if searched}
 		<div class="mb-4 flex items-center justify-between">
-			<span class="text-sm text-muted-foreground">
+			<span class="flex items-center gap-2 text-sm text-muted-foreground">
 				{#if loading}
-					Searching…
+					<Spinner /><span>Searching…</span>
 				{:else}
 					{results.length} result{results.length !== 1 ? 's' : ''}
 				{/if}

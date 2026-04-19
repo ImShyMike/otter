@@ -22,18 +22,3 @@ export function truncate(s: string | null, len = 200) {
 	if (!s) return '';
 	return s.length > len ? s.slice(0, len) + '…' : s;
 }
-
-export function tryVideoOnError(e: Event) {
-	const image = e.currentTarget as HTMLImageElement;
-	const video = document.createElement('video');
-	video.src = image.src;
-	video.autoplay = true;
-	video.loop = true;
-	video.muted = true;
-	video.className = image.className;
-	video.onerror = () => {
-		// if video also fails, hide the element
-		video.style.display = 'none';
-	};
-	image.replaceWith(video);
-}
