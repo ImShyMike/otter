@@ -1,6 +1,6 @@
 use serde::Deserialize;
 use serde_json::Value;
-use time::OffsetDateTime;
+use time::{Date, OffsetDateTime, Time};
 
 pub fn deserialize_timestamp<'de, D>(deserializer: D) -> Result<Option<OffsetDateTime>, D::Error>
 where
@@ -15,7 +15,16 @@ where
                 .map(Some)
                 .map_err(serde::de::Error::custom)
         }
-        Value::Null | Value::String(_) => Ok(None),
+        Value::String(s) => {
+            if s.is_empty() || s == "null" {
+                Ok(None)
+            } else {
+                Date::parse(&s, &time::format_description::well_known::Iso8601::DATE)
+                    .map(|d| Some(d.with_time(Time::MIDNIGHT).assume_utc()))
+                    .map_err(serde::de::Error::custom)
+            }
+        }
+        Value::Null => Ok(None),
         _ => Err(serde::de::Error::custom("expected number, null, or string")),
     }
 }
