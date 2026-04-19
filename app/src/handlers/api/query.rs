@@ -42,7 +42,7 @@ enum Field {
     ApprovedAt,
     CreatedAt,
     UpdatedAt,
-    HasScreenshot,
+    HasMedia,
 }
 
 impl Field {
@@ -65,7 +65,7 @@ impl Field {
             Field::ApprovedAt => FieldDef { column: "approved_at", kind: FieldKind::Timestamp },
             Field::CreatedAt => FieldDef { column: "created_at", kind: FieldKind::Timestamp },
             Field::UpdatedAt => FieldDef { column: "updated_at", kind: FieldKind::Timestamp },
-            Field::HasScreenshot => FieldDef { column: "screenshot_url", kind: FieldKind::Bool },
+            Field::HasMedia => FieldDef { column: "media_url", kind: FieldKind::Bool },
         }
     }
 }
@@ -144,7 +144,7 @@ struct QueryRow {
     github_username: Option<String>,
     hours: Option<i32>,
     true_hours: Option<f64>,
-    has_screenshot: bool,
+    has_media: bool,
     github_stars: i32,
     display_name: Option<String>,
     archived_demo: Option<String>,
@@ -165,7 +165,7 @@ pub struct QueryResult {
     github_username: Option<String>,
     hours: Option<i32>,
     true_hours: Option<f64>,
-    has_screenshot: bool,
+    has_media: bool,
     github_stars: i32,
     display_name: Option<String>,
     archived_demo: Option<String>,
@@ -201,7 +201,7 @@ pub async fn query(
     let mut qb: QueryBuilder<sqlx::Postgres> = QueryBuilder::new(
         "SELECT id, airtable_id, ysws, EXTRACT(EPOCH FROM approved_at)::bigint AS approved_at, code_url, country, \
          demo_url, description, github_username, hours, true_hours, \
-         (screenshot_url IS NOT NULL) AS has_screenshot, github_stars, display_name, \
+         (media_url IS NOT NULL) AS has_media, github_stars, display_name, \
          archived_demo, archived_repo, COUNT(*) OVER() AS _total FROM projects WHERE deleted_at IS NULL",
     );
 
@@ -437,7 +437,7 @@ pub async fn query(
             github_username: r.github_username,
             hours: r.hours,
             true_hours: r.true_hours,
-            has_screenshot: r.has_screenshot,
+            has_media: r.has_media,
             github_stars: r.github_stars,
             display_name: r.display_name,
             archived_demo: r.archived_demo,

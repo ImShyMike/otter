@@ -1,5 +1,8 @@
 {
   "rust-analyzer.cargo.extraEnv": {
     "SQLX_OFFLINE": "true"
-  }
+  },
+  "files.associations": {
+		"*.css": "tailwindcss"
+	}
 }

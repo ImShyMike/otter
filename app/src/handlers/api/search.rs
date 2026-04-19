@@ -23,24 +23,42 @@ pub struct SearchQuery {
 #[derive(Serialize, ToSchema)]
 pub struct SearchResult {
     id: i32,
-    display_name: Option<String>,
-    description: Option<String>,
+    airtable_id: String,
     ysws: String,
-    country: Option<String>,
+    approved_at: Option<i64>,
     code_url: Option<String>,
+    country: Option<String>,
     demo_url: Option<String>,
+    description: Option<String>,
+    github_username: Option<String>,
+    hours: Option<i32>,
+    true_hours: Option<f64>,
+    has_media: bool,
+    github_stars: i32,
+    display_name: Option<String>,
+    archived_demo: Option<String>,
+    archived_repo: Option<String>,
     score: f32,
 }
 
 #[derive(sqlx::FromRow)]
 struct RawResult {
     id: i32,
-    display_name: Option<String>,
-    description: Option<String>,
+    airtable_id: String,
     ysws: String,
-    country: Option<String>,
+    approved_at: Option<i64>,
     code_url: Option<String>,
+    country: Option<String>,
     demo_url: Option<String>,
+    description: Option<String>,
+    github_username: Option<String>,
+    hours: Option<i32>,
+    true_hours: Option<f64>,
+    has_media: bool,
+    github_stars: i32,
+    display_name: Option<String>,
+    archived_demo: Option<String>,
+    archived_repo: Option<String>,
     score: f64,
 }
 
@@ -96,12 +114,21 @@ pub async fn search(
         )
         SELECT 
             p.id,
-            p.display_name,
-            p.description,
+            p.airtable_id,
             p.ysws,
-            p.country,
+            EXTRACT(EPOCH FROM p.approved_at)::bigint AS approved_at,
             p.code_url,
+            p.country,
             p.demo_url,
+            p.description,
+            p.github_username,
+            p.hours,
+            p.true_hours,
+            (p.media_url IS NOT NULL) AS has_media,
+            p.github_stars,
+            p.display_name,
+            p.archived_demo,
+            p.archived_repo,
             (
                 COALESCE(f.fts_score, 0) * $3 + 
                 COALESCE(e.similarity_score, 0) * $4
@@ -126,12 +153,21 @@ pub async fn search(
         .into_iter()
         .map(|r| SearchResult {
             id: r.id,
-            display_name: r.display_name,
-            description: r.description,
+            airtable_id: r.airtable_id,
             ysws: r.ysws,
-            country: r.country,
+            approved_at: r.approved_at,
             code_url: r.code_url,
+            country: r.country,
             demo_url: r.demo_url,
+            description: r.description,
+            github_username: r.github_username,
+            hours: r.hours,
+            true_hours: r.true_hours,
+            has_media: r.has_media,
+            github_stars: r.github_stars,
+            display_name: r.display_name,
+            archived_demo: r.archived_demo,
+            archived_repo: r.archived_repo,
             score: r.score as f32,
         })
         .collect();

@@ -1,4 +1,5 @@
 use axum::{Router, routing::get};
+use tower_http::cors::CorsLayer;
 use tower_http::trace::TraceLayer;
 use utoipa::OpenApi;
 use utoipa_axum::router::OpenApiRouter;
@@ -18,8 +19,12 @@ pub fn build() -> Router<AppState> {
         .nest("/api", handlers::api::router())
         .split_for_parts();
 
-    router.merge(Scalar::with_url("/scalar", api)).layer(
-        TraceLayer::new_for_http()
-            .make_span_with(tower_http::trace::DefaultMakeSpan::new().level(tracing::Level::INFO)),
-    )
+    router
+        .merge(Scalar::with_url("/docs", api))
+        .layer(CorsLayer::very_permissive())
+        .layer(
+            TraceLayer::new_for_http().make_span_with(
+                tower_http::trace::DefaultMakeSpan::new().level(tracing::Level::INFO),
+            ),
+        )
 }

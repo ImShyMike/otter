@@ -1,4 +1,4 @@
-pub mod image;
+pub mod media;
 pub mod query;
 pub mod search;
 pub mod ysws;
@@ -16,8 +16,8 @@ pub fn router() -> OpenApiRouter<AppState> {
         .routes(routes!(search::search))
         .routes(routes!(ysws::ysws_program_list))
         .routes(routes!(query::query))
-        .routes(routes!(image::image))
-        .routes(routes!(image::image_redirect))
+        .routes(routes!(media::media))
+        .routes(routes!(media::media_redirect))
 }
 
 static LOCAL_ONLY: OnceLock<bool> = OnceLock::new();
