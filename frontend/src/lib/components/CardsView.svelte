@@ -17,7 +17,7 @@
 				<img
 					src={imageUrl(r.id)}
 					alt={title(r)}
-					class="h-60 w-full bg-muted object-cover border-b"
+					class="h-60 w-full border-b bg-muted object-cover"
 					loading="lazy"
 					onerror={tryVideoOnError}
 				/>
