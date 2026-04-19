@@ -234,6 +234,22 @@ function buildFilters() {
 function prevPage() { if (currentPage > 1) runQuery(currentPage - 1); }
 function nextPage() { if (currentPage < totalPages) runQuery(currentPage + 1); }
 
+function addYswsFilter(value) {
+  addFilter();
+  const id = filterCount - 1;
+  document.getElementById(`field-${id}`).value = 'ysws';
+  document.getElementById(`field-${id}`).dispatchEvent(new Event('change'));
+  document.getElementById(`op-${id}`).value = 'eq';
+  document.getElementById(`op-${id}`).dispatchEvent(new Event('change'));
+  const yswsSel = document.getElementById(`yswssel-${id}`);
+  if (yswsSel && yswsSel.style.display !== 'none') {
+    yswsSel.value = value;
+  } else {
+    document.getElementById(`val-${id}`).value = value;
+  }
+  runQuery(1);
+}
+
 async function runQuery(page) {
   currentPage = page || 1;
   const errEl = document.getElementById('error');
@@ -294,10 +310,17 @@ async function runQuery(page) {
       else if (c === 'has_screenshot') v = row.has_screenshot ? `<a href="/api/image/${row.id}/r" target="_blank">✅</a>` : '❌';
       else if (c === 'approved_at' && typeof v === 'number') v = new Date(v * 1000).toLocaleDateString();
       else if (c === 'description' && v.length > 100) v = escapeHtml(v.slice(0,100)) + '...';
-      else if (c === 'github_username' && v) v = `<a href="https://github.com/${v}" target="_blank">${v}</a>`;
-      else if (c === 'code_url' && v) v = `<a href="${v}" target="_blank">link</a>`;
-      else if (c === 'demo_url' && v) v = `<a href="${v}" target="_blank">link</a>`;
-      else if (c === 'ysws') v = `<span class="tag">${v}</span>`;
+      else if (c === 'github_username' && v) v = renderExternalLink(`https://github.com/${v}`, v);
+      else if (['code_url', 'demo_url', 'archived_repo', 'archived_demo'].includes(c) && v) {
+        const labels = {
+          code_url: 'code',
+          demo_url: 'demo',
+          archived_repo: 'archive code',
+          archived_demo: 'archive demo',
+        };
+        v = renderExternalLink(v, labels[c]);
+      }
+      else if (c === 'ysws') v = `<span class="tag" style="cursor:pointer" onclick="addYswsFilter('${escapeHtml(String(v))}')">${escapeHtml(String(v))}</span>`;
       else if (typeof v === 'boolean') v = v ? '✅' : '❌';
       else if (typeof v === 'number') v = Math.round(v) == v ? v : v.toFixed(2);
       html += `<td>${v}</td>`;
@@ -311,6 +334,22 @@ async function runQuery(page) {
 function escapeHtml(text) {
   const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
   return text.replace(/[&<>"']/g, m => map[m]);
+}
+
+function renderExternalLink(url, label) {
+  const href = safeExternalUrl(url);
+  if (!href) return escapeHtml(String(url));
+  return `<a href="${href}" target="_blank" rel="noopener noreferrer">${escapeHtml(String(label))}</a>`;
+}
+
+function safeExternalUrl(url) {
+  try {
+    const parsed = new URL(String(url), window.location.origin);
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return '';
+    return escapeHtml(parsed.href);
+  } catch {
+    return '';
+  }
 }
 
 addFilter();
