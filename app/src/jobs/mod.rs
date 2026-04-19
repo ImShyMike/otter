@@ -28,7 +28,7 @@ impl JobKind {
     fn cron(&self) -> &'static str {
         match self {
             JobKind::ShipsData => "0 0 */3 * * *",
-            JobKind::AirbridgeData => "0 0 */1 * * *",
+            JobKind::AirbridgeData => "0 2 */1 * * *",
         }
     }
 

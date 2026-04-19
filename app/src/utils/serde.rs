@@ -46,12 +46,11 @@ where
                 Ok(Some(s))
             }
         }
-        Value::Array(v) => v
+        Value::Array(v) => Ok(v
             .first()
             .and_then(|v| v.as_str())
             .filter(|s| *s != "null")
-            .map(|s| Ok(Some(String::from(s))))
-            .unwrap_or_else(|| Err(serde::de::Error::custom("invalid array of strings"))),
+            .map(String::from)),
         Value::Null => Ok(None),
         _ => Err(serde::de::Error::custom("expected string or null")),
     }
