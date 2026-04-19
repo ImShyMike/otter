@@ -39,8 +39,14 @@ async fn main() -> anyhow::Result<()> {
 
     let pg_startup = pg.clone();
     tokio::spawn(async move {
-        if let Err(e) = jobs::run_job(&pg_startup, JobKind::FetchData).await {
+        if let Err(e) = jobs::run_job(&pg_startup, JobKind::ShipsData).await {
             tracing::error!("startup fetch_data failed: {e}");
+        }
+    });
+    let pg_startup = pg.clone();
+    tokio::spawn(async move {
+        if let Err(e) = jobs::run_job(&pg_startup, JobKind::AirbridgeData).await {
+            tracing::error!("startup airbridge_data failed: {e}");
         }
     });
 
