@@ -7,6 +7,15 @@
 
 <svelte:head>
 	<link rel="icon" href={favicon} />
+	<script>
+		(() => {
+			const storedTheme = localStorage.getItem('theme');
+			const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+			const dark = storedTheme ? storedTheme === 'dark' : prefersDark;
+			document.documentElement.classList.toggle('dark', dark);
+			document.documentElement.style.colorScheme = dark ? 'dark' : 'light';
+		})();
+	</script>
 	<title>Otter</title>
 </svelte:head>
 
