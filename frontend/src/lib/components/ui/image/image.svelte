@@ -2,33 +2,42 @@
 	import { cn } from '$lib/utils.js';
 	import type { HTMLImgAttributes } from 'svelte/elements';
 
-	export function tryVideoOnError(e: Event) {
-		const image = e.currentTarget as HTMLImageElement;
-		const video = document.createElement('video');
-		video.src = image.src;
-		video.autoplay = true;
-		video.loop = true;
-		video.muted = true;
-		video.className = image.className;
-		video.onerror = () => {
-			// if video also fails, hide the element
-			video.style.display = 'none';
-		};
-		image.replaceWith(video);
-	}
+	let imageFailed = $state(false);
+	let missing = $state(false);
 
 	let {
 		src,
 		alt = '',
+		missing: showMissing = false,
 		class: className,
 		...restProps
-	}: HTMLImgAttributes = $props();
+	}: HTMLImgAttributes & { missing?: boolean } = $props();
 </script>
 
-<img
-	onerror={tryVideoOnError}
-	src={src}
-	alt={alt}
-	class={cn('rounded-md border object-cover', className)}
-	{...restProps}
-/>
+{#if showMissing || missing}
+	<div
+		class={cn(
+			'relative h-full w-full bg-muted object-cover text-sm text-muted-foreground',
+			className
+		)}
+	>
+		<p class="absolute inset-0 m-0 flex items-center justify-center text-center">No Image :(</p>
+	</div>
+{:else if imageFailed}
+	<video
+		{src}
+		autoplay
+		loop
+		muted
+		class={cn('object-cover', className)}
+		onerror={() => (missing = true)}
+	></video>
+{:else}
+	<img
+		onerror={() => (imageFailed = true)}
+		{src}
+		{alt}
+		class={cn('object-cover', className)}
+		{...restProps}
+	/>
+{/if}
