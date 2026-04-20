@@ -2,9 +2,10 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Badge } from '$lib/components/ui/badge';
 	import * as Card from '$lib/components/ui/card';
-	import { Image } from '$lib/components/ui/image';
+	import { ExpandableImage } from '$lib/components/ui/image';
 	import Code from '@lucide/svelte/icons/code';
 	import ExternalLink from '@lucide/svelte/icons/external-link';
+	import Star from '@lucide/svelte/icons/star';
 	import { imageUrl, title, truncate } from '$lib/search';
 	import type { SearchResult } from '$lib/types';
 	import { formatHours, formatApproved } from '$lib/utils';
@@ -15,27 +16,21 @@
 <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
 	{#each results as r (r.id)}
 		<Card.Card class="flex flex-col">
-			{#if r.has_media}
-				<Image
-					src={imageUrl(r.id)}
-					alt={title(r)}
-					class="h-60 w-full border-b bg-muted object-cover"
-					loading="lazy"
-					onerror={() => (r.has_media = false)}
-				/>
-			{:else}
-				<div
-					class="flex h-60 w-full items-center justify-center bg-muted text-sm text-muted-foreground"
-				>
-					No Image :(
-				</div>
-			{/if}
+			<ExpandableImage
+				id={r.id}
+				src={imageUrl(r.id)}
+				alt={title(r)}
+				missing={!r.has_media}
+				buttonClass="w-full"
+				thumbnailClass="h-60 w-full border-b bg-muted object-cover"
+				transitionPrefix="cards-image"
+			/>
 			<Card.Header>
 				<div class="flex flex-wrap items-center gap-2">
 					<Card.Title class="text-base">{title(r)}</Card.Title>
 					<Badge variant="secondary" class="text-xs">{r.ysws}</Badge>
 					{#if r.github_stars > 0}
-						<Badge variant="outline" class="text-xs">{r.github_stars} stars</Badge>
+						<Badge variant="outline" class="text-xs">{r.github_stars} <Star /></Badge>
 					{/if}
 					{#if formatHours(r)}
 						<Badge variant="outline" class="text-xs">{formatHours(r)}</Badge>
