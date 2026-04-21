@@ -16,7 +16,7 @@
 	import * as Table from '$lib/components/ui/table';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
+	import { Input, AutocompleteInput } from '$lib/components/ui/input';
 	import { Spinner } from '$lib/components/ui/spinner';
 	import Code from '@lucide/svelte/icons/code';
 	import Globe from '@lucide/svelte/icons/globe';
@@ -27,10 +27,12 @@
 	import ChevronRight from '@lucide/svelte/icons/chevron-right';
 	import ChevronsLeft from '@lucide/svelte/icons/chevrons-left';
 	import ChevronsRight from '@lucide/svelte/icons/chevrons-right';
+	import Plus from '@lucide/svelte/icons/plus';
+	import X from '@lucide/svelte/icons/x';
 	import { API_BASE, title as projectTitle } from '$lib/search';
 	import type { SearchResult } from '$lib/types';
 	import { formatHours, formatApproved } from '$lib/utils';
-	import { onMount } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 
 	interface QueryFilter {
 		field: string;
@@ -68,18 +70,70 @@
 	let sorting: SortingState = $state([]);
 	let pagination: PaginationState = $state({ pageIndex: 0, pageSize: 50 });
 
-	let filterYsws = $state('');
-	let filterCountry = $state('');
-	let filterUser = $state('');
+	const FIELDS: Record<string, { type: string; label: string }> = {
+		airtable_id: { type: 'text', label: 'Airtable ID' },
+		ysws: { type: 'text', label: 'YSWS' },
+		country: { type: 'text', label: 'Country' },
+		description: { type: 'text', label: 'Description' },
+		github_username: { type: 'text', label: 'GitHub User' },
+		display_name: { type: 'text', label: 'Name' },
+		code_url: { type: 'text', label: 'Code URL' },
+		demo_url: { type: 'text', label: 'Demo URL' },
+		archived_demo: { type: 'text', label: 'Archived Demo' },
+		archived_repo: { type: 'text', label: 'Archived Repo' },
+		hours: { type: 'int', label: 'Hours' },
+		true_hours: { type: 'float', label: 'True Hours' },
+		github_stars: { type: 'int', label: 'Stars' },
+		approved_at: { type: 'timestamp', label: 'Approved At' },
+		created_at: { type: 'timestamp', label: 'Created At' },
+		updated_at: { type: 'timestamp', label: 'Updated At' },
+		has_media: { type: 'bool', label: 'Has Media' }
+	};
 
+	const OPS_BY_TYPE: Record<string, string[]> = {
+		text: [
+			'eq',
+			'neq',
+			'contains',
+			'not_contains',
+			'starts_with',
+			'ends_with',
+			'is_null',
+			'is_not_null'
+		],
+		int: ['eq', 'neq', 'gt', 'gte', 'lt', 'lte', 'is_null', 'is_not_null'],
+		float: ['eq', 'neq', 'gt', 'gte', 'lt', 'lte', 'is_null', 'is_not_null'],
+		timestamp: ['eq', 'neq', 'gt', 'gte', 'lt', 'lte', 'is_null', 'is_not_null'],
+		bool: ['eq', 'neq', 'is_null', 'is_not_null']
+	};
+
+	const OP_LABELS: Record<string, string> = {
+		eq: 'equals',
+		neq: 'not equals',
+		gt: 'greater than',
+		gte: 'greater or equal',
+		lt: 'less than',
+		lte: 'less or equal',
+		contains: 'contains',
+		not_contains: 'not contains',
+		starts_with: 'starts with',
+		ends_with: 'ends with',
+		is_null: 'is empty',
+		is_not_null: 'is not empty'
+	};
+
+	const NO_VALUE_OPS = new Set(['is_null', 'is_not_null']);
+
+	interface FilterRow {
+		id: number;
+		field: string;
+		op: string;
+		value: string;
+	}
+
+	let filterIdCounter = 0;
+	let filters = $state<FilterRow[]>([]);
 	let yswsOptions = $state<string[]>([]);
-	let showYswsDropdown = $state(false);
-
-	const filteredYswsOptions = $derived(
-		filterYsws.trim()
-			? yswsOptions.filter((o) => o.toLowerCase().includes(filterYsws.trim().toLowerCase()))
-			: yswsOptions
-	);
 
 	onMount(async () => {
 		try {
@@ -89,6 +143,27 @@
 			yswsOptions = [];
 		}
 	});
+
+	function addFilter() {
+		filters.push({ id: filterIdCounter++, field: 'ysws', op: 'eq', value: '' });
+		onFilterChange();
+	}
+
+	function removeFilter(id: number) {
+		filters = filters.filter((f) => f.id !== id);
+		onFilterChange();
+	}
+
+	function onFieldChange(filter: FilterRow) {
+		const ops = OPS_BY_TYPE[FIELDS[filter.field].type] ?? [];
+		if (!ops.includes(filter.op)) filter.op = ops[0] ?? 'eq';
+		filter.value = '';
+		onFilterChange();
+	}
+
+	function getAvailableOps(field: string) {
+		return OPS_BY_TYPE[FIELDS[field]?.type ?? 'text'] ?? [];
+	}
 
 	const fieldMap: Record<string, string> = {
 		ysws: 'ysws',
@@ -106,20 +181,29 @@
 		const version = ++fetchVersion;
 		loading = true;
 		try {
-			const filters: QueryFilter[] = [];
-
-			if (filterYsws.trim()) {
-				filters.push({ field: 'ysws', op: 'eq', value: filterYsws.trim() });
-			}
-			if (filterCountry.trim()) {
-				filters.push({ field: 'country', op: 'contains', value: filterCountry.trim() });
-			}
-			if (filterUser.trim()) {
-				filters.push({ field: 'github_username', op: 'contains', value: filterUser.trim() });
-			}
+			const queryFilters: QueryFilter[] = filters
+				.filter((f) => {
+					if (NO_VALUE_OPS.has(f.op)) return true;
+					if (f.value.trim() === '') return false;
+					if (f.field === 'ysws' && ['eq', 'neq'].includes(f.op) && yswsOptions.length > 0) {
+						return yswsOptions.includes(f.value.trim());
+					}
+					return true;
+				})
+				.map((f) => {
+					const ft = FIELDS[f.field]?.type ?? 'text';
+					const filter: QueryFilter = { field: f.field, op: f.op };
+					if (!NO_VALUE_OPS.has(f.op)) {
+						if (ft === 'int') filter.value = parseInt(f.value, 10) || 0;
+						else if (ft === 'float') filter.value = parseFloat(f.value) || 0;
+						else if (ft === 'bool') filter.value = f.value === 'true' || f.value === '1';
+						else filter.value = f.value.trim();
+					}
+					return filter;
+				});
 
 			const body: QueryRequest = {
-				filters,
+				filters: queryFilters,
 				limit: pagination.pageSize,
 				page: pagination.pageIndex + 1
 			};
@@ -168,17 +252,11 @@
 		filterVersion++;
 	}
 
-	function selectYsws(value: string) {
-		filterYsws = value;
-		showYswsDropdown = false;
-		onFilterChange();
-	}
-
 	$effect(() => {
 		void sorting;
 		void pagination;
 		void filterVersion;
-		fetchData();
+		untrack(() => fetchData());
 	});
 
 	const columns: ColumnDef<TableFeatures, SearchResult>[] = [
@@ -300,54 +378,68 @@
 {/snippet}
 
 <div class="space-y-4">
-	<div class="flex flex-wrap gap-2">
-		<div
-			class="relative"
-			onfocusin={() => (showYswsDropdown = true)}
-			onfocusout={(e) => {
-				if (!e.currentTarget.contains(e.relatedTarget as Node)) showYswsDropdown = false;
-			}}
-		>
-			<Input
-				type="text"
-				placeholder="Filter YSWS…"
-				bind:value={filterYsws}
-				oninput={onFilterChange}
-				class="h-8 w-44"
-				autocomplete="off"
-			/>
-			{#if showYswsDropdown && filteredYswsOptions.length > 0}
-				<div
-					class="absolute top-full left-0 z-50 mt-1 max-h-48 w-56 overflow-y-auto rounded border bg-popover p-1 shadow-md"
+	<div class="flex flex-col gap-2">
+		{#each filters as filter (filter.id)}
+			<div class="flex flex-wrap items-center gap-2">
+				<select
+					bind:value={filter.field}
+					onchange={() => onFieldChange(filter)}
+					class="h-8 rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm"
 				>
-					{#each filteredYswsOptions as option (option)}
-						<button
-							class="w-full rounded-sm px-2 py-1.5 text-left text-sm hover:bg-muted"
-							onmousedown={(e) => {
-								e.preventDefault();
-								selectYsws(option);
-							}}
-						>
-							{option}
-						</button>
+					{#each Object.entries(FIELDS) as [key, meta] (key)}
+						<option value={key}>{meta.label}</option>
 					{/each}
-				</div>
-			{/if}
+				</select>
+				<select
+					bind:value={filter.op}
+					onchange={onFilterChange}
+					class="h-8 rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm"
+				>
+					{#each getAvailableOps(filter.field) as op (op)}
+						<option value={op}>{OP_LABELS[op]}</option>
+					{/each}
+				</select>
+				{#if !NO_VALUE_OPS.has(filter.op)}
+					{#if filter.field === 'ysws' && ['eq', 'neq'].includes(filter.op) && yswsOptions.length > 0}
+						<AutocompleteInput
+							bind:value={filter.value}
+							options={yswsOptions}
+							placeholder="Filter YSWS…"
+							onselect={onFilterChange}
+						/>
+					{:else if FIELDS[filter.field]?.type === 'bool'}
+						<select
+							bind:value={filter.value}
+							onchange={onFilterChange}
+							class="h-8 rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm"
+						>
+							<option value="">Select…</option>
+							<option value="true">true</option>
+							<option value="false">false</option>
+						</select>
+					{:else}
+						<Input
+							type={FIELDS[filter.field]?.type === 'int' || FIELDS[filter.field]?.type === 'float'
+								? 'number'
+								: 'text'}
+							placeholder={FIELDS[filter.field]?.type === 'timestamp' ? '2025-01-01' : 'value'}
+							bind:value={filter.value}
+							oninput={onFilterChange}
+							class="h-8 w-40"
+						/>
+					{/if}
+				{/if}
+				<Button variant="ghost" size="icon-sm" onclick={() => removeFilter(filter.id)}>
+					<X class="h-3.5 w-3.5" />
+				</Button>
+			</div>
+		{/each}
+		<div>
+			<Button variant="outline" size="sm" onclick={addFilter}>
+				<Plus class="mr-1 h-3.5 w-3.5" />
+				Add Filter
+			</Button>
 		</div>
-		<Input
-			type="text"
-			placeholder="Filter country…"
-			bind:value={filterCountry}
-			oninput={onFilterChange}
-			class="h-8 w-36"
-		/>
-		<Input
-			type="text"
-			placeholder="Filter user…"
-			bind:value={filterUser}
-			oninput={onFilterChange}
-			class="h-8 w-36"
-		/>
 	</div>
 
 	<div class="relative rounded border">
