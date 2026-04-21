@@ -7,7 +7,6 @@
 	import SearchView from '$lib/components/SearchView.svelte';
 	import CardsView from '$lib/components/CardsView.svelte';
 	import TableView from '$lib/components/TableView.svelte';
-	import ThemeToggle from '$lib/components/ThemeToggle.svelte';
 	import { API_BASE } from '$lib/search';
 	import type { SearchResult } from '$lib/types';
 	import Spinner from '$lib/components/ui/spinner/spinner.svelte';
@@ -40,10 +39,6 @@
 		if (e.key === 'Enter') doSearch();
 	}
 </script>
-
-<div class="fixed right-4 bottom-4 z-50">
-	<ThemeToggle />
-</div>
 
 <div class="mx-auto flex min-h-screen max-w-4xl flex-col px-4 py-8">
 	<div class="mb-8 text-center" class:mt-[20vh]={!searched} class:mt-0={searched}>
