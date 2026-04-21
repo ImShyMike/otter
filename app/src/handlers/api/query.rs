@@ -408,8 +408,8 @@ pub async fn query(
         None => "approved_at",
     };
     let order_dir = match body.sort_direction.as_deref() {
-        Some(d) if d.eq_ignore_ascii_case("desc") => "DESC",
-        _ => "ASC",
+        Some(d) if d.eq_ignore_ascii_case("asc") => "ASC",
+        _ => "DESC",
     };
 
     qb.push(format_args!(

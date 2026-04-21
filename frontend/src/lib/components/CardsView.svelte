@@ -18,7 +18,7 @@
 		<Card.Card class="flex flex-col">
 			<ExpandableImage
 				id={r.id}
-				src={imageUrl(r.id)}
+				src={imageUrl(r.airtable_id)}
 				alt={title(r)}
 				missing={!r.has_media}
 				buttonClass="w-full"

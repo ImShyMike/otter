@@ -2,8 +2,8 @@ import { env } from '$env/dynamic/public';
 
 export const API_BASE = (env.PUBLIC_API_BASE || 'http://localhost:3000').replace(/\/$/, '');
 
-export function imageUrl(id: number) {
-	return `${API_BASE}/api/media/${id}/r`;
+export function imageUrl(airtable_id: string) {
+	return `${API_BASE}/api/media/${airtable_id}/r`;
 }
 
 export function nameFromCodeUrl(url: string | null) {

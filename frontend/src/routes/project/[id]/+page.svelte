@@ -31,9 +31,16 @@
 	});
 </script>
 
+<svelte:head>
+	<title>{project ? title(project) : "Project"} · Otter</title>
+</svelte:head>
+
 <div class="mx-auto flex min-h-screen max-w-4xl flex-col px-4 py-8">
-	<div class="flex flex-row items-start mb-8 text-center">
-		<a href={resolve("/")} class="text-sm text-muted-foreground underline underline-offset-2 hover:text-foreground flex items-center justify-center gap-1 mb-4">
+	<div class="mb-8 flex flex-row items-start text-center">
+		<a
+			href={resolve('/')}
+			class="mb-4 flex items-center justify-center gap-1 text-sm text-muted-foreground underline underline-offset-2 hover:text-foreground"
+		>
 			<ArrowLeft class="h-3 w-3" /> Back to search
 		</a>
 	</div>
@@ -46,7 +53,7 @@
 		<Card.Card class="flex flex-col">
 			<ExpandableImage
 				id={p.id}
-				src={imageUrl(p.id)}
+				src={imageUrl(p.airtable_id)}
 				alt={title(p)}
 				missing={!p.has_media}
 				buttonClass="w-full"

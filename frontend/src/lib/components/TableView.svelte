@@ -38,7 +38,7 @@
 					<Table.Cell>{r.github_stars > 0 ? r.github_stars : '—'}</Table.Cell>
 					<Table.Cell>{formatHours(r)}</Table.Cell>
 					<Table.Cell>{formatApproved(r.approved_at)}</Table.Cell>
-					<Table.Cell>{r.score.toFixed(3)}</Table.Cell>
+					<Table.Cell>{r.score!.toFixed(3)}</Table.Cell>
 					<Table.Cell class="font-mono text-xs">{r.airtable_id}</Table.Cell>
 					<Table.Cell>
 						<div class="flex justify-start gap-2">

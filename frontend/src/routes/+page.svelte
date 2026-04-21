@@ -3,15 +3,15 @@
 	import { Button } from '$lib/components/ui/button';
 	import Search from '@lucide/svelte/icons/search';
 	import LayoutGrid from '@lucide/svelte/icons/layout-grid';
-	import TableIcon from '@lucide/svelte/icons/table';
 	import SearchView from '$lib/components/SearchView.svelte';
 	import CardsView from '$lib/components/CardsView.svelte';
-	import TableView from '$lib/components/TableView.svelte';
 	import { API_BASE } from '$lib/search';
 	import type { SearchResult } from '$lib/types';
 	import Spinner from '$lib/components/ui/spinner/spinner.svelte';
+	import TableIcon from '@lucide/svelte/icons/table';
+	import { resolve } from '$app/paths';
 
-	type ViewMode = 'search' | 'cards' | 'table';
+	type ViewMode = 'search' | 'cards';
 
 	let query = $state('');
 	let results = $state<SearchResult[]>([]);
@@ -60,6 +60,13 @@
 				Search
 			</Button>
 		</div>
+
+		<a
+			href={resolve('/explore')}
+			class="mt-3 inline-flex items-center gap-1 text-sm text-muted-foreground underline underline-offset-2 hover:text-foreground"
+		>
+			<TableIcon class="h-3 w-3" /> Explore all projects
+		</a>
 	</div>
 
 	{#if searched}
@@ -87,27 +94,16 @@
 				>
 					<LayoutGrid class="h-4 w-4" />
 				</Button>
-				<Button
-					variant={viewMode === 'table' ? 'default' : 'ghost'}
-					size="sm"
-					onclick={() => (viewMode = 'table')}
-				>
-					<TableIcon class="h-4 w-4" />
-				</Button>
 			</div>
 		</div>
 
 		{#if !loading && results.length === 0}
 			<p class="py-12 text-center text-muted-foreground">No results found for "{query}"</p>
-		{/if}
-
-		{#if !loading && results.length > 0}
+		{:else if !loading && results.length > 0}
 			{#if viewMode === 'search'}
 				<SearchView {results} />
-			{:else if viewMode === 'cards'}
-				<CardsView {results} />
 			{:else}
-				<TableView {results} />
+				<CardsView {results} />
 			{/if}
 		{/if}
 	{/if}
