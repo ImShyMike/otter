@@ -32,7 +32,7 @@
 </script>
 
 <svelte:head>
-	<title>{project ? title(project) : "Project"} · Otter</title>
+	<title>{project ? title(project) : 'Project'} · Otter</title>
 </svelte:head>
 
 <div class="mx-auto flex min-h-screen max-w-4xl flex-col px-4 py-8">
