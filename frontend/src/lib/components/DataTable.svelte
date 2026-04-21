@@ -28,12 +28,16 @@
 	import ChevronsLeft from '@lucide/svelte/icons/chevrons-left';
 	import ChevronsRight from '@lucide/svelte/icons/chevrons-right';
 	import Plus from '@lucide/svelte/icons/plus';
+	import Share2 from '@lucide/svelte/icons/share-2';
 	import X from '@lucide/svelte/icons/x';
+	import lzString from 'lz-string';
 	import { API_BASE, title as projectTitle } from '$lib/search';
 	import type { SearchResult } from '$lib/types';
 	import { formatApproved } from '$lib/utils';
 	import { onMount, untrack } from 'svelte';
 	import { resolve } from '$app/paths';
+
+	const { compressToEncodedURIComponent, decompressFromEncodedURIComponent } = lzString;
 
 	interface QueryFilter {
 		field: string;
@@ -133,6 +137,7 @@
 	}
 
 	const STORAGE_KEY = 'otter-explore-state';
+	const SHARE_QUERY_KEY = 'view';
 
 	const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 
@@ -143,6 +148,54 @@
 		pageSize: number;
 	}
 
+	function toSavedState(): SavedState {
+		return {
+			filters: filters.map(({ field, op, value }) => ({ field, op, value })),
+			sorting,
+			pageIndex: pagination.pageIndex,
+			pageSize: pagination.pageSize
+		};
+	}
+
+	function normalizeSavedState(saved: SavedState): SavedState {
+		const sanitizedFilters = (saved.filters || []).map((f) => {
+			const field = FIELDS[f.field] ? f.field : 'ysws';
+			const ops = OPS_BY_TYPE[FIELDS[field].type] ?? [];
+			const op = ops.includes(f.op) ? f.op : (ops[0] ?? 'eq');
+			const value = typeof f.value === 'string' ? f.value : String(f.value ?? '');
+			return { field, op, value };
+		});
+
+		return {
+			filters:
+				sanitizedFilters.length > 0
+					? sanitizedFilters
+					: [{ field: 'approved_at', op: 'is_not_null', value: '' }],
+			sorting: Array.isArray(saved.sorting) ? saved.sorting.slice(0, 1) : [],
+			pageIndex: Math.max(0, Number(saved.pageIndex) || 0),
+			pageSize: Math.min(100, Math.max(1, Number(saved.pageSize) || 50))
+		};
+	}
+
+	function decodeStateFromQuery(): SavedState | null {
+		if (typeof window === 'undefined') return null;
+		const encoded = new URLSearchParams(window.location.search).get(SHARE_QUERY_KEY);
+		if (!encoded) return null;
+
+		try {
+			const json = decompressFromEncodedURIComponent(encoded);
+			if (!json) return null;
+			const parsed = JSON.parse(json) as SavedState;
+			return normalizeSavedState(parsed);
+		} catch {
+			return null;
+		}
+	}
+
+	function encodeStateForQuery(state: SavedState): string {
+		return compressToEncodedURIComponent(JSON.stringify(state));
+	}
+
 	function loadState(): {
 		filters: FilterRow[];
 		sorting: SortingState;
@@ -150,18 +203,40 @@
 		pageSize: number;
 		counter: number;
 	} {
+		const sharedState = decodeStateFromQuery();
+		if (sharedState) {
+			let counter = 0;
+			const loaded = sharedState.filters.map((f) => ({ ...f, id: counter++ }));
+			return {
+				filters: loaded,
+				sorting: sharedState.sorting,
+				pageIndex: sharedState.pageIndex,
+				pageSize: sharedState.pageSize,
+				counter
+			};
+		}
+
+		if (typeof localStorage === 'undefined') {
+			return {
+				filters: [{ id: 0, field: 'approved_at', op: 'is_not_null', value: '' }],
+				sorting: [],
+				pageIndex: 0,
+				pageSize: 50,
+				counter: 1
+			};
+		}
+
 		try {
 			const raw = localStorage.getItem(STORAGE_KEY);
 			if (raw) {
-				const saved: SavedState = JSON.parse(raw);
+				const saved = normalizeSavedState(JSON.parse(raw) as SavedState);
 				let counter = 0;
 				const loaded = saved.filters.map((f) => ({ ...f, id: counter++ }));
-				const pageSize = Math.min(100, Math.max(1, saved.pageSize || 50));
 				return {
 					filters: loaded,
 					sorting: saved.sorting,
 					pageIndex: saved.pageIndex,
-					pageSize,
+					pageSize: saved.pageSize,
 					counter
 				};
 			}
@@ -179,17 +254,35 @@
 	}
 
 	function saveState() {
-		const state: SavedState = {
-			filters: filters.map(({ field, op, value }) => ({ field, op, value })),
-			sorting,
-			pageIndex: pagination.pageIndex,
-			pageSize: pagination.pageSize
-		};
+		if (typeof localStorage === 'undefined') return;
+
+		const state = toSavedState();
 		try {
 			localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 		} catch {
 			/* ignore */
 		}
+	}
+
+	let shareStatus = $state<'idle' | 'copied' | 'failed'>('idle');
+
+	async function copyShareLink() {
+		if (typeof window === 'undefined') return;
+
+		const url = new URL(window.location.href);
+		url.searchParams.set(SHARE_QUERY_KEY, encodeStateForQuery(toSavedState()));
+		window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`);
+
+		try {
+			await navigator.clipboard.writeText(url.toString());
+			shareStatus = 'copied';
+		} catch {
+			shareStatus = 'failed';
+		}
+
+		setTimeout(() => {
+			shareStatus = 'idle';
+		}, 2000);
 	}
 
 	const initial = loadState();
@@ -539,11 +632,20 @@
 				</Button>
 			</div>
 		{/each}
-		<div>
+		<div class="flex flex-wrap items-center gap-2">
 			<Button variant="outline" size="sm" onclick={addFilter}>
 				<Plus class="mr-1 h-3.5 w-3.5" />
 				Add Filter
 			</Button>
+			<Button variant="outline" size="sm" onclick={copyShareLink}>
+				<Share2 class="mr-1 h-3.5 w-3.5" />
+				Share View
+			</Button>
+			{#if shareStatus === 'copied'}
+				<span class="text-xs text-muted-foreground">Copied link</span>
+			{:else if shareStatus === 'failed'}
+				<span class="text-xs text-muted-foreground">Copy failed</span>
+			{/if}
 		</div>
 	</div>
 
