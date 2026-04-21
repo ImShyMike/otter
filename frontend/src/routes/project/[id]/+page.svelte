@@ -13,8 +13,6 @@
 	import ExternalLink from '@lucide/svelte/icons/external-link';
 	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
 	import Code from '@lucide/svelte/icons/code';
-	import { resolve } from '$app/paths';
-
 	let project = $state<SearchResult | null>(null);
 	let loading = $state(false);
 
@@ -37,12 +35,12 @@
 
 <div class="mx-auto flex min-h-screen max-w-4xl flex-col px-4 py-8">
 	<div class="mb-8 flex flex-row items-start text-center">
-		<a
-			href={resolve('/')}
+		<button
+			onclick={() => history.back()}
 			class="mb-4 flex items-center justify-center gap-1 text-sm text-muted-foreground underline underline-offset-2 hover:text-foreground"
 		>
-			<ArrowLeft class="h-3 w-3" /> Back to search
-		</a>
+			<ArrowLeft class="h-3 w-3" /> Back
+		</button>
 	</div>
 	{#if loading}
 		<div class="flex flex-1 items-center justify-center">
