@@ -95,7 +95,7 @@ const FIELDS = {
   approved_at:     { type: 'timestamp' },
   created_at:      { type: 'timestamp' },
   updated_at:      { type: 'timestamp' },
-  has_screenshot:  { type: 'bool' },
+  has_media:  { type: 'bool' },
 };
 
 const OPS_BY_TYPE = {
@@ -310,7 +310,7 @@ async function runQuery(page) {
     for (const c of cols) {
       let v = row[c];
       if (v === null || v === undefined) v = '<span style="color:#484f58">null</span>';
-      else if (c === 'has_screenshot') v = row.has_screenshot ? `<a href="/api/image/${row.id}/r" target="_blank">✅</a>` : '❌';
+      else if (c === 'has_media') v = row.has_media ? `<a href="/api/image/${row.id}/r" target="_blank">✅</a>` : '❌';
       else if (c === 'approved_at' && typeof v === 'number') v = new Date(v * 1000).toLocaleDateString();
       else if (c === 'description' && v.length > 100) v = escapeHtml(v.slice(0,100)) + '...';
       else if (c === 'github_username' && v) v = renderExternalLink(`https://github.com/${v}`, v);
