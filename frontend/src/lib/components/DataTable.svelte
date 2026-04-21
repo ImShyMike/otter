@@ -297,6 +297,30 @@
 		pagination = { pageIndex: 0, pageSize };
 	}
 
+	let pageJumpValue = $state(String(initial.pageIndex + 1));
+
+	$effect(() => {
+		pageJumpValue = String(pagination.pageIndex + 1);
+	});
+
+	function jumpToPage() {
+		const maxPage = Math.max(1, pageCount || 1);
+		const requested = Number.parseInt(pageJumpValue, 10);
+		const safePage = Number.isFinite(requested)
+			? Math.min(maxPage, Math.max(1, requested))
+			: pagination.pageIndex + 1;
+
+		pageJumpValue = String(safePage);
+		setPagination((prev) => ({ ...prev, pageIndex: safePage - 1 }));
+	}
+
+	function onPageJumpKeydown(event: KeyboardEvent) {
+		if (event.key === 'Enter') {
+			event.preventDefault();
+			jumpToPage();
+		}
+	}
+
 	let yswsOptions = $state<string[]>([]);
 
 	onMount(async () => {
@@ -746,9 +770,22 @@
 			>
 				<ChevronLeft class="h-4 w-4" />
 			</Button>
-			<span class="text-sm text-muted-foreground">
-				Page {pagination.pageIndex + 1} of {pageCount || 1}
-			</span>
+			<div class="flex items-center gap-1 text-sm text-muted-foreground">
+				<span>Page</span>
+				<Input
+					id="page-jump"
+					type="text"
+					inputmode="numeric"
+					pattern="[0-9]*"
+					min="1"
+					max={Math.max(1, pageCount || 1)}
+					bind:value={pageJumpValue}
+					onkeydown={onPageJumpKeydown}
+					onblur={jumpToPage}
+					class="h-7 w-12 p-1! text-center"
+				/>
+				<span>of {pageCount || 1}</span>
+			</div>
 			<Button
 				variant="outline"
 				size="icon-sm"
