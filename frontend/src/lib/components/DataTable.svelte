@@ -132,10 +132,78 @@
 		value: string;
 	}
 
-	let filterIdCounter = 0;
-	let filters = $state<FilterRow[]>([
-		{ id: filterIdCounter++, field: 'approved_at', op: 'is_not_null', value: '' }
-	]);
+	const STORAGE_KEY = 'otter-explore-state';
+
+	const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
+
+	interface SavedState {
+		filters: Omit<FilterRow, 'id'>[];
+		sorting: SortingState;
+		pageIndex: number;
+		pageSize: number;
+	}
+
+	function loadState(): {
+		filters: FilterRow[];
+		sorting: SortingState;
+		pageIndex: number;
+		pageSize: number;
+		counter: number;
+	} {
+		try {
+			const raw = localStorage.getItem(STORAGE_KEY);
+			if (raw) {
+				const saved: SavedState = JSON.parse(raw);
+				let counter = 0;
+				const loaded = saved.filters.map((f) => ({ ...f, id: counter++ }));
+				const pageSize = Math.min(100, Math.max(1, saved.pageSize || 50));
+				return {
+					filters: loaded,
+					sorting: saved.sorting,
+					pageIndex: saved.pageIndex,
+					pageSize,
+					counter
+				};
+			}
+		} catch {
+			/* ignore */
+		}
+		let counter = 0;
+		return {
+			filters: [{ id: counter++, field: 'approved_at', op: 'is_not_null', value: '' }],
+			sorting: [],
+			pageIndex: 0,
+			pageSize: 50,
+			counter
+		};
+	}
+
+	function saveState() {
+		const state: SavedState = {
+			filters: filters.map(({ field, op, value }) => ({ field, op, value })),
+			sorting,
+			pageIndex: pagination.pageIndex,
+			pageSize: pagination.pageSize
+		};
+		try {
+			localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+		} catch {
+			/* ignore */
+		}
+	}
+
+	const initial = loadState();
+	let filterIdCounter = initial.counter;
+	let filters = $state<FilterRow[]>(initial.filters);
+	sorting = initial.sorting;
+	pagination = { pageIndex: initial.pageIndex, pageSize: initial.pageSize };
+
+	function onPageSizeChange(event: Event) {
+		const target = event.currentTarget as HTMLSelectElement;
+		const pageSize = Math.min(100, Math.max(1, Number.parseInt(target.value, 10) || 50));
+		pagination = { pageIndex: 0, pageSize };
+	}
+
 	let yswsOptions = $state<string[]>([]);
 
 	onMount(async () => {
@@ -245,10 +313,15 @@
 	}
 
 	function setPagination(updater: Updater<PaginationState>) {
-		pagination = updater instanceof Function ? updater(pagination) : updater;
+		const next = updater instanceof Function ? updater(pagination) : updater;
+		pagination = {
+			...next,
+			pageSize: Math.min(100, Math.max(1, next.pageSize))
+		};
 	}
 
 	let filterVersion = $state(0);
+	let debounceTimer: ReturnType<typeof setTimeout> | undefined;
 
 	function onFilterChange() {
 		pagination = { ...pagination, pageIndex: 0 };
@@ -259,7 +332,15 @@
 		void sorting;
 		void pagination;
 		void filterVersion;
-		untrack(() => fetchData());
+		untrack(() => {
+			clearTimeout(debounceTimer);
+			debounceTimer = setTimeout(() => {
+				saveState();
+				fetchData();
+			}, 300);
+		});
+
+		return () => clearTimeout(debounceTimer);
 	});
 
 	const columns: ColumnDef<TableFeatures, SearchResult>[] = [
@@ -352,7 +433,9 @@
 </script>
 
 {#snippet nameSnippet(r: SearchResult)}
-	<a href={resolve('/project/{r.airtable_id}')} class="hover:underline">{projectTitle(r)}</a>
+	<a href={resolve('/project/[id]', { id: r.airtable_id })} class="hover:underline"
+		>{projectTitle(r)}</a
+	>
 {/snippet}
 
 {#snippet usernameSnippet(username: string | null)}
@@ -534,6 +617,17 @@
 			{total} total result{total !== 1 ? 's' : ''}
 		</span>
 		<div class="flex items-center gap-2">
+			<label class="text-sm text-muted-foreground" for="page-size">Rows</label>
+			<select
+				id="page-size"
+				value={pagination.pageSize}
+				onchange={onPageSizeChange}
+				class="h-7 rounded-lg border border-input bg-transparent px-2.5 py-1 pr-8 text-sm"
+			>
+				{#each PAGE_SIZE_OPTIONS as size (size)}
+					<option value={size}>{size}</option>
+				{/each}
+			</select>
 			<Button
 				variant="outline"
 				size="icon-sm"
