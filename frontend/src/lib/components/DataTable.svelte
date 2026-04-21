@@ -603,12 +603,12 @@
 		{/if}
 		{#if r.archived_demo}
 			<a href={r.archived_demo} target="_blank" rel="noopener external" title="Archived Demo">
-				<Globe class="h-4 w-4 text-muted-foreground hover:text-foreground" />
+				<Globe class="h-4 w-4 text-muted-foreground/60 hover:text-foreground/60" />
 			</a>
 		{/if}
 		{#if r.archived_repo}
 			<a href={r.archived_repo} target="_blank" rel="noopener external" title="Archived Repo">
-				<Code class="h-4 w-4 text-muted-foreground hover:text-foreground" />
+				<Code class="h-4 w-4 text-muted-foreground/60 hover:text-foreground/60" />
 			</a>
 		{/if}
 	</div>
