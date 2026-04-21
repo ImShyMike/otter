@@ -31,8 +31,9 @@
 	import X from '@lucide/svelte/icons/x';
 	import { API_BASE, title as projectTitle } from '$lib/search';
 	import type { SearchResult } from '$lib/types';
-	import { formatHours, formatApproved } from '$lib/utils';
+	import { formatApproved } from '$lib/utils';
 	import { onMount, untrack } from 'svelte';
+	import { resolve } from '$app/paths';
 
 	interface QueryFilter {
 		field: string;
@@ -132,7 +133,9 @@
 	}
 
 	let filterIdCounter = 0;
-	let filters = $state<FilterRow[]>([]);
+	let filters = $state<FilterRow[]>([
+		{ id: filterIdCounter++, field: 'approved_at', op: 'is_not_null', value: '' }
+	]);
 	let yswsOptions = $state<string[]>([]);
 
 	onMount(async () => {
@@ -263,7 +266,7 @@
 		{
 			accessorKey: 'display_name',
 			header: 'Name',
-			cell: (info) => projectTitle(info.row.original),
+			cell: (info) => renderSnippet(nameSnippet, info.row.original),
 			enableSorting: true
 		},
 		{
@@ -275,10 +278,7 @@
 		{
 			accessorKey: 'github_username',
 			header: 'User',
-			cell: (info) => {
-				const v = info.getValue() as string | null;
-				return v ? `@${v}` : '—';
-			},
+			cell: (info) => renderSnippet(usernameSnippet, info.getValue() as string | null),
 			enableSorting: true
 		},
 		{
@@ -299,7 +299,10 @@
 		{
 			accessorKey: 'hours',
 			header: 'Hours',
-			cell: (info) => formatHours(info.row.original),
+			cell: (info) => {
+				const v = info.getValue() as number;
+				return v > 0 ? `${v}h` : '—';
+			},
 			enableSorting: true
 		},
 		{
@@ -348,6 +351,25 @@
 	});
 </script>
 
+{#snippet nameSnippet(r: SearchResult)}
+	<a href={resolve('/project/{r.airtable_id}')} class="hover:underline">{projectTitle(r)}</a>
+{/snippet}
+
+{#snippet usernameSnippet(username: string | null)}
+	{#if username}
+		<a
+			href={`https://github.com/${username}`}
+			target="_blank"
+			rel="noopener external"
+			class="text-muted-foreground underline underline-offset-2 hover:text-foreground"
+		>
+			@{username}
+		</a>
+	{:else}
+		—
+	{/if}
+{/snippet}
+
 {#snippet yswsSnippet(value: string)}
 	<Badge variant="secondary">{value}</Badge>
 {/snippet}
@@ -393,7 +415,7 @@
 				<select
 					bind:value={filter.op}
 					onchange={onFilterChange}
-					class="h-8 rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm"
+					class="h-8 rounded-lg border border-input bg-transparent px-2.5 py-1 pr-7 text-sm"
 				>
 					{#each getAvailableOps(filter.field) as op (op)}
 						<option value={op}>{OP_LABELS[op]}</option>
