@@ -1,8 +1,8 @@
 pub mod media;
+pub mod project;
 pub mod query;
 pub mod search;
 pub mod ysws;
-pub mod project;
 
 use utoipa_axum::router::OpenApiRouter;
 use utoipa_axum::routes;
