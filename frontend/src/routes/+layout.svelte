@@ -1,9 +1,14 @@
 <script lang="ts">
 	import './layout.css';
 	import favicon from '$lib/assets/favicon.svg';
+	import ThemeToggle from '$lib/components/ThemeToggle.svelte';
 
 	let { children } = $props();
 </script>
+
+<div class="fixed right-4 bottom-4 z-50">
+	<ThemeToggle />
+</div>
 
 <svelte:head>
 	<link rel="icon" href={favicon} />

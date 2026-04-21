@@ -2,6 +2,7 @@ pub mod media;
 pub mod query;
 pub mod search;
 pub mod ysws;
+pub mod project;
 
 use utoipa_axum::router::OpenApiRouter;
 use utoipa_axum::routes;
@@ -18,6 +19,7 @@ pub fn router() -> OpenApiRouter<AppState> {
         .routes(routes!(query::query))
         .routes(routes!(media::media))
         .routes(routes!(media::media_redirect))
+        .routes(routes!(project::project_info))
 }
 
 static LOCAL_ONLY: OnceLock<bool> = OnceLock::new();
