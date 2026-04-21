@@ -1,18 +1,6 @@
 {
 	"name": "frontend",
-	"private": true,
 	"version": "0.0.1",
-	"type": "module",
-	"scripts": {
-		"dev": "vite dev",
-		"build": "vite build",
-		"preview": "vite preview",
-		"prepare": "svelte-kit sync || echo ''",
-		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
-		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
-		"lint": "prettier --check . && eslint .",
-		"format": "prettier --write ."
-	},
 	"devDependencies": {
 		"@eslint/compat": "^2.0.5",
 		"@eslint/js": "^10.0.1",
@@ -42,5 +30,20 @@
 		"typescript": "^6.0.3",
 		"typescript-eslint": "^8.58.2",
 		"vite": "^8.0.8"
+	},
+	"private": true,
+	"scripts": {
+		"dev": "vite dev",
+		"build": "vite build",
+		"preview": "vite preview",
+		"prepare": "svelte-kit sync || echo ''",
+		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
+		"lint": "prettier --check . && eslint .",
+		"format": "prettier --write ."
+	},
+	"type": "module",
+	"dependencies": {
+		"@tanstack/svelte-table": "9.0.0-alpha.33"
 	}
 }

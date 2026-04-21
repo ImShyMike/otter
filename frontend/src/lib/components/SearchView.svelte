@@ -67,7 +67,7 @@
 			</div>
 			<ExpandableImage
 				id={r.id}
-				src={imageUrl(r.id)}
+				src={imageUrl(r.airtable_id)}
 				alt={title(r)}
 				missing={!r.has_media}
 				buttonClass="hidden sm:block"
