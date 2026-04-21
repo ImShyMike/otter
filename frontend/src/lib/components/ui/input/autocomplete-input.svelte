@@ -76,7 +76,8 @@
 		>
 			{#each filtered as option, i (option)}
 				<button
-					class="w-full rounded-sm px-2 py-1.5 text-left text-sm {i === highlightIndex
+					class="w-full cursor-pointer rounded-sm px-2 py-1.5 text-left text-sm {i ===
+					highlightIndex
 						? 'bg-muted'
 						: 'hover:bg-muted'}"
 					onmousedown={(e) => {

@@ -167,10 +167,7 @@
 		});
 
 		return {
-			filters:
-				sanitizedFilters.length > 0
-					? sanitizedFilters
-					: [{ field: 'approved_at', op: 'is_not_null', value: '' }],
+			filters: sanitizedFilters,
 			sorting: Array.isArray(saved.sorting) ? saved.sorting.slice(0, 1) : [],
 			pageIndex: Math.max(0, Number(saved.pageIndex) || 0),
 			pageSize: Math.min(100, Math.max(1, Number(saved.pageSize) || 50))
@@ -351,6 +348,17 @@
 
 	function getAvailableOps(field: string) {
 		return OPS_BY_TYPE[FIELDS[field]?.type ?? 'text'] ?? [];
+	}
+
+	function setYSWSFilter(ysws: string) {
+		const existing = filters.find((f) => f.field === 'ysws' && f.op === 'eq');
+		if (existing) {
+			existing.value = ysws;
+			onFilterChange();
+		} else {
+			filters.push({ id: filterIdCounter++, field: 'ysws', op: 'eq', value: ysws });
+			onFilterChange();
+		}
 	}
 
 	const fieldMap: Record<string, string> = {
@@ -571,7 +579,14 @@
 {/snippet}
 
 {#snippet yswsSnippet(value: string)}
-	<Badge variant="secondary">{value}</Badge>
+	<button
+		class="cursor-pointer"
+		onclick={() => {
+			setYSWSFilter(value);
+		}}
+	>
+		<Badge variant="secondary" class="cursor-pointer">{value}</Badge>
+	</button>
 {/snippet}
 
 {#snippet linksSnippet(r: SearchResult)}
@@ -606,7 +621,7 @@
 				<select
 					bind:value={filter.field}
 					onchange={() => onFieldChange(filter)}
-					class="h-8 rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm"
+					class="h-8 cursor-pointer rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm"
 				>
 					{#each Object.entries(FIELDS) as [key, meta] (key)}
 						<option value={key}>{meta.label}</option>
@@ -615,7 +630,7 @@
 				<select
 					bind:value={filter.op}
 					onchange={onFilterChange}
-					class="h-8 rounded-lg border border-input bg-transparent px-2.5 py-1 pr-7 text-sm"
+					class="h-8 cursor-pointer rounded-lg border border-input bg-transparent px-2.5 py-1 pr-7 text-sm"
 				>
 					{#each getAvailableOps(filter.field) as op (op)}
 						<option value={op}>{OP_LABELS[op]}</option>
@@ -633,7 +648,7 @@
 						<select
 							bind:value={filter.value}
 							onchange={onFilterChange}
-							class="h-8 rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm"
+							class="h-8 cursor-pointer rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm"
 						>
 							<option value="">Select…</option>
 							<option value="true">true</option>
@@ -687,7 +702,7 @@
 							<Table.Head>
 								{#if header.column.getCanSort()}
 									<button
-										class="flex items-center gap-1"
+										class="flex cursor-pointer items-center gap-1"
 										onclick={() => header.column.toggleSorting()}
 									>
 										<FlexRender {header} />
@@ -748,7 +763,7 @@
 				id="page-size"
 				value={pagination.pageSize}
 				onchange={onPageSizeChange}
-				class="h-7 rounded-lg border border-input bg-transparent px-2.5 py-1 pr-8 text-sm"
+				class="h-7 cursor-pointer rounded-lg border border-input bg-transparent px-2.5 py-1 pr-8 text-sm"
 			>
 				{#each PAGE_SIZE_OPTIONS as size (size)}
 					<option value={size}>{size}</option>
