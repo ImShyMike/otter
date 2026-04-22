@@ -92,9 +92,10 @@ pub async fn search(
     let trigram_candidate_limit = (limit * 15).clamp(150, 3000);
 
     // user-only search
-    if filters.cleaned_query.is_empty() && filters.user.is_some() {
-        let username = filters.user.unwrap();
-        return user_search(&username, limit, &state).await;
+    if filters.cleaned_query.is_empty()
+        && let Some(username) = filters.user.as_deref()
+    {
+        return user_search(username, limit, &state).await;
     }
 
     // normalize weights
