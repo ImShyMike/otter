@@ -6,16 +6,31 @@ export function imageUrl(airtable_id: string) {
 	return `${API_BASE}/api/media/${airtable_id}/r`;
 }
 
-export function nameFromCodeUrl(url: string | null) {
-	const username =
+function parseCodeUrl(url: string | null, index: number) {
+	return (
 		url
 			?.replace(/^git@[^:]+:/, '')
 			.replace(/^[a-z]+:\/\/[^/]+\//i, '')
 			.replace(/^\/+/, '')
 			.replace(/\.git$/, '')
-			.split('/')[1] ||
+			.split('/')[index] ||
 		''.replace(/[-_]/g, ' ') ||
-		'';
+		''
+	);
+}
+
+export function repoFromCodeUrl(url: string | null) {
+	const repo = parseCodeUrl(url, 1);
+
+	if (repo?.length > 50 || repo.length === 0) {
+		return null;
+	}
+
+	return repo;
+}
+
+export function usernameFromCodeUrl(url: string | null) {
+	const username = parseCodeUrl(url, 0);
 
 	if (username?.length > 50 || username.length === 0) {
 		return null;
@@ -25,7 +40,7 @@ export function nameFromCodeUrl(url: string | null) {
 }
 
 export function title(r: { id: number; code_url: string | null }) {
-	return nameFromCodeUrl(r.code_url) ?? `Project #${r.id}`;
+	return repoFromCodeUrl(r.code_url) ?? `Project #${r.id}`;
 }
 
 export function truncate(s: string | null, len = 200) {

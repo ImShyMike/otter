@@ -30,7 +30,7 @@
 	import Share2 from '@lucide/svelte/icons/share-2';
 	import X from '@lucide/svelte/icons/x';
 	import lzString from 'lz-string';
-	import { API_BASE, title as projectTitle, imageUrl } from '$lib/search';
+	import { API_BASE, title as projectTitle, imageUrl, usernameFromCodeUrl } from '$lib/search';
 	import type { SearchResult } from '$lib/types';
 	import { formatApproved } from '$lib/utils';
 	import { onMount, untrack } from 'svelte';
@@ -506,15 +506,21 @@
 
 	const columns: ColumnDef<TableFeatures, SearchResult>[] = [
 		{
-			accessorKey: 'display_name',
-			header: 'Name',
-			cell: (info) => renderSnippet(nameSnippet, info.row.original),
-			enableSorting: true
+			id: 'row_number',
+			header: 'ID',
+			cell: (info) => (info.row.index + 1).toString(),
+			enableSorting: false
 		},
 		{
-			accessorKey: 'github_username',
+			accessorKey: 'project_name',
+			header: 'Name',
+			cell: (info) => renderSnippet(nameSnippet, info.row.original),
+			enableSorting: false
+		},
+		{
+			accessorKey: 'display_name',
 			header: 'User',
-			cell: (info) => renderSnippet(usernameSnippet, info.getValue() as string | null),
+			cell: (info) => renderSnippet(usernameSnippet, info.row.original),
 			enableSorting: true
 		},
 		{
@@ -576,7 +582,7 @@
 		},
 		{
 			accessorKey: 'code_url',
-			header: 'Code URL',
+			header: 'Code',
 			cell: (info) =>
 				renderSnippet(urlSnippet, {
 					url: info.getValue() as string | null,
@@ -586,7 +592,7 @@
 		},
 		{
 			accessorKey: 'demo_url',
-			header: 'Demo URL',
+			header: 'Demo',
 			cell: (info) =>
 				renderSnippet(urlSnippet, {
 					url: info.getValue() as string | null,
@@ -673,7 +679,8 @@
 	{/if}
 {/snippet}
 
-{#snippet usernameSnippet(username: string | null)}
+{#snippet usernameSnippet(r: SearchResult)}
+	{@const username = r.github_username || usernameFromCodeUrl(r.code_url)}
 	{#if username}
 		<a
 			href={`https://github.com/${username}`}
@@ -681,8 +688,14 @@
 			rel="noopener external"
 			class="text-muted-foreground underline underline-offset-2 hover:text-foreground"
 		>
-			@{username}
+			{r.display_name
+				? r.display_name == username
+					? username
+					: `${r.display_name} (${username})`
+				: username}
 		</a>
+	{:else if r.display_name}
+		{r.display_name}
 	{:else}
 		—
 	{/if}
