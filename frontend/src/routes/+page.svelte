@@ -83,7 +83,7 @@
 	}
 </script>
 
-<div class="mx-auto flex min-h-screen max-w-4xl flex-col px-4 py-8">
+<div class="overflow-none mx-auto flex min-h-screen max-w-4xl flex-col px-4 py-8">
 	<div class="mb-8 text-center" class:mt-[20vh]={!searched} class:mt-0={searched}>
 		<h1 class="mb-2 text-3xl font-bold tracking-tight">Otter</h1>
 		<p class="mb-6 text-sm text-muted-foreground">Search engine for Hack Club projects!</p>
@@ -119,10 +119,13 @@
 		</div>
 
 		<div class="flex flex-col items-center">
-			<p class="m-3 inline-flex items-center gap-2 text-xs text-muted-foreground">
+			<p
+				class="m-3 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-center text-xs text-muted-foreground"
+			>
 				<span class="font-medium tracking-wide text-foreground/80">tip:</span>
 				<span class="opacity-70">use</span>
-				<span class="rounded bg-muted px-1.5 py-0.5 font-mono text-[11px] text-foreground"
+				<span
+					class="rounded bg-muted px-1.5 py-0.5 font-mono text-[11px] whitespace-nowrap text-foreground"
 					>user:username</span
 				>
 				<span class="opacity-70">to search for projects by a user</span>
