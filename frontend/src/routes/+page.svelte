@@ -8,7 +8,7 @@
 	import { API_BASE } from '$lib/search';
 	import type { SearchResult } from '$lib/types';
 	import { page } from '$app/state';
-	import { replaceState } from '$app/navigation';
+	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import Spinner from '$lib/components/ui/spinner/spinner.svelte';
 	import TableIcon from '@lucide/svelte/icons/table';
@@ -21,6 +21,7 @@
 	let searched = $state(false);
 	let viewMode = $state<ViewMode>('search');
 	let lastSearchedQuery = $state('');
+	let lastSubmittedQuery = $state('');
 
 	async function doSearch(q: string) {
 		lastSearchedQuery = q;
@@ -45,7 +46,15 @@
 
 	async function submitSearch() {
 		const q = query.trim();
-		replaceState(resolve(q ? `/?q=${encodeURIComponent(q)}` : '/'), page.state);
+
+		if (q === lastSubmittedQuery) {
+			return;
+		}
+
+		lastSubmittedQuery = q;
+		const href = resolve(q ? `/?q=${encodeURIComponent(q)}` : '/');
+
+		await goto(href, { replaceState: true, keepFocus: true, noScroll: true });
 	}
 
 	$effect(() => {
@@ -81,18 +90,32 @@
 				onkeydown={handleKeydown}
 				class="h-9"
 			/>
-			<Button onclick={() => void submitSearch()} disabled={loading} size="lg">
+			<Button
+				onclick={() => void submitSearch()}
+				disabled={loading || query.trim() === lastSubmittedQuery}
+				size="lg"
+			>
 				<Search class="mr-2 h-4 w-4" />
 				Search
 			</Button>
 		</div>
 
-		<a
-			href={resolve('/explore')}
-			class="mt-3 inline-flex items-center gap-1 text-sm text-muted-foreground underline underline-offset-2 hover:text-foreground"
-		>
-			<TableIcon class="h-3 w-3" /> Explore all projects
-		</a>
+		<div class="flex flex-col items-center">
+			<p class="m-3 inline-flex items-center gap-2 text-xs text-muted-foreground">
+				<span class="font-medium tracking-wide text-foreground/80">tip:</span>
+				<span class="opacity-70">use</span>
+				<span class="rounded bg-muted px-1.5 py-0.5 font-mono text-[11px] text-foreground"
+					>user:username</span
+				>
+				<span class="opacity-70">to search for projects by a user</span>
+			</p>
+			<a
+				href={resolve('/explore')}
+				class="mt-2 inline-flex items-center gap-1 text-sm text-muted-foreground underline underline-offset-2 hover:text-foreground"
+			>
+				<TableIcon class="h-3 w-3" /> Explore all projects
+			</a>
+		</div>
 	</div>
 
 	{#if searched}
