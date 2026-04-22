@@ -8,7 +8,7 @@
 	<title>Explore · Otter</title>
 </svelte:head>
 
-<div class="mx-auto flex min-h-screen max-w-7xl flex-col px-4 py-8">
+<div class="mx-auto flex max-w-7xl flex-col px-4 py-8">
 	<div class="mb-6 flex items-center gap-4">
 		<a
 			href={resolve('/')}

@@ -7,11 +7,21 @@ export function imageUrl(airtable_id: string) {
 }
 
 export function nameFromCodeUrl(url: string | null) {
-	return url
-		?.replace(/https?:\/\/(www\.)?/, '')
-		.split('/')[2]
-		?.replace(/\.git$/, '')
-		.replace(/[-_]/g, ' ');
+	const username =
+		url
+			?.replace(/^git@[^:]+:/, '')
+			.replace(/^[a-z]+:\/\/[^/]+\//i, '')
+			.replace(/^\/+/, '')
+			.replace(/\.git$/, '')
+			.split('/')[1] ||
+		''.replace(/[-_]/g, ' ') ||
+		'';
+
+	if (username?.length > 50 || username.length === 0) {
+		return null;
+	}
+
+	return username;
 }
 
 export function title(r: { id: number; code_url: string | null }) {
