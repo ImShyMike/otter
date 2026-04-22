@@ -18,8 +18,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Input, AutocompleteInput } from '$lib/components/ui/input';
 	import { Spinner } from '$lib/components/ui/spinner';
-	import Code from '@lucide/svelte/icons/code';
-	import Globe from '@lucide/svelte/icons/globe';
+	import * as Tooltip from '$lib/components/ui/tooltip';
 	import ArrowUpDown from '@lucide/svelte/icons/arrow-up-down';
 	import ArrowUp from '@lucide/svelte/icons/arrow-up';
 	import ArrowDown from '@lucide/svelte/icons/arrow-down';
@@ -31,7 +30,7 @@
 	import Share2 from '@lucide/svelte/icons/share-2';
 	import X from '@lucide/svelte/icons/x';
 	import lzString from 'lz-string';
-	import { API_BASE, title as projectTitle } from '$lib/search';
+	import { API_BASE, title as projectTitle, imageUrl } from '$lib/search';
 	import type { SearchResult } from '$lib/types';
 	import { formatApproved } from '$lib/utils';
 	import { onMount, untrack } from 'svelte';
@@ -140,11 +139,18 @@
 	const SHARE_QUERY_KEY = 'view';
 
 	const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
+	const DESCRIPTION_PREVIEW_LENGTH = 120;
 
 	function filterValueAsString(value: unknown): string {
 		if (typeof value === 'string') return value;
 		if (typeof value === 'number' || typeof value === 'boolean') return String(value);
 		return '';
+	}
+
+	function previewDescription(value: string): string {
+		const normalized = value.replace(/\s+/g, ' ').trim();
+		if (normalized.length <= DESCRIPTION_PREVIEW_LENGTH) return normalized;
+		return `${normalized.slice(0, DESCRIPTION_PREVIEW_LENGTH).trimEnd()}...`;
 	}
 
 	interface SavedState {
@@ -288,6 +294,12 @@
 		}, 2000);
 	}
 
+	function clearFilters() {
+		filters = [];
+		sorting = [];
+		onFilterChange();
+	}
+
 	const initial = loadState();
 	let filterIdCounter = initial.counter;
 	let filters = $state<FilterRow[]>(initial.filters);
@@ -368,11 +380,19 @@
 	}
 
 	const fieldMap: Record<string, string> = {
+		airtable_id: 'airtable_id',
 		ysws: 'ysws',
 		country: 'country',
+		description: 'description',
 		github_username: 'github_username',
+		code_url: 'code_url',
+		demo_url: 'demo_url',
+		archived_demo: 'archived_demo',
+		archived_repo: 'archived_repo',
 		github_stars: 'github_stars',
 		hours: 'hours',
+		true_hours: 'true_hours',
+		has_media: 'has_media',
 		approved_at: 'approved_at',
 		display_name: 'display_name'
 	};
@@ -494,21 +514,51 @@
 			enableSorting: true
 		},
 		{
-			accessorKey: 'ysws',
-			header: 'YSWS',
-			cell: (info) => renderSnippet(yswsSnippet, info.getValue() as string),
-			enableSorting: true
-		},
-		{
 			accessorKey: 'github_username',
 			header: 'User',
 			cell: (info) => renderSnippet(usernameSnippet, info.getValue() as string | null),
 			enableSorting: true
 		},
 		{
+			accessorKey: 'ysws',
+			header: 'YSWS',
+			cell: (info) => renderSnippet(yswsSnippet, info.getValue() as string),
+			enableSorting: true
+		},
+		{
+			accessorKey: 'description',
+			header: 'Description',
+			cell: (info) => renderSnippet(descriptionSnippet, info.getValue() as string | null),
+			enableSorting: true
+		},
+		{
 			accessorKey: 'country',
 			header: 'Country',
 			cell: (info) => (info.getValue() as string | null) ?? '—',
+			enableSorting: true
+		},
+		{
+			accessorKey: 'approved_at',
+			header: 'Approved',
+			cell: (info) => formatApproved(info.getValue() as number | null),
+			enableSorting: true
+		},
+		{
+			accessorKey: 'hours',
+			header: 'Hours',
+			cell: (info) => {
+				const value = info.getValue() as number | null;
+				return value == null ? '<1h' : `${value}h`;
+			},
+			enableSorting: true
+		},
+		{
+			accessorKey: 'true_hours',
+			header: 'True Hours',
+			cell: (info) => {
+				const value = info.getValue() as number | null;
+				return value == null ? '—' : `${value.toFixed(1)}h`;
+			},
 			enableSorting: true
 		},
 		{
@@ -521,25 +571,56 @@
 			enableSorting: true
 		},
 		{
-			accessorKey: 'hours',
-			header: 'Hours',
-			cell: (info) => {
-				const v = info.getValue() as number;
-				return v > 0 ? `${v}h` : '<1h';
-			},
+			accessorKey: 'has_media',
+			header: 'Media',
+			cell: (info) => renderSnippet(mediaSnippet, info.row.original),
 			enableSorting: true
 		},
 		{
-			accessorKey: 'approved_at',
-			header: 'Approved',
-			cell: (info) => formatApproved(info.getValue() as number | null),
+			accessorKey: 'code_url',
+			header: 'Code URL',
+			cell: (info) =>
+				renderSnippet(urlSnippet, {
+					url: info.getValue() as string | null,
+					label: 'Code'
+				}),
 			enableSorting: true
 		},
 		{
-			id: 'links',
-			header: 'Links',
-			cell: (info) => renderSnippet(linksSnippet, info.row.original),
-			enableSorting: false
+			accessorKey: 'demo_url',
+			header: 'Demo URL',
+			cell: (info) =>
+				renderSnippet(urlSnippet, {
+					url: info.getValue() as string | null,
+					label: 'Demo'
+				}),
+			enableSorting: true
+		},
+		{
+			accessorKey: 'archived_demo',
+			header: 'Archived Demo',
+			cell: (info) =>
+				renderSnippet(urlSnippet, {
+					url: info.getValue() as string | null,
+					label: 'Archived Demo'
+				}),
+			enableSorting: true
+		},
+		{
+			accessorKey: 'archived_repo',
+			header: 'Archived Repo',
+			cell: (info) =>
+				renderSnippet(urlSnippet, {
+					url: info.getValue() as string | null,
+					label: 'Archived Repo'
+				}),
+			enableSorting: true
+		},
+		{
+			accessorKey: 'airtable_id',
+			header: 'Airtable ID',
+			cell: (info) => info.getValue() as string,
+			enableSorting: true
 		}
 	];
 
@@ -581,6 +662,19 @@
 	>
 {/snippet}
 
+{#snippet mediaSnippet(r: SearchResult)}
+	{#if r.has_media}
+		<a
+			href={imageUrl(r.airtable_id)}
+			target="_blank"
+			rel="noopener external"
+			class="text-muted-foreground underline underline-offset-2 hover:text-foreground">Media</a
+		>
+	{:else}
+		—
+	{/if}
+{/snippet}
+
 {#snippet usernameSnippet(username: string | null)}
 	{#if username}
 		<a
@@ -596,6 +690,25 @@
 	{/if}
 {/snippet}
 
+{#snippet descriptionSnippet(description: string | null)}
+	{#if !description}
+		—
+	{:else}
+		<Tooltip.Root>
+			<Tooltip.Trigger
+				class="block max-w-xs cursor-default overflow-hidden text-left text-ellipsis whitespace-nowrap text-foreground/90"
+			>
+				{previewDescription(description)}
+			</Tooltip.Trigger>
+			<Tooltip.Portal>
+				<Tooltip.Content class="max-w-96 wrap-break-word whitespace-pre-wrap">
+					{description}
+				</Tooltip.Content>
+			</Tooltip.Portal>
+		</Tooltip.Root>
+	{/if}
+{/snippet}
+
 {#snippet yswsSnippet(value: string)}
 	<button
 		class="cursor-pointer"
@@ -607,234 +720,231 @@
 	</button>
 {/snippet}
 
-{#snippet linksSnippet(r: SearchResult)}
-	<div class="flex justify-start gap-2">
-		{#if r.demo_url}
-			<a href={r.demo_url} target="_blank" rel="noopener external">
-				<Globe class="h-4 w-4 text-muted-foreground hover:text-foreground" />
-			</a>
-		{/if}
-		{#if r.code_url}
-			<a href={r.code_url} target="_blank" rel="noopener external">
-				<Code class="h-4 w-4 text-muted-foreground hover:text-foreground" />
-			</a>
-		{/if}
-		{#if r.archived_demo}
-			<a href={r.archived_demo} target="_blank" rel="noopener external" title="Archived Demo">
-				<Globe class="h-4 w-4 text-muted-foreground/60 hover:text-foreground/60" />
-			</a>
-		{/if}
-		{#if r.archived_repo}
-			<a href={r.archived_repo} target="_blank" rel="noopener external" title="Archived Repo">
-				<Code class="h-4 w-4 text-muted-foreground/60 hover:text-foreground/60" />
-			</a>
-		{/if}
-	</div>
+{#snippet urlSnippet(link: { url: string | null; label: string })}
+	{#if link.url}
+		<a
+			href={link.url}
+			target="_blank"
+			rel="noopener external"
+			class="text-muted-foreground underline underline-offset-2 hover:text-foreground"
+		>
+			{link.label}
+		</a>
+	{:else}
+		—
+	{/if}
 {/snippet}
 
-<div class="space-y-4">
-	<div class="flex flex-col gap-2">
-		{#each filters as filter (filter.id)}
-			<div class="flex flex-wrap items-center gap-2">
-				<select
-					bind:value={filter.field}
-					onchange={() => onFieldChange(filter)}
-					class="h-8 cursor-pointer rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm"
-				>
-					{#each Object.entries(FIELDS) as [key, meta] (key)}
-						<option value={key}>{meta.label}</option>
-					{/each}
-				</select>
-				<select
-					bind:value={filter.op}
-					onchange={onFilterChange}
-					class="h-8 cursor-pointer rounded-lg border border-input bg-transparent px-2.5 py-1 pr-7 text-sm"
-				>
-					{#each getAvailableOps(filter.field) as op (op)}
-						<option value={op}>{OP_LABELS[op]}</option>
-					{/each}
-				</select>
-				{#if !NO_VALUE_OPS.has(filter.op)}
-					{#if filter.field === 'ysws' && ['eq', 'neq'].includes(filter.op) && yswsOptions.length > 0}
-						<AutocompleteInput
-							bind:value={filter.value}
-							options={yswsOptions}
-							placeholder="Filter YSWS…"
-							onselect={onFilterChange}
-						/>
-					{:else if FIELDS[filter.field]?.type === 'bool'}
-						<select
-							bind:value={filter.value}
-							onchange={onFilterChange}
-							class="h-8 cursor-pointer rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm"
-						>
-							<option value="">Select…</option>
-							<option value="true">true</option>
-							<option value="false">false</option>
-						</select>
-					{:else}
-						<Input
-							type={FIELDS[filter.field]?.type === 'int' || FIELDS[filter.field]?.type === 'float'
-								? 'number'
-								: 'text'}
-							placeholder={FIELDS[filter.field]?.type === 'timestamp' ? '2025-01-01' : 'value'}
-							bind:value={filter.value}
-							oninput={onFilterChange}
-							class="h-8 w-40"
-						/>
-					{/if}
-				{/if}
-				<Button variant="ghost" size="icon-sm" onclick={() => removeFilter(filter.id)}>
-					<X class="h-3.5 w-3.5" />
-				</Button>
-			</div>
-		{/each}
-		<div class="flex flex-wrap items-center gap-2">
-			<Button variant="outline" size="sm" onclick={addFilter}>
-				<Plus class="mr-1 h-3.5 w-3.5" />
-				Add Filter
-			</Button>
-			<Button variant="outline" size="sm" onclick={copyShareLink}>
-				<Share2 class="mr-1 h-3.5 w-3.5" />
-				Share View
-			</Button>
-			{#if shareStatus === 'copied'}
-				<span class="text-xs text-muted-foreground">Copied link</span>
-			{:else if shareStatus === 'failed'}
-				<span class="text-xs text-muted-foreground">Copy failed</span>
-			{/if}
-		</div>
-	</div>
-
-	<div class="relative rounded border">
-		{#if loading && data.length > 0}
-			<div class="absolute inset-0 z-10 flex items-center justify-center rounded bg-background/50">
-				<Spinner />
-			</div>
-		{/if}
-		<Table.Table>
-			<Table.Header>
-				{#each table.getHeaderGroups() as headerGroup (headerGroup.id)}
-					<Table.Row>
-						{#each headerGroup.headers as header (header.id)}
-							<Table.Head>
-								{#if header.column.getCanSort()}
-									<button
-										class="flex cursor-pointer items-center gap-1"
-										onclick={() => header.column.toggleSorting()}
-									>
-										<FlexRender {header} />
-										{#if header.column.getIsSorted() === 'asc'}
-											<ArrowUp class="h-3 w-3" />
-										{:else if header.column.getIsSorted() === 'desc'}
-											<ArrowDown class="h-3 w-3" />
-										{:else}
-											<ArrowUpDown class="h-3 w-3 text-muted-foreground/50" />
-										{/if}
-									</button>
-								{:else}
-									<FlexRender {header} />
-								{/if}
-							</Table.Head>
+<Tooltip.Provider>
+	<div class="space-y-4">
+		<div class="flex flex-col gap-2">
+			{#each filters as filter (filter.id)}
+				<div class="flex flex-wrap items-center gap-2">
+					<select
+						bind:value={filter.field}
+						onchange={() => onFieldChange(filter)}
+						class="h-8 cursor-pointer rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm"
+					>
+						{#each Object.entries(FIELDS) as [key, meta] (key)}
+							<option value={key}>{meta.label}</option>
 						{/each}
-					</Table.Row>
-				{/each}
-			</Table.Header>
-			<Table.Body>
-				{#if loading && data.length === 0}
-					<Table.Row>
-						<Table.Cell colspan={columns.length} class="h-24 text-center">
-							<div class="flex items-center justify-center gap-2">
-								<Spinner />
-								<span class="text-sm text-muted-foreground">Loading…</span>
-							</div>
-						</Table.Cell>
-					</Table.Row>
-				{:else if !loading && data.length === 0}
-					<Table.Row>
-						<Table.Cell colspan={columns.length} class="h-24 text-center text-muted-foreground">
-							No results.
-						</Table.Cell>
-					</Table.Row>
-				{:else}
-					{#each table.getRowModel().rows as row (row.id)}
+					</select>
+					<select
+						bind:value={filter.op}
+						onchange={onFilterChange}
+						class="h-8 cursor-pointer rounded-lg border border-input bg-transparent px-2.5 py-1 pr-7 text-sm"
+					>
+						{#each getAvailableOps(filter.field) as op (op)}
+							<option value={op}>{OP_LABELS[op]}</option>
+						{/each}
+					</select>
+					{#if !NO_VALUE_OPS.has(filter.op)}
+						{#if filter.field === 'ysws' && ['eq', 'neq'].includes(filter.op) && yswsOptions.length > 0}
+							<AutocompleteInput
+								bind:value={filter.value}
+								options={yswsOptions}
+								placeholder="Filter YSWS…"
+								onselect={onFilterChange}
+							/>
+						{:else if FIELDS[filter.field]?.type === 'bool'}
+							<select
+								bind:value={filter.value}
+								onchange={onFilterChange}
+								class="h-8 cursor-pointer rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm"
+							>
+								<option value="">Select…</option>
+								<option value="true">true</option>
+								<option value="false">false</option>
+							</select>
+						{:else}
+							<Input
+								type={FIELDS[filter.field]?.type === 'int' || FIELDS[filter.field]?.type === 'float'
+									? 'number'
+									: 'text'}
+								placeholder={FIELDS[filter.field]?.type === 'timestamp' ? '2025-01-01' : 'value'}
+								bind:value={filter.value}
+								oninput={onFilterChange}
+								class="h-8 w-40"
+							/>
+						{/if}
+					{/if}
+					<Button variant="ghost" size="icon-sm" onclick={() => removeFilter(filter.id)}>
+						<X class="h-3.5 w-3.5" />
+					</Button>
+				</div>
+			{/each}
+			<div class="flex flex-wrap items-center gap-2">
+				<Button variant="outline" size="sm" onclick={addFilter}>
+					<Plus class="mr-1 h-3.5 w-3.5" />
+					Add Filter
+				</Button>
+				<Button variant="outline" size="sm" onclick={clearFilters} disabled={filters.length === 0}>
+					Clear Filters
+				</Button>
+				<Button variant="outline" size="sm" onclick={copyShareLink}>
+					<Share2 class="mr-1 h-3.5 w-3.5" />
+					Share View
+				</Button>
+				{#if shareStatus === 'copied'}
+					<span class="text-xs text-muted-foreground">Copied link</span>
+				{:else if shareStatus === 'failed'}
+					<span class="text-xs text-muted-foreground">Copy failed</span>
+				{/if}
+			</div>
+		</div>
+
+		<div class="relative rounded border">
+			{#if loading && data.length > 0}
+				<div
+					class="absolute inset-0 z-10 flex items-center justify-center rounded bg-background/50"
+				>
+					<Spinner />
+				</div>
+			{/if}
+			<Table.Table>
+				<Table.Header>
+					{#each table.getHeaderGroups() as headerGroup (headerGroup.id)}
 						<Table.Row>
-							{#each row.getVisibleCells() as cell (cell.id)}
-								<Table.Cell>
-									<FlexRender {cell} />
-								</Table.Cell>
+							{#each headerGroup.headers as header (header.id)}
+								<Table.Head>
+									{#if header.column.getCanSort()}
+										<button
+											class="flex cursor-pointer items-center gap-1"
+											onclick={() => header.column.toggleSorting()}
+										>
+											<FlexRender {header} />
+											{#if header.column.getIsSorted() === 'asc'}
+												<ArrowUp class="h-3 w-3" />
+											{:else if header.column.getIsSorted() === 'desc'}
+												<ArrowDown class="h-3 w-3" />
+											{:else}
+												<ArrowUpDown class="h-3 w-3 text-muted-foreground/50" />
+											{/if}
+										</button>
+									{:else}
+										<FlexRender {header} />
+									{/if}
+								</Table.Head>
 							{/each}
 						</Table.Row>
 					{/each}
-				{/if}
-			</Table.Body>
-		</Table.Table>
-	</div>
+				</Table.Header>
+				<Table.Body>
+					{#if loading && data.length === 0}
+						<Table.Row>
+							<Table.Cell colspan={columns.length} class="h-24 text-center">
+								<div class="flex items-center justify-center gap-2">
+									<Spinner />
+									<span class="text-sm text-muted-foreground">Loading…</span>
+								</div>
+							</Table.Cell>
+						</Table.Row>
+					{:else if !loading && data.length === 0}
+						<Table.Row>
+							<Table.Cell colspan={columns.length} class="h-24 text-center text-muted-foreground">
+								No results.
+							</Table.Cell>
+						</Table.Row>
+					{:else}
+						{#each table.getRowModel().rows as row (row.id)}
+							<Table.Row>
+								{#each row.getVisibleCells() as cell (cell.id)}
+									<Table.Cell>
+										<FlexRender {cell} />
+									</Table.Cell>
+								{/each}
+							</Table.Row>
+						{/each}
+					{/if}
+				</Table.Body>
+			</Table.Table>
+		</div>
 
-	<div class="flex items-center justify-between">
-		<span class="text-sm text-muted-foreground">
-			{total} total result{total !== 1 ? 's' : ''}
-		</span>
-		<div class="flex items-center gap-2">
-			<label class="text-sm text-muted-foreground" for="page-size">Rows</label>
-			<select
-				id="page-size"
-				value={pagination.pageSize}
-				onchange={onPageSizeChange}
-				class="h-7 cursor-pointer rounded-lg border border-input bg-transparent px-2.5 py-1 pr-8 text-sm"
-			>
-				{#each PAGE_SIZE_OPTIONS as size (size)}
-					<option value={size}>{size}</option>
-				{/each}
-			</select>
-			<Button
-				variant="outline"
-				size="icon-sm"
-				disabled={!table.getCanPreviousPage()}
-				onclick={() => table.firstPage()}
-			>
-				<ChevronsLeft class="h-4 w-4" />
-			</Button>
-			<Button
-				variant="outline"
-				size="icon-sm"
-				disabled={!table.getCanPreviousPage()}
-				onclick={() => table.previousPage()}
-			>
-				<ChevronLeft class="h-4 w-4" />
-			</Button>
-			<div class="flex items-center gap-1 text-sm text-muted-foreground">
-				<span>Page</span>
-				<Input
-					id="page-jump"
-					type="text"
-					inputmode="numeric"
-					pattern="[0-9]*"
-					min="1"
-					max={Math.max(1, pageCount || 1)}
-					bind:value={pageJumpValue}
-					onkeydown={onPageJumpKeydown}
-					onblur={jumpToPage}
-					class="h-7 w-12 p-1! text-center"
-				/>
-				<span>of {pageCount || 1}</span>
+		<div class="flex items-center justify-between">
+			<span class="text-sm text-muted-foreground">
+				{total} total result{total !== 1 ? 's' : ''}
+			</span>
+			<div class="flex items-center gap-2">
+				<label class="text-sm text-muted-foreground" for="page-size">Rows</label>
+				<select
+					id="page-size"
+					value={pagination.pageSize}
+					onchange={onPageSizeChange}
+					class="h-7 cursor-pointer rounded-lg border border-input bg-transparent px-2.5 py-1 pr-8 text-sm"
+				>
+					{#each PAGE_SIZE_OPTIONS as size (size)}
+						<option value={size}>{size}</option>
+					{/each}
+				</select>
+				<Button
+					variant="outline"
+					size="icon-sm"
+					disabled={!table.getCanPreviousPage()}
+					onclick={() => table.firstPage()}
+				>
+					<ChevronsLeft class="h-4 w-4" />
+				</Button>
+				<Button
+					variant="outline"
+					size="icon-sm"
+					disabled={!table.getCanPreviousPage()}
+					onclick={() => table.previousPage()}
+				>
+					<ChevronLeft class="h-4 w-4" />
+				</Button>
+				<div class="flex items-center gap-1 text-sm text-muted-foreground">
+					<span>Page</span>
+					<Input
+						id="page-jump"
+						type="text"
+						inputmode="numeric"
+						pattern="[0-9]*"
+						min="1"
+						max={Math.max(1, pageCount || 1)}
+						bind:value={pageJumpValue}
+						onkeydown={onPageJumpKeydown}
+						onblur={jumpToPage}
+						class="h-7 w-12 p-1! text-center"
+					/>
+					<span>of {pageCount || 1}</span>
+				</div>
+				<Button
+					variant="outline"
+					size="icon-sm"
+					disabled={!table.getCanNextPage()}
+					onclick={() => table.nextPage()}
+				>
+					<ChevronRight class="h-4 w-4" />
+				</Button>
+				<Button
+					variant="outline"
+					size="icon-sm"
+					disabled={!table.getCanNextPage()}
+					onclick={() => table.lastPage()}
+				>
+					<ChevronsRight class="h-4 w-4" />
+				</Button>
 			</div>
-			<Button
-				variant="outline"
-				size="icon-sm"
-				disabled={!table.getCanNextPage()}
-				onclick={() => table.nextPage()}
-			>
-				<ChevronRight class="h-4 w-4" />
-			</Button>
-			<Button
-				variant="outline"
-				size="icon-sm"
-				disabled={!table.getCanNextPage()}
-				onclick={() => table.lastPage()}
-			>
-				<ChevronsRight class="h-4 w-4" />
-			</Button>
 		</div>
 	</div>
-</div>
+</Tooltip.Provider>
