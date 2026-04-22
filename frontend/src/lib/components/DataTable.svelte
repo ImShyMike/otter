@@ -141,6 +141,12 @@
 
 	const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 
+	function filterValueAsString(value: unknown): string {
+		if (typeof value === 'string') return value;
+		if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+		return '';
+	}
+
 	interface SavedState {
 		filters: Omit<FilterRow, 'id'>[];
 		sorting: SortingState;
@@ -379,21 +385,33 @@
 		try {
 			const queryFilters: QueryFilter[] = filters
 				.filter((f) => {
+					const rawValue = filterValueAsString(f.value);
+					const normalizedValue = rawValue.trim();
+
 					if (NO_VALUE_OPS.has(f.op)) return true;
-					if (f.value.trim() === '') return false;
+					if (normalizedValue === '') return false;
 					if (f.field === 'ysws' && ['eq', 'neq'].includes(f.op) && yswsOptions.length > 0) {
-						return yswsOptions.includes(f.value.trim());
+						return yswsOptions.includes(normalizedValue);
 					}
 					return true;
 				})
 				.map((f) => {
 					const ft = FIELDS[f.field]?.type ?? 'text';
 					const filter: QueryFilter = { field: f.field, op: f.op };
+					const rawValue = filterValueAsString(f.value);
+					const normalizedValue = rawValue.trim();
 					if (!NO_VALUE_OPS.has(f.op)) {
-						if (ft === 'int') filter.value = parseInt(f.value, 10) || 0;
-						else if (ft === 'float') filter.value = parseFloat(f.value) || 0;
-						else if (ft === 'bool') filter.value = f.value === 'true' || f.value === '1';
-						else filter.value = f.value.trim();
+						if (ft === 'int') {
+							const parsed = Number.parseInt(normalizedValue, 10);
+							filter.value = Number.isFinite(parsed) ? parsed : 0;
+						} else if (ft === 'float') {
+							const parsed = Number.parseFloat(normalizedValue);
+							filter.value = Number.isFinite(parsed) ? parsed : 0;
+						} else if (ft === 'bool') {
+							filter.value = normalizedValue === 'true' || normalizedValue === '1';
+						} else {
+							filter.value = normalizedValue;
+						}
 					}
 					return filter;
 				});
@@ -507,7 +525,7 @@
 			header: 'Hours',
 			cell: (info) => {
 				const v = info.getValue() as number;
-				return v > 0 ? `${v}h` : '—';
+				return v > 0 ? `${v}h` : '<1h';
 			},
 			enableSorting: true
 		},
