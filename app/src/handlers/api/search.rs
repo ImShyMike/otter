@@ -48,6 +48,7 @@ pub struct SearchResult {
 struct ParsedFilters {
     user: Option<String>,
     cleaned_query: String,
+    embedding_query: String,
 }
 
 fn parse_filters(query: &str) -> ParsedFilters {
@@ -62,9 +63,22 @@ fn parse_filters(query: &str) -> ParsedFilters {
         cleaned_query = re.replace_all(&cleaned_query, "").trim().to_string();
     }
 
+    let embedding_query = cleaned_query
+        .replace('"', " ")
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ");
+
+    let embedding_query = if embedding_query.is_empty() {
+        cleaned_query.clone()
+    } else {
+        embedding_query
+    };
+
     ParsedFilters {
         user,
         cleaned_query,
+        embedding_query,
     }
 }
 
@@ -84,8 +98,8 @@ pub async fn search(
 ) -> Result<Json<Vec<SearchResult>>, AppError> {
     let filters = parse_filters(&params.q);
     let limit = params.limit.unwrap_or(10).min(100);
-    let fts_weight = params.fts_weight.unwrap_or(0.4).max(0.0);
-    let semantic_weight = params.semantic_weight.unwrap_or(0.5).max(0.0);
+    let fts_weight = params.fts_weight.unwrap_or(0.7).max(0.0);
+    let semantic_weight = params.semantic_weight.unwrap_or(0.2).max(0.0);
     let trigram_weight = params.trigram_weight.unwrap_or(0.1).max(0.0);
     let fts_candidate_limit = (limit * 10).clamp(100, 2000);
     let semantic_candidate_limit = (limit * 25).clamp(200, 5000);
@@ -107,12 +121,12 @@ pub async fn search(
             trigram_weight / total_weight,
         )
     } else {
-        (0.4, 0.5, 0.1)
+        (0.7, 0.2, 0.1)
     };
 
     // get embeddings
     let (_, embeddings) = embeddings::get_embeddings_with_cache(
-        std::slice::from_ref(&filters.cleaned_query),
+        std::slice::from_ref(&filters.embedding_query),
         &state.redis,
         local_only(),
     )
@@ -138,11 +152,33 @@ pub async fn search(
         WITH fts_results AS (
             SELECT
                 p.id,
-                COALESCE(ts_rank(p.tsv, query), 0) as fts_score
-            FROM projects p, plainto_tsquery('english', $1) query
+                COALESCE(ts_rank_cd(p.tsv, query), 0) as fts_score
+            FROM projects p, websearch_to_tsquery('english', $1) query
             WHERE p.tsv @@ query AND p.deleted_at IS NULL {}
             ORDER BY fts_score DESC
             LIMIT $7
+        ),
+        quoted_phrases AS (
+            SELECT lower(m[1]) AS phrase
+            FROM regexp_matches($1, '"([^"]+)"', 'g') AS m
+        ),
+        phrase_results AS (
+            SELECT
+                p.id,
+                SUM(
+                    CASE
+                        WHEN STRPOS(lower(COALESCE(p.display_name, '')), qp.phrase) > 0 THEN 1.0
+                        ELSE 0.0
+                    END +
+                    CASE
+                        WHEN STRPOS(lower(COALESCE(p.description, '')), qp.phrase) > 0 THEN 0.75
+                        ELSE 0.0
+                    END
+                )::double precision as phrase_score
+            FROM projects p
+            INNER JOIN quoted_phrases qp ON TRUE
+            WHERE p.deleted_at IS NULL
+            GROUP BY p.id
         ),
         embedding_candidates AS (
             SELECT
@@ -155,7 +191,7 @@ pub async fn search(
         embedding_results AS (
             SELECT
                 ec.id,
-                1.0 - ec.distance as similarity_score
+                GREATEST(0.0, LEAST(1.0, 1.0 - (ec.distance / 2.0))) as similarity_score
             FROM embedding_candidates ec
             INNER JOIN projects p ON p.id = ec.id
             WHERE p.deleted_at IS NULL AND p.description IS NOT NULL AND LENGTH(p.description) > 50 {}
@@ -183,38 +219,67 @@ pub async fn search(
         candidates AS (
             SELECT id FROM fts_results
             UNION
+            SELECT id FROM phrase_results
+            UNION
             SELECT id FROM embedding_results
             UNION
             SELECT id FROM trigram_results
+        ),
+        scored AS (
+            SELECT
+                p.id,
+                p.airtable_id,
+                p.ysws,
+                EXTRACT(EPOCH FROM p.approved_at)::bigint AS approved_at,
+                p.code_url,
+                p.country,
+                p.demo_url,
+                p.description,
+                p.github_username,
+                p.hours,
+                p.true_hours,
+                (p.media_url IS NOT NULL) AS has_media,
+                p.github_stars,
+                p.display_name,
+                p.archived_demo,
+                p.archived_repo,
+                (
+                    COALESCE(f.fts_score, 0) * $3 +
+                    COALESCE(ph.phrase_score, 0) * GREATEST($3, $4) +
+                    COALESCE(e.similarity_score, 0) * $4 +
+                    COALESCE(t.trigram_score, 0) * $5
+                )::double precision as raw_score
+            FROM projects p
+            INNER JOIN candidates c ON p.id = c.id
+            LEFT JOIN fts_results f ON p.id = f.id
+            LEFT JOIN phrase_results ph ON p.id = ph.id
+            LEFT JOIN embedding_results e ON p.id = e.id
+            LEFT JOIN trigram_results t ON p.id = t.id
         )
         SELECT
-            p.id,
-            p.airtable_id,
-            p.ysws,
-            EXTRACT(EPOCH FROM p.approved_at)::bigint AS approved_at,
-            p.code_url,
-            p.country,
-            p.demo_url,
-            p.description,
-            p.github_username,
-            p.hours,
-            p.true_hours,
-            (p.media_url IS NOT NULL) AS has_media,
-            p.github_stars,
-            p.display_name,
-            p.archived_demo,
-            p.archived_repo,
-            (
-                COALESCE(f.fts_score, 0) * $3 +
-                COALESCE(e.similarity_score, 0) * $4 +
-                COALESCE(t.trigram_score, 0) * $5
-            )::double precision as score
-        FROM projects p
-        INNER JOIN candidates c ON p.id = c.id
-        LEFT JOIN fts_results f ON p.id = f.id
-        LEFT JOIN embedding_results e ON p.id = e.id
-        LEFT JOIN trigram_results t ON p.id = t.id
-        ORDER BY score DESC
+            s.id,
+            s.airtable_id,
+            s.ysws,
+            s.approved_at,
+            s.code_url,
+            s.country,
+            s.demo_url,
+            s.description,
+            s.github_username,
+            s.hours,
+            s.true_hours,
+            s.has_media,
+            s.github_stars,
+            s.display_name,
+            s.archived_demo,
+            s.archived_repo,
+            CASE
+                WHEN MAX(s.raw_score) OVER () > 0
+                    THEN (s.raw_score / MAX(s.raw_score) OVER ())::double precision
+                ELSE 0.0::double precision
+            END AS score
+        FROM scored s
+        ORDER BY s.raw_score DESC
         LIMIT $6
         "#,
             user_filter, user_filter, user_filter
