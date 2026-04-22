@@ -546,7 +546,7 @@
 			header: 'Hours',
 			cell: (info) => {
 				const value = info.getValue() as number | null;
-				return value == null ? '<1h' : `${value}h`;
+				return value == null ? '—' : `${value}h`;
 			},
 			enableSorting: true
 		},
