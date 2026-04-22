@@ -89,8 +89,6 @@
 		true_hours: { type: 'float', label: 'True Hours' },
 		github_stars: { type: 'int', label: 'Stars' },
 		approved_at: { type: 'timestamp', label: 'Approved At' },
-		created_at: { type: 'timestamp', label: 'Created At' },
-		updated_at: { type: 'timestamp', label: 'Updated At' },
 		has_media: { type: 'bool', label: 'Has Media' }
 	};
 
