@@ -83,6 +83,10 @@
 	}
 </script>
 
+<svelte:head>
+	<title>Otter</title>
+</svelte:head>
+
 <div class="overflow-none mx-auto flex min-h-screen max-w-4xl flex-col px-4 py-8">
 	<div class="mb-8 text-center" class:mt-[20vh]={!searched} class:mt-0={searched}>
 		<h1 class="mb-2 text-3xl font-bold tracking-tight">Otter</h1>
