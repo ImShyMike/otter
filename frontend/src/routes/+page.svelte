@@ -12,6 +12,7 @@
 	import { resolve } from '$app/paths';
 	import Spinner from '$lib/components/ui/spinner/spinner.svelte';
 	import TableIcon from '@lucide/svelte/icons/table';
+	import X from '@lucide/svelte/icons/x';
 
 	type ViewMode = 'search' | 'cards';
 
@@ -75,6 +76,11 @@
 	function handleKeydown(e: KeyboardEvent) {
 		if (e.key === 'Enter') void submitSearch();
 	}
+
+	function clearSearch() {
+		if (!query) return;
+		query = '';
+	}
 </script>
 
 <div class="mx-auto flex min-h-screen max-w-4xl flex-col px-4 py-8">
@@ -83,13 +89,25 @@
 		<p class="mb-6 text-sm text-muted-foreground">Search engine for Hack Club projects!</p>
 
 		<div class="mx-auto flex max-w-xl gap-2">
-			<Input
-				type="text"
-				placeholder="Search projects…"
-				bind:value={query}
-				onkeydown={handleKeydown}
-				class="h-9"
-			/>
+			<div class="relative w-full">
+				<Input
+					type="text"
+					placeholder="Search projects…"
+					bind:value={query}
+					onkeydown={handleKeydown}
+					class="h-9 pr-9"
+				/>
+				{#if query}
+					<button
+						type="button"
+						onclick={clearSearch}
+						aria-label="Clear search"
+						class="absolute top-1/2 right-2 -translate-y-1/2 cursor-pointer text-muted-foreground transition-colors hover:text-foreground"
+					>
+						<X class="h-4 w-4" />
+					</button>
+				{/if}
+			</div>
 			<Button
 				onclick={() => void submitSearch()}
 				disabled={loading || query.trim() === lastSubmittedQuery}
