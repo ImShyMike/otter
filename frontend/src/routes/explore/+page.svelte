@@ -12,7 +12,7 @@
 	<div class="mb-6 flex items-center gap-4">
 		<a
 			href={resolve('/')}
-			class="flex items-center gap-1 text-sm text-muted-foreground underline underline-offset-2 hover:text-foreground"
+			class="flex cursor-pointer items-center gap-1 text-sm text-muted-foreground underline underline-offset-2 hover:text-foreground"
 		>
 			<ArrowLeft class="h-3 w-3" /> Back to search
 		</a>

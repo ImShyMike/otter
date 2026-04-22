@@ -37,7 +37,7 @@
 	<div class="mb-8 flex flex-row items-start text-center">
 		<button
 			onclick={() => history.back()}
-			class="mb-4 flex items-center justify-center gap-1 text-sm text-muted-foreground underline underline-offset-2 hover:text-foreground"
+			class="mb-4 flex cursor-pointer items-center justify-center gap-1 text-sm text-muted-foreground underline underline-offset-2 hover:text-foreground"
 		>
 			<ArrowLeft class="h-3 w-3" /> Back
 		</button>
