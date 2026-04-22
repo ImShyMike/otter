@@ -13,7 +13,7 @@ const SHIPS_API_URL: &str = "https://ships.hackclub.com/api/v1/ysws_entries?all=
 const BATCH_SIZE: usize = 1000;
 const EMBED_BATCH_SIZE: usize = 128;
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(120);
-const MIN_DESCRIPTION_SIZE: i32 = 50;
+const MIN_DESCRIPTION_SIZE: i32 = 35;
 
 #[derive(Deserialize)]
 struct YswsEntry {
