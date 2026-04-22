@@ -9,6 +9,7 @@
 	import { imageUrl, title, truncate } from '$lib/search';
 	import type { SearchResult } from '$lib/types';
 	import { formatHours, formatApproved } from '$lib/utils';
+	import { resolve } from '$app/paths';
 
 	let { results }: { results: SearchResult[] } = $props();
 </script>
@@ -27,7 +28,11 @@
 			/>
 			<Card.Header>
 				<div class="flex flex-wrap items-center gap-2">
-					<Card.Title class="text-base">{title(r)}</Card.Title>
+					<Card.Title class="text-base"
+						><a href={resolve('/project/[id]', { id: r.airtable_id })} class="hover:text-foreground"
+							>{title(r)}</a
+						></Card.Title
+					>
 					<Badge variant="secondary" class="text-xs">{r.ysws}</Badge>
 					{#if r.github_stars > 0}
 						<Badge variant="outline" class="text-xs">{r.github_stars} <Star /></Badge>
@@ -56,6 +61,9 @@
 						{#if formatApproved(r.approved_at)}
 							Approved {formatApproved(r.approved_at)}
 						{/if}
+						{#if r.score !== null && r.score < 1}
+							<span class="text-xs text-muted-foreground">Score {(r.score * 100).toFixed(1)}%</span>
+						{/if}
 					</Card.Description>
 				{/if}
 			</Card.Header>
@@ -75,6 +83,20 @@
 						<a href={r.code_url} target="_blank" rel="noopener external">
 							<Button variant="outline" size="sm">
 								<Code class="mr-1 h-3 w-3" /> Code
+							</Button>
+						</a>
+					{/if}
+					{#if r.archived_demo}
+						<a href={r.demo_url} target="_blank" rel="noopener external">
+							<Button variant="outline" size="sm">
+								<ExternalLink class="mr-1 h-3 w-3" /> Archived Demo
+							</Button>
+						</a>
+					{/if}
+					{#if r.archived_repo}
+						<a href={r.code_url} target="_blank" rel="noopener external">
+							<Button variant="outline" size="sm">
+								<Code class="mr-1 h-3 w-3" /> Archived Code
 							</Button>
 						</a>
 					{/if}

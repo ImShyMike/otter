@@ -7,6 +7,7 @@
 	import { ExpandableImage } from '$lib/components/ui/image';
 	import type { SearchResult } from '$lib/types';
 	import { formatHours, formatApproved } from '$lib/utils';
+	import { resolve } from '$app/paths';
 
 	let { results }: { results: SearchResult[] } = $props();
 </script>
@@ -16,7 +17,11 @@
 		<div class="flex gap-4">
 			<div class="flex flex-1 flex-col">
 				<div class="flex flex-wrap items-center gap-2">
-					<h3 class="text-lg font-medium">{title(r)}</h3>
+					<h3 class="text-lg font-medium">
+						<a href={resolve('/project/[id]', { id: r.airtable_id })} class="hover:text-foreground"
+							>{title(r)}</a
+						>
+					</h3>
 					<Badge variant="secondary" class="text-xs">{r.ysws}</Badge>
 					{#if r.github_stars > 0}
 						<Badge variant="outline" class="text-xs">{r.github_stars} <Star /></Badge>
@@ -62,6 +67,9 @@
 						<span class="text-xs text-muted-foreground"
 							>Approved {formatApproved(r.approved_at)}</span
 						>
+					{/if}
+					{#if r.score !== null && r.score < 1}
+						<span class="text-xs text-muted-foreground">Score {(r.score * 100).toFixed(1)}%</span>
 					{/if}
 				</div>
 			</div>
