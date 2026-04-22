@@ -21,7 +21,6 @@
 			document.documentElement.style.colorScheme = dark ? 'dark' : 'light';
 		})();
 	</script>
-	<title>Otter</title>
 </svelte:head>
 
 {@render children()}
