@@ -891,70 +891,74 @@
 			</Table.Table>
 		</div>
 
-		<div class="flex items-center justify-between">
+		<div class="flex flex-col items-center justify-between gap-2">
 			<span class="text-sm text-muted-foreground">
 				{total} total result{total !== 1 ? 's' : ''}
 			</span>
-			<div class="flex items-center gap-2">
-				<label class="text-sm text-muted-foreground" for="page-size">Rows</label>
-				<select
-					id="page-size"
-					value={pagination.pageSize}
-					onchange={onPageSizeChange}
-					class="h-7 cursor-pointer rounded-lg border border-input bg-transparent px-2.5 py-1 pr-8 text-sm"
-				>
-					{#each PAGE_SIZE_OPTIONS as size (size)}
-						<option value={size}>{size}</option>
-					{/each}
-				</select>
-				<Button
-					variant="outline"
-					size="icon-sm"
-					disabled={!table.getCanPreviousPage()}
-					onclick={() => table.firstPage()}
-				>
-					<ChevronsLeft class="h-4 w-4" />
-				</Button>
-				<Button
-					variant="outline"
-					size="icon-sm"
-					disabled={!table.getCanPreviousPage()}
-					onclick={() => table.previousPage()}
-				>
-					<ChevronLeft class="h-4 w-4" />
-				</Button>
-				<div class="flex items-center gap-1 text-sm text-muted-foreground">
-					<span>Page</span>
-					<Input
-						id="page-jump"
-						type="text"
-						inputmode="numeric"
-						pattern="[0-9]*"
-						min="1"
-						max={Math.max(1, pageCount || 1)}
-						bind:value={pageJumpValue}
-						onkeydown={onPageJumpKeydown}
-						onblur={jumpToPage}
-						class="h-7 w-12 p-1! text-center"
-					/>
-					<span>of {pageCount || 1}</span>
+			<div class="flex flex-col-reverse items-center gap-4 sm:flex-row">
+				<div class="flex items-center gap-2">
+					<label class="text-sm text-muted-foreground" for="page-size">Rows</label>
+					<select
+						id="page-size"
+						value={pagination.pageSize}
+						onchange={onPageSizeChange}
+						class="h-7 cursor-pointer rounded-lg border border-input bg-transparent px-2.5 py-1 pr-8 text-sm"
+					>
+						{#each PAGE_SIZE_OPTIONS as size (size)}
+							<option value={size}>{size}</option>
+						{/each}
+					</select>
 				</div>
-				<Button
-					variant="outline"
-					size="icon-sm"
-					disabled={!table.getCanNextPage()}
-					onclick={() => table.nextPage()}
-				>
-					<ChevronRight class="h-4 w-4" />
-				</Button>
-				<Button
-					variant="outline"
-					size="icon-sm"
-					disabled={!table.getCanNextPage()}
-					onclick={() => table.lastPage()}
-				>
-					<ChevronsRight class="h-4 w-4" />
-				</Button>
+				<div class="flex items-center gap-2">
+					<Button
+						variant="outline"
+						size="icon-sm"
+						disabled={!table.getCanPreviousPage()}
+						onclick={() => table.firstPage()}
+					>
+						<ChevronsLeft class="h-4 w-4" />
+					</Button>
+					<Button
+						variant="outline"
+						size="icon-sm"
+						disabled={!table.getCanPreviousPage()}
+						onclick={() => table.previousPage()}
+					>
+						<ChevronLeft class="h-4 w-4" />
+					</Button>
+					<div class="flex items-center gap-1 text-sm text-muted-foreground">
+						<span>Page</span>
+						<Input
+							id="page-jump"
+							type="text"
+							inputmode="numeric"
+							pattern="[0-9]*"
+							min="1"
+							max={Math.max(1, pageCount || 1)}
+							bind:value={pageJumpValue}
+							onkeydown={onPageJumpKeydown}
+							onblur={jumpToPage}
+							class="h-7 w-12 p-1! text-center"
+						/>
+						<span>of {pageCount || 1}</span>
+					</div>
+					<Button
+						variant="outline"
+						size="icon-sm"
+						disabled={!table.getCanNextPage()}
+						onclick={() => table.nextPage()}
+					>
+						<ChevronRight class="h-4 w-4" />
+					</Button>
+					<Button
+						variant="outline"
+						size="icon-sm"
+						disabled={!table.getCanNextPage()}
+						onclick={() => table.lastPage()}
+					>
+						<ChevronsRight class="h-4 w-4" />
+					</Button>
+				</div>
 			</div>
 		</div>
 	</div>
