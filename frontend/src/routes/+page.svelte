@@ -7,26 +7,34 @@
 	import CardsView from '$lib/components/CardsView.svelte';
 	import { API_BASE } from '$lib/search';
 	import type { SearchResult } from '$lib/types';
+	import { page } from '$app/state';
+	import { replaceState } from '$app/navigation';
+	import { resolve } from '$app/paths';
 	import Spinner from '$lib/components/ui/spinner/spinner.svelte';
 	import TableIcon from '@lucide/svelte/icons/table';
-	import { resolve } from '$app/paths';
 
 	type ViewMode = 'search' | 'cards';
 
-	let query = $state('');
+	let query = $state(page.url.searchParams.get('q') ?? '');
 	let results = $state<SearchResult[]>([]);
 	let loading = $state(false);
 	let searched = $state(false);
 	let viewMode = $state<ViewMode>('search');
+	let lastSearchedQuery = $state('');
 
-	async function doSearch() {
-		const q = query.trim();
-		if (!q) return;
+	async function doSearch(q: string) {
+		lastSearchedQuery = q;
+
+		if (!q) {
+			results = [];
+			searched = false;
+			return;
+		}
 
 		loading = true;
 		searched = true;
 		try {
-			const res = await fetch(`${API_BASE}/api/search?q=${encodeURIComponent(q)}&limit=30`);
+			const res = await fetch(`${API_BASE}/api/search?q=${encodeURIComponent(q)}&limit=50`);
 			results = await res.json();
 		} catch {
 			results = [];
@@ -35,8 +43,28 @@
 		}
 	}
 
+	async function submitSearch() {
+		const q = query.trim();
+		replaceState(resolve(q ? `/?q=${encodeURIComponent(q)}` : '/'), page.state);
+	}
+
+	$effect(() => {
+		const q = page.url.searchParams.get('q') ?? '';
+
+		if (q !== lastSearchedQuery) {
+			query = q;
+			if (q) {
+				void doSearch(q);
+			} else {
+				results = [];
+				searched = false;
+				lastSearchedQuery = '';
+			}
+		}
+	});
+
 	function handleKeydown(e: KeyboardEvent) {
-		if (e.key === 'Enter') doSearch();
+		if (e.key === 'Enter') void submitSearch();
 	}
 </script>
 
@@ -53,7 +81,7 @@
 				onkeydown={handleKeydown}
 				class="h-9"
 			/>
-			<Button onclick={doSearch} disabled={loading} size="lg">
+			<Button onclick={() => void submitSearch()} disabled={loading} size="lg">
 				<Search class="mr-2 h-4 w-4" />
 				Search
 			</Button>
