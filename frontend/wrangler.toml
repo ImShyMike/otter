@@ -8,7 +8,7 @@ directory = ".svelte-kit/cloudflare"
 binding = "ASSETS"
 
 [vars]
-PUBLIC_API_BASE = "https://search.shymike.dev"
+PUBLIC_API_BASE = "https://otter.shymike.dev"
 
 [observability]
 enabled = true
