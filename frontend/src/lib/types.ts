@@ -15,5 +15,7 @@ export interface SearchResult {
 	github_stars: number;
 	archived_demo: string | null;
 	archived_repo: string | null;
+	inferred_repo: string | null;
+	inferred_username: string | null;
 	score: number | null;
 }

@@ -30,7 +30,7 @@
 	import Share2 from '@lucide/svelte/icons/share-2';
 	import X from '@lucide/svelte/icons/x';
 	import lzString from 'lz-string';
-	import { API_BASE, title as projectTitle, imageUrl, usernameFromCodeUrl } from '$lib/search';
+	import { API_BASE, title as projectTitle, imageUrl } from '$lib/search';
 	import type { SearchResult } from '$lib/types';
 	import { formatApproved } from '$lib/utils';
 	import { onMount, untrack } from 'svelte';
@@ -85,6 +85,8 @@
 		demo_url: { type: 'text', label: 'Demo URL' },
 		archived_demo: { type: 'text', label: 'Archived Demo' },
 		archived_repo: { type: 'text', label: 'Archived Repo' },
+		inferred_repo: { type: 'text', label: 'Inferred Repo' },
+		inferred_username: { type: 'text', label: 'Inferred Name' },
 		hours: { type: 'int', label: 'Hours' },
 		true_hours: { type: 'float', label: 'True Hours' },
 		github_stars: { type: 'int', label: 'Stars' },
@@ -387,6 +389,8 @@
 		demo_url: 'demo_url',
 		archived_demo: 'archived_demo',
 		archived_repo: 'archived_repo',
+		inferred_repo: 'inferred_repo',
+		inferred_username: 'inferred_username',
 		github_stars: 'github_stars',
 		hours: 'hours',
 		true_hours: 'true_hours',
@@ -512,14 +516,14 @@
 			enableSorting: false
 		},
 		{
-			accessorKey: 'project_name',
-			header: 'Name',
+			accessorKey: 'inferred_repo',
+			header: 'Inferred Name',
 			cell: (info) => renderSnippet(nameSnippet, info.row.original),
-			enableSorting: false
+			enableSorting: true
 		},
 		{
-			accessorKey: 'display_name',
-			header: 'User',
+			accessorKey: 'inferred_name',
+			header: 'Inferred User',
 			cell: (info) => renderSnippet(usernameSnippet, info.row.original),
 			enableSorting: true
 		},
@@ -680,7 +684,7 @@
 {/snippet}
 
 {#snippet usernameSnippet(r: SearchResult)}
-	{@const username = r.github_username || usernameFromCodeUrl(r.code_url)}
+	{@const username = r.inferred_username || r.github_username}
 	{#if username}
 		<a
 			href={`https://github.com/${username}`}
