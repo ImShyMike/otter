@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { Spinner } from '$lib/components/ui/spinner';
 	import { API_BASE, imageUrl, title } from '$lib/search';
-	import SvelteMarkdown from 'svelte-markdown';
+	import { marked } from 'marked';
+	import DOMPurify from 'isomorphic-dompurify';
 	import type { SearchResult } from '$lib/types';
 	import { page } from '$app/state';
 	import { onMount } from 'svelte';
@@ -14,6 +15,14 @@
 	import ExternalLink from '@lucide/svelte/icons/external-link';
 	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
 	import Code from '@lucide/svelte/icons/code';
+
+	function renderDescription(description: string | null): string {
+		const markdownHtml = marked.parse(description ?? '', { async: false });
+		return DOMPurify.sanitize(markdownHtml, {
+			USE_PROFILES: { html: true }
+		});
+	}
+
 	let project = $state<SearchResult | null>(null);
 	let loading = $state(false);
 
@@ -105,7 +114,8 @@
 			</Card.Header>
 			<Card.Content class="flex-1">
 				<div class="prose prose-sm max-w-none text-muted-foreground dark:prose-invert">
-					<SvelteMarkdown source={p.description ?? ''} />
+					<!-- eslint-disable-next-line svelte/no-at-html-tags -->
+					{@html renderDescription(p.description)}
 				</div>
 			</Card.Content>
 			{#if p.code_url || p.demo_url || p.archived_repo || p.archived_demo}

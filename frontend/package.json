@@ -47,7 +47,8 @@
 	"type": "module",
 	"dependencies": {
 		"@tanstack/svelte-table": "9.0.0-alpha.33",
+		"isomorphic-dompurify": "^3.10.0",
 		"lz-string": "^1.5.0",
-		"svelte-markdown": "^0.4.1"
+		"marked": "^18.0.2"
 	}
 }
