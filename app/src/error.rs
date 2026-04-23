@@ -30,9 +30,11 @@ impl IntoResponse for AppError {
 
 impl<E: Into<anyhow::Error>> From<E> for AppError {
     fn from(err: E) -> Self {
+        let err = err.into();
+        tracing::error!(%err, "internal server error");
         Self {
             status: StatusCode::INTERNAL_SERVER_ERROR,
-            message: err.into().to_string(),
+            message: err.to_string(),
         }
     }
 }

@@ -14,6 +14,7 @@
 	import TableIcon from '@lucide/svelte/icons/table';
 	import X from '@lucide/svelte/icons/x';
 	import { SvelteURLSearchParams } from 'svelte/reactivity';
+	import { untrack } from 'svelte';
 
 	type ViewMode = 'search' | 'cards';
 
@@ -88,9 +89,10 @@
 		const q = page.url.searchParams.get('q') ?? '';
 		const p = Math.max(1, Number(page.url.searchParams.get('p') ?? '1'));
 
-		if (q !== lastSearchedQuery || p !== currentPage) {
+		if (q !== untrack(() => lastSearchedQuery) || p !== untrack(() => currentPage)) {
 			query = q;
 			if (q) {
+				lastSubmittedQuery = q;
 				void doSearch(q, p);
 			} else {
 				results = [];

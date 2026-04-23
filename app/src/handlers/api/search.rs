@@ -60,6 +60,8 @@ pub struct SearchResult {
     display_name: Option<String>,
     archived_demo: Option<String>,
     archived_repo: Option<String>,
+    inferred_repo: Option<String>,
+    inferred_username: Option<String>,
     score: f64,
 }
 
@@ -81,6 +83,8 @@ struct SearchRow {
     display_name: Option<String>,
     archived_demo: Option<String>,
     archived_repo: Option<String>,
+    inferred_repo: Option<String>,
+    inferred_github_username: Option<String>,
     score: f64,
     _total: i64,
 }
@@ -104,6 +108,8 @@ impl From<SearchRow> for SearchResult {
             display_name: row.display_name,
             archived_demo: row.archived_demo,
             archived_repo: row.archived_repo,
+            inferred_repo: row.inferred_repo,
+            inferred_username: row.inferred_github_username,
             score: row.score,
         }
     }
@@ -228,6 +234,7 @@ pub async fn search(
                 p.archived_repo,
                 p.tsv,
                 p.inferred_repo,
+                p.inferred_github_username,
                 COALESCE(p.github_username, p.inferred_github_username, '') AS search_username,
                 COALESCE(REPLACE(REPLACE(p.inferred_repo, '-', ' '), '_', ' '), '') AS search_repo
             FROM projects p
@@ -354,6 +361,8 @@ pub async fn search(
                 p.display_name,
                 p.archived_demo,
                 p.archived_repo,
+                p.inferred_repo,
+                p.inferred_github_username,
                 (
                     COALESCE(f.fts_score, 0) * $3 +
                     COALESCE(ph.phrase_score, 0) * GREATEST($3, $4) +
@@ -384,6 +393,8 @@ pub async fn search(
             s.display_name,
             s.archived_demo,
             s.archived_repo,
+            s.inferred_repo,
+            s.inferred_github_username,
             CASE
                 WHEN MAX(s.raw_score) OVER () > 0
                     THEN (s.raw_score / MAX(s.raw_score) OVER ())::double precision
@@ -454,6 +465,8 @@ pub async fn user_search(
             p.display_name,
             p.archived_demo,
             p.archived_repo,
+            p.inferred_repo,
+            p.inferred_github_username,
             1.0::double precision as score,
             COUNT(*) OVER() AS _total
         FROM projects p
