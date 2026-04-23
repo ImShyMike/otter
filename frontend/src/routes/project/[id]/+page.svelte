@@ -33,7 +33,9 @@
 
 <Head
 	title={(project ? title(project) : 'Project') + ' · Otter'}
-	description={truncate(project?.description ?? 'A Hack Club project', 200)}
+	description={project
+		? truncate(project?.description ?? 'A Hack Club project', 200)
+		: 'Project not found'}
 	twitterCard={project?.has_media ? 'summary_large_image' : 'summary'}
 	image={project?.has_media ? imageUrl(project.airtable_id) : undefined}
 />
