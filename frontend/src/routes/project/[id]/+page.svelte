@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { imageUrl, title } from '$lib/search';
 	import { marked } from 'marked';
-	import DOMPurify from 'isomorphic-dompurify';
+	import xss from 'xss';
 	import type { PageData } from './$types';
 	import * as Card from '$lib/components/ui/card';
 	import { ExpandableImage } from '$lib/components/ui/image';
@@ -14,9 +14,15 @@
 	import Code from '@lucide/svelte/icons/code';
 
 	function renderDescription(description: string | null): string {
-		const markdownHtml = marked.parse(description ?? '', { async: false });
-		return DOMPurify.sanitize(markdownHtml, {
-			USE_PROFILES: { html: true }
+		const markdownHtml = marked.parse(description ?? '', {
+			async: false,
+			gfm: true,
+			breaks: true
+		});
+
+		return xss(markdownHtml, {
+			stripIgnoreTag: true,
+			stripIgnoreTagBody: ['script', 'style']
 		});
 	}
 
