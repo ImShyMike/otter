@@ -25,6 +25,8 @@ pub struct ProgramResponse {
     display_name: Option<String>,
     archived_demo: Option<String>,
     archived_repo: Option<String>,
+    inferred_repo: Option<String>,
+    inferred_username: Option<String>,
 }
 
 #[utoipa::path(
@@ -46,7 +48,7 @@ pub async fn project_info(
     let project = if let Ok(project_id) = id.parse::<i32>() {
         sqlx::query_as!(
             ProgramResponse,
-            "SELECT id, airtable_id, ysws, EXTRACT(EPOCH FROM approved_at)::bigint AS approved_at, code_url, country, demo_url, description, github_username, hours, true_hours, (media_url IS NOT NULL) AS \"has_media!\", github_stars, display_name, archived_demo, archived_repo FROM projects WHERE deleted_at IS NULL AND id = $1 LIMIT 1",
+            "SELECT id, airtable_id, ysws, EXTRACT(EPOCH FROM approved_at)::bigint AS approved_at, code_url, country, demo_url, description, github_username, hours, true_hours, (media_url IS NOT NULL) AS \"has_media!\", github_stars, display_name, archived_demo, archived_repo, inferred_repo, inferred_github_username AS inferred_username FROM projects WHERE deleted_at IS NULL AND id = $1 LIMIT 1",
             project_id
         )
         .fetch_optional(&state.pg)
@@ -54,7 +56,7 @@ pub async fn project_info(
     } else {
         sqlx::query_as!(
             ProgramResponse,
-            "SELECT id, airtable_id, ysws, EXTRACT(EPOCH FROM approved_at)::bigint AS approved_at, code_url, country, demo_url, description, github_username, hours, true_hours, (media_url IS NOT NULL) AS \"has_media!\", github_stars, display_name, archived_demo, archived_repo FROM projects WHERE deleted_at IS NULL AND airtable_id = $1 LIMIT 1",
+            "SELECT id, airtable_id, ysws, EXTRACT(EPOCH FROM approved_at)::bigint AS approved_at, code_url, country, demo_url, description, github_username, hours, true_hours, (media_url IS NOT NULL) AS \"has_media!\", github_stars, display_name, archived_demo, archived_repo, inferred_repo, inferred_github_username AS inferred_username FROM projects WHERE deleted_at IS NULL AND airtable_id = $1 LIMIT 1",
             id
         )
         .fetch_optional(&state.pg)
