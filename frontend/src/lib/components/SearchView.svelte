@@ -32,12 +32,12 @@
 					{#if r.country}
 						<span class="text-xs text-muted-foreground">{r.country}</span>
 					{/if}
-					{#if r.github_username}
+					{#if r.inferred_username}
 						<a
 							class="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
-							href={`https://github.com/${r.github_username}`}
+							href={`https://github.com/${r.inferred_username}`}
 							target="_blank"
-							rel="noopener external">@{r.github_username}</a
+							rel="noopener external">@{r.inferred_username}</a
 						>
 					{/if}
 				</div>
