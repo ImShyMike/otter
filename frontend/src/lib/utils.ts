@@ -26,7 +26,7 @@ export function formatHours(r: SearchResult): string {
 				return `${formatFloat(r.true_hours, 1)}h`;
 			}
 
-			return `${r.hours}h (reported ${formatFloat(r.true_hours, 1)}h)`;
+			return `${formatFloat(r.true_hours, 1)}h`;
 		}
 
 		return `${r.hours}h`;
@@ -36,7 +36,7 @@ export function formatHours(r: SearchResult): string {
 		return `~${r.true_hours.toFixed(1)}h`;
 	}
 
-	return '—';
+	return '0';
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
