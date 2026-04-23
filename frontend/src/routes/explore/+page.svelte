@@ -6,6 +6,7 @@
 
 <svelte:head>
 	<title>Explore · Otter</title>
+	<meta property="og:title" content="Explore · Otter" />
 </svelte:head>
 
 <div class="mx-auto flex max-w-7xl flex-col px-4 py-8">

@@ -31,6 +31,14 @@
 
 <svelte:head>
 	<title>{project ? title(project) : 'Project'} · Otter</title>
+	<meta property="og:title" content={(project ? title(project) : 'Project') + ' · Otter'} />
+	{#if project}
+		<meta property="og:description" content={project.description ?? 'A Hack Club project'} />
+		{#if project.has_media}
+			<meta property="og:image" content={imageUrl(project.airtable_id)} />
+			<meta name="twitter:card" content="summary_large_image" />
+		{/if}
+	{/if}
 </svelte:head>
 
 <div class="mx-auto flex min-h-screen max-w-4xl flex-col px-4 py-8">
