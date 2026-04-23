@@ -118,6 +118,7 @@
 
 <svelte:head>
 	<title>Otter</title>
+	<meta property="og:title" content="Otter" />
 </svelte:head>
 
 <div class="overflow-none mx-auto flex min-h-screen max-w-4xl flex-col px-4 py-8">
