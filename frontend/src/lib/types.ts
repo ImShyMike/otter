@@ -19,3 +19,16 @@ export interface SearchResult {
 	inferred_username: string | null;
 	score: number | null;
 }
+
+export interface SearchTimings {
+	embeddings_ms: number;
+	query_ms: number;
+}
+
+export interface SearchResults {
+	data: SearchResult[];
+	total: number;
+	page: number;
+	per_page: number;
+	timings: SearchTimings;
+}
