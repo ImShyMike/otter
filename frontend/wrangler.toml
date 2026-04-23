@@ -1,0 +1,11 @@
+name = "otter-frontend"
+main = ".svelte-kit/cloudflare/_worker.js"
+compatibility_date = "2026-04-23"
+compatibility_flags = ["nodejs_compat"]
+
+[assets]
+directory = ".svelte-kit/cloudflare"
+binding = "ASSETS"
+
+[vars]
+PUBLIC_API_BASE = "https://search.shymike.dev"
