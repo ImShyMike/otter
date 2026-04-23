@@ -101,8 +101,10 @@ pub async fn search(
     let fts_weight = params.fts_weight.unwrap_or(0.7).max(0.0);
     let semantic_weight = params.semantic_weight.unwrap_or(0.2).max(0.0);
     let trigram_weight = params.trigram_weight.unwrap_or(0.1).max(0.0);
+    let user_like = filters.user.as_ref().map(|u| format!("%{}%", u));
     let fts_candidate_limit = (limit * 10).clamp(100, 2000);
-    let semantic_candidate_limit = (limit * 25).clamp(200, 5000);
+    let phrase_candidate_limit = (limit * 8).clamp(80, 1500);
+    let semantic_candidate_limit = (limit * 8).clamp(80, 1250);
     let trigram_candidate_limit = (limit * 15).clamp(150, 3000);
 
     // user-only search
@@ -133,28 +135,48 @@ pub async fn search(
     .await?;
     let query_embedding = &embeddings[0];
 
-    // build query filter for user if specified
-    let user_filter = if let Some(ref username) = filters.user {
-        format!(
-            "AND (p.github_username ILIKE '%{}%' OR p.display_name ILIKE '%{}%' OR p.code_url ILIKE '%{}%')",
-            username.replace("'", "''"),
-            username.replace("'", "''"),
-            username.replace("'", "''")
-        )
-    } else {
-        String::new()
-    };
-
     // run query
     let results: Vec<SearchResult> = sqlx::query_as(
-        &format!(
-            r#"
-        WITH fts_results AS (
+        r#"
+        WITH filtered_projects AS NOT MATERIALIZED (
+            SELECT
+                p.id,
+                p.airtable_id,
+                p.ysws,
+                p.approved_at,
+                p.code_url,
+                p.country,
+                p.demo_url,
+                p.description,
+                p.github_username,
+                p.hours,
+                p.true_hours,
+                p.media_url,
+                p.github_stars,
+                p.display_name,
+                p.archived_demo,
+                p.archived_repo,
+                p.tsv,
+                p.inferred_repo,
+                COALESCE(p.github_username, p.inferred_github_username, '') AS search_username,
+                COALESCE(REPLACE(REPLACE(p.inferred_repo, '-', ' '), '_', ' '), '') AS search_repo
+            FROM projects p
+            WHERE p.deleted_at IS NULL
+              AND (
+                    $10::text IS NULL OR
+                    p.github_username ILIKE $10 OR
+                    p.inferred_github_username ILIKE $10 OR
+                    p.display_name ILIKE $10 OR
+                    p.code_url ILIKE $10 OR
+                    p.inferred_repo ILIKE $10
+              )
+        ),
+        fts_results AS (
             SELECT
                 p.id,
                 COALESCE(ts_rank_cd(p.tsv, query), 0) as fts_score
-            FROM projects p, websearch_to_tsquery('english', $1) query
-            WHERE p.tsv @@ query AND p.deleted_at IS NULL {}
+            FROM filtered_projects p, websearch_to_tsquery('english', $1) query
+            WHERE p.tsv @@ query
             ORDER BY fts_score DESC
             LIMIT $7
         ),
@@ -162,7 +184,7 @@ pub async fn search(
             SELECT lower(m[1]) AS phrase
             FROM regexp_matches($1, '"([^"]+)"', 'g') AS m
         ),
-        phrase_results AS (
+        phrase_scored AS (
             SELECT
                 p.id,
                 SUM(
@@ -173,12 +195,28 @@ pub async fn search(
                     CASE
                         WHEN STRPOS(lower(COALESCE(p.description, '')), qp.phrase) > 0 THEN 0.75
                         ELSE 0.0
+                    END +
+                    CASE
+                        WHEN STRPOS(lower(p.search_repo), qp.phrase) > 0 THEN 1.0
+                        ELSE 0.0
+                    END +
+                    CASE
+                        WHEN STRPOS(lower(p.search_username), qp.phrase) > 0 THEN 0.75
+                        ELSE 0.0
                     END
                 )::double precision as phrase_score
-            FROM projects p
+            FROM filtered_projects p
             INNER JOIN quoted_phrases qp ON TRUE
-            WHERE p.deleted_at IS NULL
             GROUP BY p.id
+        ),
+        phrase_results AS (
+            SELECT
+                ps.id,
+                ps.phrase_score
+            FROM phrase_scored ps
+            WHERE ps.phrase_score > 0
+            ORDER BY ps.phrase_score DESC
+            LIMIT $11
         ),
         embedding_candidates AS (
             SELECT
@@ -193,26 +231,29 @@ pub async fn search(
                 ec.id,
                 GREATEST(0.0, LEAST(1.0, 1.0 - (ec.distance / 2.0))) as similarity_score
             FROM embedding_candidates ec
-            INNER JOIN projects p ON p.id = ec.id
-            WHERE p.deleted_at IS NULL AND p.description IS NOT NULL AND LENGTH(p.description) > 50 {}
+            INNER JOIN filtered_projects p ON p.id = ec.id
+            WHERE p.description IS NOT NULL
+              AND LENGTH(p.description) > 50
         ),
         trigram_results AS (
             SELECT
                 p.id,
                 GREATEST(
-                    similarity(COALESCE(p.display_name, ''), $1),
-                    similarity(COALESCE(p.ysws, ''), $1),
-                    similarity(COALESCE(p.github_username, ''), $1),
-                    similarity(COALESCE(p.country, ''), $1)
+                    similarity(p.display_name, $1),
+                    similarity(p.ysws, $1),
+                    similarity(p.github_username, $1),
+                    similarity(p.inferred_github_username, $1),
+                    similarity(p.inferred_repo, $1)
                 ) as trigram_score
             FROM projects p
             WHERE p.deleted_at IS NULL
               AND (
-                    COALESCE(p.display_name, '') % $1 OR
-                    COALESCE(p.ysws, '') % $1 OR
-                    COALESCE(p.github_username, '') % $1 OR
-                    COALESCE(p.country, '') % $1
-              ) {}
+                    p.display_name % $1 OR
+                    p.ysws % $1 OR
+                    p.github_username % $1 OR
+                    p.inferred_github_username % $1 OR
+                    p.inferred_repo % $1
+              )
             ORDER BY trigram_score DESC
             LIMIT $9
         ),
@@ -249,7 +290,7 @@ pub async fn search(
                     COALESCE(e.similarity_score, 0) * $4 +
                     COALESCE(t.trigram_score, 0) * $5
                 )::double precision as raw_score
-            FROM projects p
+            FROM filtered_projects p
             INNER JOIN candidates c ON p.id = c.id
             LEFT JOIN fts_results f ON p.id = f.id
             LEFT JOIN phrase_results ph ON p.id = ph.id
@@ -279,11 +320,9 @@ pub async fn search(
                 ELSE 0.0::double precision
             END AS score
         FROM scored s
-        ORDER BY s.raw_score DESC
+        ORDER BY s.raw_score DESC, s.approved_at DESC NULLS LAST
         LIMIT $6
         "#,
-            user_filter, user_filter, user_filter
-        )
     )
     .bind(&filters.cleaned_query)
     .bind(query_embedding)
@@ -294,6 +333,8 @@ pub async fn search(
     .bind(fts_candidate_limit)
     .bind(semantic_candidate_limit)
     .bind(trigram_candidate_limit)
+    .bind(user_like)
+    .bind(phrase_candidate_limit)
     .fetch_all(&state.pg)
     .await?;
 
@@ -329,7 +370,9 @@ pub async fn user_search(
         WHERE p.deleted_at IS NULL
             AND (
             p.github_username ILIKE $1
+            OR p.inferred_github_username ILIKE $1
             OR p.display_name ILIKE $1
+            OR p.inferred_repo ILIKE $1
             OR p.code_url ILIKE $1
             )
         ORDER BY p.approved_at DESC
