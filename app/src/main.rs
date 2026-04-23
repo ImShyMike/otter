@@ -9,7 +9,7 @@ mod utils;
 use std::env;
 
 use deadpool_redis::{Config, Runtime};
-use sqlx::PgPool;
+use sqlx::postgres::PgPoolOptions;
 
 use jobs::JobKind;
 use state::AppState;
@@ -28,7 +28,15 @@ async fn main() -> anyhow::Result<()> {
     let redis_url = env::var("REDIS_URL").unwrap_or(DEFAULT_REDIS_URL.to_string());
     let host = env::var("HOST").unwrap_or(DEFAULT_HOST.to_string());
 
-    let pg = PgPool::connect(&database_url).await?;
+    let pg = PgPoolOptions::new()
+        .after_connect(|conn, _meta| {
+            Box::pin(async move {
+                sqlx::query("SET jit = off").execute(&mut *conn).await?;
+                Ok(())
+            })
+        })
+        .connect(&database_url)
+        .await?;
 
     let cfg = Config::from_url(&redis_url);
     let redis = cfg.create_pool(Some(Runtime::Tokio1))?;

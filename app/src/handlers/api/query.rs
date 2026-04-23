@@ -413,7 +413,7 @@ pub async fn query(
     };
 
     qb.push(format_args!(
-        " ORDER BY {} {} LIMIT ",
+        " ORDER BY {} {} NULLS LAST LIMIT ",
         order_column, order_dir
     ))
     .push_bind(limit)

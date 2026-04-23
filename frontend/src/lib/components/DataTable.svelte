@@ -225,7 +225,7 @@
 
 		if (typeof localStorage === 'undefined') {
 			return {
-				filters: [{ id: 0, field: 'approved_at', op: 'is_not_null', value: '' }],
+				filters: [],
 				sorting: [],
 				pageIndex: 0,
 				pageSize: 50,
@@ -252,7 +252,7 @@
 		}
 		let counter = 0;
 		return {
-			filters: [{ id: counter++, field: 'approved_at', op: 'is_not_null', value: '' }],
+			filters: [],
 			sorting: [],
 			pageIndex: 0,
 			pageSize: 50,
