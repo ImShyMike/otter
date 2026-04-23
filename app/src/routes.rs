@@ -13,7 +13,7 @@ pub fn build() -> Router<AppState> {
     struct ApiDoc;
 
     let (router, api) = OpenApiRouter::with_openapi(ApiDoc::openapi())
-        .route("/", get(|| async { "API is up!" }))
+        .route("/", get(handlers::homepage))
         .route("/health", get(handlers::health))
         .nest("/api", handlers::api::router())
         .split_for_parts();
