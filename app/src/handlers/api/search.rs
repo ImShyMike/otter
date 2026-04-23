@@ -1,3 +1,5 @@
+use std::time::Instant;
+
 use axum::Json;
 use axum::extract::{Query, State};
 use regex::Regex;
@@ -16,6 +18,8 @@ pub struct SearchQuery {
     #[serde(default)]
     limit: Option<i64>,
     #[serde(default)]
+    page: Option<i64>,
+    #[serde(default)]
     fts_weight: Option<f32>,
     #[serde(default)]
     semantic_weight: Option<f32>,
@@ -23,7 +27,22 @@ pub struct SearchQuery {
     trigram_weight: Option<f32>,
 }
 
-#[derive(Serialize, ToSchema, sqlx::FromRow)]
+#[derive(Serialize, ToSchema)]
+pub struct SearchTimings {
+    embeddings_ms: f64,
+    query_ms: f64,
+}
+
+#[derive(Serialize, ToSchema)]
+pub struct SearchResults {
+    data: Vec<SearchResult>,
+    total: i64,
+    page: i64,
+    per_page: i64,
+    timings: SearchTimings,
+}
+
+#[derive(Serialize, ToSchema)]
 pub struct SearchResult {
     id: i32,
     airtable_id: String,
@@ -42,6 +61,52 @@ pub struct SearchResult {
     archived_demo: Option<String>,
     archived_repo: Option<String>,
     score: f64,
+}
+
+#[derive(sqlx::FromRow)]
+struct SearchRow {
+    id: i32,
+    airtable_id: String,
+    ysws: String,
+    approved_at: Option<i64>,
+    code_url: Option<String>,
+    country: Option<String>,
+    demo_url: Option<String>,
+    description: Option<String>,
+    github_username: Option<String>,
+    hours: Option<i32>,
+    true_hours: Option<f64>,
+    has_media: bool,
+    github_stars: i32,
+    display_name: Option<String>,
+    archived_demo: Option<String>,
+    archived_repo: Option<String>,
+    score: f64,
+    _total: i64,
+}
+
+impl From<SearchRow> for SearchResult {
+    fn from(row: SearchRow) -> Self {
+        Self {
+            id: row.id,
+            airtable_id: row.airtable_id,
+            ysws: row.ysws,
+            approved_at: row.approved_at,
+            code_url: row.code_url,
+            country: row.country,
+            demo_url: row.demo_url,
+            description: row.description,
+            github_username: row.github_username,
+            hours: row.hours,
+            true_hours: row.true_hours,
+            has_media: row.has_media,
+            github_stars: row.github_stars,
+            display_name: row.display_name,
+            archived_demo: row.archived_demo,
+            archived_repo: row.archived_repo,
+            score: row.score,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -87,7 +152,7 @@ fn parse_filters(query: &str) -> ParsedFilters {
     path = "/search",
     params(SearchQuery),
     responses(
-        (status = 200, description = "Search results", body = Vec<SearchResult>),
+        (status = 200, description = "Search results", body = SearchResults),
         (status = 400, description = "Bad request"),
     )
 )]
@@ -95,9 +160,11 @@ fn parse_filters(query: &str) -> ParsedFilters {
 pub async fn search(
     State(state): State<AppState>,
     Query(params): Query<SearchQuery>,
-) -> Result<Json<Vec<SearchResult>>, AppError> {
+) -> Result<Json<SearchResults>, AppError> {
     let filters = parse_filters(&params.q);
     let limit = params.limit.unwrap_or(10).min(100);
+    let page = params.page.unwrap_or(1).max(1);
+    let offset = (page - 1) * limit;
     let fts_weight = params.fts_weight.unwrap_or(0.7).max(0.0);
     let semantic_weight = params.semantic_weight.unwrap_or(0.2).max(0.0);
     let trigram_weight = params.trigram_weight.unwrap_or(0.1).max(0.0);
@@ -111,7 +178,7 @@ pub async fn search(
     if filters.cleaned_query.is_empty()
         && let Some(username) = filters.user.as_deref()
     {
-        return user_search(username, limit, &state).await;
+        return user_search(username, limit, page, &state).await;
     }
 
     // normalize weights
@@ -127,6 +194,7 @@ pub async fn search(
     };
 
     // get embeddings
+    let embed_start = Instant::now();
     let (_, embeddings) = embeddings::get_embeddings_with_cache(
         std::slice::from_ref(&filters.embedding_query),
         &state.redis,
@@ -134,9 +202,11 @@ pub async fn search(
     )
     .await?;
     let query_embedding = &embeddings[0];
+    let embeddings_ms = embed_start.elapsed().as_secs_f64() * 1000.0;
 
     // run query
-    let results: Vec<SearchResult> = sqlx::query_as(
+    let query_start = Instant::now();
+    let rows: Vec<SearchRow> = sqlx::query_as(
         r#"
         WITH filtered_projects AS NOT MATERIALIZED (
             SELECT
@@ -318,10 +388,12 @@ pub async fn search(
                 WHEN MAX(s.raw_score) OVER () > 0
                     THEN (s.raw_score / MAX(s.raw_score) OVER ())::double precision
                 ELSE 0.0::double precision
-            END AS score
+            END AS score,
+            COUNT(*) OVER() AS _total
         FROM scored s
         ORDER BY s.raw_score DESC, s.approved_at DESC NULLS LAST
         LIMIT $6
+        OFFSET $12
         "#,
     )
     .bind(&filters.cleaned_query)
@@ -335,18 +407,35 @@ pub async fn search(
     .bind(trigram_candidate_limit)
     .bind(user_like)
     .bind(phrase_candidate_limit)
+    .bind(offset)
     .fetch_all(&state.pg)
     .await?;
+    let query_ms = query_start.elapsed().as_secs_f64() * 1000.0;
 
-    Ok(Json(results))
+    let total = rows.first().map(|r| r._total).unwrap_or(0);
+    let results: Vec<SearchResult> = rows.into_iter().map(SearchResult::from).collect();
+
+    Ok(Json(SearchResults {
+        data: results,
+        total,
+        page,
+        per_page: limit,
+        timings: SearchTimings {
+            embeddings_ms,
+            query_ms,
+        },
+    }))
 }
 
 pub async fn user_search(
     username: &str,
     limit: i64,
+    page: i64,
     state: &AppState,
-) -> Result<Json<Vec<SearchResult>>, AppError> {
-    let results: Vec<SearchResult> = sqlx::query_as(
+) -> Result<Json<SearchResults>, AppError> {
+    let offset = (page - 1) * limit;
+    let query_start = Instant::now();
+    let rows: Vec<SearchRow> = sqlx::query_as(
         r#"
         SELECT
             p.id,
@@ -365,7 +454,8 @@ pub async fn user_search(
             p.display_name,
             p.archived_demo,
             p.archived_repo,
-            1.0::double precision as score
+            1.0::double precision as score,
+            COUNT(*) OVER() AS _total
         FROM projects p
         WHERE p.deleted_at IS NULL
             AND (
@@ -377,12 +467,27 @@ pub async fn user_search(
             )
         ORDER BY p.approved_at DESC
         LIMIT $2
+        OFFSET $3
         "#,
     )
     .bind(format!("%{}%", username))
     .bind(limit)
+    .bind(offset)
     .fetch_all(&state.pg)
     .await?;
+    let query_ms = query_start.elapsed().as_secs_f64() * 1000.0;
 
-    Ok(Json(results))
+    let total = rows.first().map(|r| r._total).unwrap_or(0);
+    let results: Vec<SearchResult> = rows.into_iter().map(SearchResult::from).collect();
+
+    Ok(Json(SearchResults {
+        data: results,
+        total,
+        page,
+        per_page: limit,
+        timings: SearchTimings {
+            embeddings_ms: 0.0,
+            query_ms,
+        },
+    }))
 }

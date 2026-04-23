@@ -6,13 +6,14 @@
 	import SearchView from '$lib/components/SearchView.svelte';
 	import CardsView from '$lib/components/CardsView.svelte';
 	import { API_BASE } from '$lib/search';
-	import type { SearchResult } from '$lib/types';
+	import type { SearchResult, SearchResults, SearchTimings } from '$lib/types';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import Spinner from '$lib/components/ui/spinner/spinner.svelte';
 	import TableIcon from '@lucide/svelte/icons/table';
 	import X from '@lucide/svelte/icons/x';
+	import { SvelteURLSearchParams } from 'svelte/reactivity';
 
 	type ViewMode = 'search' | 'cards';
 
@@ -23,26 +24,51 @@
 	let viewMode = $state<ViewMode>('search');
 	let lastSearchedQuery = $state('');
 	let lastSubmittedQuery = $state('');
+	let currentPage = $state(1);
+	let totalResults = $state(0);
+	let perPage = $state(20);
+	let timings = $state<SearchTimings | null>(null);
+	let totalPages = $derived(Math.max(1, Math.ceil(totalResults / perPage)));
 
-	async function doSearch(q: string) {
+	async function doSearch(q: string, page = 1) {
 		lastSearchedQuery = q;
 
 		if (!q) {
 			results = [];
 			searched = false;
+			totalResults = 0;
+			timings = null;
 			return;
 		}
 
 		loading = true;
 		searched = true;
 		try {
-			const res = await fetch(`${API_BASE}/api/search?q=${encodeURIComponent(q)}&limit=50`);
-			results = await res.json();
+			const res = await fetch(
+				`${API_BASE}/api/search?q=${encodeURIComponent(q)}&limit=${perPage}&page=${page}`
+			);
+			const body: SearchResults = await res.json();
+			results = body.data;
+			totalResults = body.total;
+			currentPage = body.page;
+			timings = body.timings;
 		} catch {
 			results = [];
+			totalResults = 0;
+			timings = null;
 		} finally {
 			loading = false;
 		}
+	}
+
+	function goToPage(p: number) {
+		if (p < 1 || p > totalPages || loading) return;
+		const q = query.trim();
+		const params = new SvelteURLSearchParams();
+		if (q) params.set('q', q);
+		if (p > 1) params.set('p', String(p));
+		const href = resolve(`/?${params.toString()}`);
+		goto(href, { replaceState: true, keepFocus: true, noScroll: true });
 	}
 
 	async function submitSearch() {
@@ -60,15 +86,17 @@
 
 	$effect(() => {
 		const q = page.url.searchParams.get('q') ?? '';
+		const p = Math.max(1, Number(page.url.searchParams.get('p') ?? '1'));
 
-		if (q !== lastSearchedQuery) {
+		if (q !== lastSearchedQuery || p !== currentPage) {
 			query = q;
 			if (q) {
-				void doSearch(q);
+				void doSearch(q, p);
 			} else {
 				results = [];
 				searched = false;
 				lastSearchedQuery = '';
+				currentPage = 1;
 			}
 		}
 	});
@@ -80,6 +108,9 @@
 	function clearSearch() {
 		if (!query) return;
 		query = '';
+		currentPage = 1;
+		totalResults = 0;
+		timings = null;
 	}
 </script>
 
@@ -149,7 +180,17 @@
 				{#if loading}
 					<Spinner /><span>Searching…</span>
 				{:else}
-					{results.length} result{results.length !== 1 ? 's' : ''}
+					<span title="displaying {perPage}/{totalResults}"
+						>{totalResults} result{totalResults !== 1 ? 's' : ''}</span
+					>
+					{#if timings}
+						<span
+							class="text-xs opacity-60"
+							title={`embeddings: ${timings.embeddings_ms.toFixed(1)}ms, query: ${timings.query_ms.toFixed(1)}ms`}
+						>
+							in {Math.round(timings.embeddings_ms + timings.query_ms)}ms
+						</span>
+					{/if}
 				{/if}
 			</span>
 
@@ -179,6 +220,30 @@
 			{:else}
 				<CardsView {results} />
 			{/if}
+		{/if}
+
+		{#if !loading && totalPages > 1}
+			<div class="mt-6 flex items-center justify-center gap-2">
+				<Button
+					variant="outline"
+					size="sm"
+					disabled={currentPage <= 1}
+					onclick={() => goToPage(currentPage - 1)}
+				>
+					Previous
+				</Button>
+				<span class="text-sm text-muted-foreground">
+					Page {currentPage} of {totalPages}
+				</span>
+				<Button
+					variant="outline"
+					size="sm"
+					disabled={currentPage >= totalPages}
+					onclick={() => goToPage(currentPage + 1)}
+				>
+					Next
+				</Button>
+			</div>
 		{/if}
 	{/if}
 </div>
