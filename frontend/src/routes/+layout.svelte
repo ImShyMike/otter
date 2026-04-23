@@ -1,6 +1,5 @@
 <script lang="ts">
 	import './layout.css';
-	import favicon from '$lib/assets/favicon.svg';
 	import ThemeToggle from '$lib/components/ThemeToggle.svelte';
 
 	let { children } = $props();
@@ -11,12 +10,6 @@
 </div>
 
 <svelte:head>
-	<link rel="icon" href={favicon} />
-	<meta property="og:site_name" content="Otter" />
-	<meta property="og:type" content="website" />
-	<meta name="description" content="Search engine for Hack Club projects" />
-	<meta property="og:description" content="Search engine for Hack Club projects" />
-	<meta name="twitter:card" content="summary" />
 	<script>
 		(() => {
 			const storedTheme = localStorage.getItem('theme');
