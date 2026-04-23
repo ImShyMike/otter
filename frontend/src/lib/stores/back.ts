@@ -16,6 +16,6 @@ export function goBack(event: MouseEvent) {
 		event.preventDefault();
 		goto(resolve(lastPage as RouteIdWithSearchOrHash | PathnameWithSearchOrHash));
 	} else {
-        goto(resolve('/'));
-    }
+		goto(resolve('/'));
+	}
 }
