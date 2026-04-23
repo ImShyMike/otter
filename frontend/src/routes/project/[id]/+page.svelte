@@ -1,11 +1,8 @@
 <script lang="ts">
-	import { Spinner } from '$lib/components/ui/spinner';
-	import { API_BASE, imageUrl, title } from '$lib/search';
+	import { imageUrl, title } from '$lib/search';
 	import { marked } from 'marked';
 	import DOMPurify from 'isomorphic-dompurify';
-	import type { SearchResult } from '$lib/types';
-	import { page } from '$app/state';
-	import { onMount } from 'svelte';
+	import type { PageData } from './$types';
 	import * as Card from '$lib/components/ui/card';
 	import { ExpandableImage } from '$lib/components/ui/image';
 	import { Badge } from '$lib/components/ui/badge';
@@ -23,20 +20,8 @@
 		});
 	}
 
-	let project = $state<SearchResult | null>(null);
-	let loading = $state(false);
-
-	onMount(async () => {
-		loading = true;
-		try {
-			const res = await fetch(`${API_BASE}/api/project/${page.params.id}`);
-			project = await res.json();
-		} catch {
-			project = null;
-		} finally {
-			loading = false;
-		}
-	});
+	let { data }: { data: PageData } = $props();
+	const project = $derived(data.project);
 </script>
 
 <svelte:head>
@@ -60,11 +45,7 @@
 			<ArrowLeft class="h-3 w-3" /> Back
 		</button>
 	</div>
-	{#if loading}
-		<div class="flex flex-1 items-center justify-center">
-			<Spinner />
-		</div>
-	{:else if project}
+	{#if project}
 		{@const p = project}
 		<Card.Card class="flex flex-col">
 			<div class="aspect-video bg-muted">
@@ -137,5 +118,9 @@
 				</Card.Footer>
 			{/if}
 		</Card.Card>
+	{:else}
+		<div class="flex flex-1 items-center justify-center">
+			<div class="text-sm text-muted-foreground">Project not found.</div>
+		</div>
 	{/if}
 </div>
