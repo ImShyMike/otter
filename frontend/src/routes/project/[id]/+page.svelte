@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { Spinner } from '$lib/components/ui/spinner';
-	import { API_BASE, imageUrl, title, truncate } from '$lib/search';
+	import { API_BASE, imageUrl, title } from '$lib/search';
+	import SvelteMarkdown from 'svelte-markdown';
 	import type { SearchResult } from '$lib/types';
 	import { page } from '$app/state';
 	import { onMount } from 'svelte';
@@ -41,8 +42,8 @@
 	{/if}
 </svelte:head>
 
-<div class="mx-auto flex min-h-screen max-w-4xl flex-col px-4 py-8">
-	<div class="mb-8 flex flex-row items-start text-center">
+<div class="mx-auto flex min-h-screen max-w-4xl flex-col px-4 py-6 sm:py-8">
+	<div class="flex flex-row items-start text-center">
 		<button
 			onclick={() => history.back()}
 			class="mb-4 flex cursor-pointer items-center justify-center gap-1 text-sm text-muted-foreground underline underline-offset-2 hover:text-foreground"
@@ -57,15 +58,17 @@
 	{:else if project}
 		{@const p = project}
 		<Card.Card class="flex flex-col">
-			<ExpandableImage
-				id={p.id}
-				src={imageUrl(p.airtable_id)}
-				alt={title(p)}
-				missing={!p.has_media}
-				buttonClass="w-full"
-				thumbnailClass="h-60 w-full border-b bg-muted object-cover"
-				transitionPrefix="cards-image"
-			/>
+			<div class="aspect-video bg-muted">
+				<ExpandableImage
+					id={p.id}
+					src={imageUrl(p.airtable_id)}
+					alt={title(p)}
+					missing={!p.has_media}
+					buttonClass="h-full w-full"
+					thumbnailClass="h-full w-full border-b bg-muted object-contain"
+					transitionPrefix="cards-image"
+				/>
+			</div>
 			<Card.Header>
 				<div class="flex flex-wrap items-center gap-2">
 					<Card.Title class="text-base">{title(p)}</Card.Title>
@@ -101,7 +104,9 @@
 				{/if}
 			</Card.Header>
 			<Card.Content class="flex-1">
-				<p class="text-sm text-muted-foreground">{truncate(p.description, 120)}</p>
+				<div class="prose prose-sm max-w-none text-muted-foreground dark:prose-invert">
+					<SvelteMarkdown source={p.description ?? ''} />
+				</div>
 			</Card.Content>
 			{#if p.code_url || p.demo_url || p.archived_repo || p.archived_demo}
 				<Card.Footer class="gap-2">

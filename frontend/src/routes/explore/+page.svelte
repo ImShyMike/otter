@@ -9,8 +9,8 @@
 	<meta property="og:title" content="Explore · Otter" />
 </svelte:head>
 
-<div class="mx-auto flex max-w-7xl flex-col px-4 py-8">
-	<div class="mb-6 flex items-center gap-4">
+<div class="mx-auto flex max-w-7xl flex-col px-4 py-6 sm:py-8">
+	<div class="mb-4 flex items-center gap-4">
 		<a
 			href={resolve('/')}
 			class="flex cursor-pointer items-center gap-1 text-sm text-muted-foreground underline underline-offset-2 hover:text-foreground"
