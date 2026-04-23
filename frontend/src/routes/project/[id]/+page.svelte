@@ -13,6 +13,7 @@
 	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
 	import Code from '@lucide/svelte/icons/code';
 	import Head from '$lib/components/Head.svelte';
+	import { goBack } from '$lib/stores/back';
 
 	function renderDescription(description: string | null): string {
 		const markdownHtml = marked.parse(description ?? '', {
@@ -43,7 +44,7 @@
 <div class="mx-auto flex min-h-screen max-w-4xl flex-col px-4 py-6 sm:py-8">
 	<div class="flex flex-row items-start text-center">
 		<button
-			onclick={() => history.back()}
+			onclick={goBack}
 			class="mb-4 flex cursor-pointer items-center justify-center gap-1 text-sm text-muted-foreground underline underline-offset-2 hover:text-foreground"
 		>
 			<ArrowLeft class="h-3 w-3" /> Back
