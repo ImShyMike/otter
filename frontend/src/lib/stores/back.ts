@@ -15,5 +15,7 @@ export function goBack(event: MouseEvent) {
 	if (lastPage) {
 		event.preventDefault();
 		goto(resolve(lastPage as RouteIdWithSearchOrHash | PathnameWithSearchOrHash));
-	}
+	} else {
+        goto(resolve('/'));
+    }
 }

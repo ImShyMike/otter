@@ -86,20 +86,6 @@
 							</Button>
 						</a>
 					{/if}
-					{#if r.archived_demo}
-						<a href={r.demo_url} target="_blank" rel="noopener external">
-							<Button variant="outline" size="sm">
-								<ExternalLink class="mr-1 h-3 w-3" /> Archived Demo
-							</Button>
-						</a>
-					{/if}
-					{#if r.archived_repo}
-						<a href={r.code_url} target="_blank" rel="noopener external">
-							<Button variant="outline" size="sm">
-								<Code class="mr-1 h-3 w-3" /> Archived Code
-							</Button>
-						</a>
-					{/if}
 				</Card.Footer>
 			{/if}
 		</Card.Card>
