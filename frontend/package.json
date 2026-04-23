@@ -7,7 +7,6 @@
 		"@fontsource-variable/noto-sans": "^5.2.10",
 		"@internationalized/date": "^3.12.0",
 		"@lucide/svelte": "^1.8.0",
-		"@sveltejs/adapter-auto": "^7.0.1",
 		"@sveltejs/kit": "^2.57.1",
 		"@sveltejs/vite-plugin-svelte": "^7.0.0",
 		"@tailwindcss/typography": "^0.5.19",
@@ -46,6 +45,7 @@
 	},
 	"type": "module",
 	"dependencies": {
+		"@sveltejs/adapter-cloudflare": "^7.2.8",
 		"@tanstack/svelte-table": "9.0.0-alpha.33",
 		"isomorphic-dompurify": "^3.10.0",
 		"lz-string": "^1.5.0",
