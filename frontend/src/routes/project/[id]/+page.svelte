@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { imageUrl, title } from '$lib/search';
+	import { imageUrl, title, truncate } from '$lib/search';
 	import { marked } from 'marked';
 	import xss from 'xss';
 	import type { PageData } from './$types';
@@ -33,7 +33,7 @@
 
 <Head
 	title={(project ? title(project) : 'Project') + ' · Otter'}
-	description={project?.description ?? 'A Hack Club project'}
+	description={truncate(project?.description ?? 'A Hack Club project', 200)}
 	twitterCard={project?.has_media ? 'summary_large_image' : 'summary'}
 	image={project?.has_media ? imageUrl(project.airtable_id) : undefined}
 />
