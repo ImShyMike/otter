@@ -2,12 +2,10 @@
 	import DataTable from '$lib/components/DataTable.svelte';
 	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
 	import { resolve } from '$app/paths';
+	import Head from '$lib/components/Head.svelte';
 </script>
 
-<svelte:head>
-	<title>Explore · Otter</title>
-	<meta property="og:title" content="Explore · Otter" />
-</svelte:head>
+<Head title="Explore · Otter" description="Explore Hack Club projects" />
 
 <div class="mx-auto flex max-w-7xl flex-col px-4 py-6 sm:py-8">
 	<div class="mb-4 flex items-center gap-4">

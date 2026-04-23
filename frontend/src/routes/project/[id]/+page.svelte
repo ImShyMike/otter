@@ -12,6 +12,7 @@
 	import ExternalLink from '@lucide/svelte/icons/external-link';
 	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
 	import Code from '@lucide/svelte/icons/code';
+	import Head from '$lib/components/Head.svelte';
 
 	function renderDescription(description: string | null): string {
 		const markdownHtml = marked.parse(description ?? '', {
@@ -30,17 +31,12 @@
 	const project = $derived(data.project);
 </script>
 
-<svelte:head>
-	<title>{project ? title(project) : 'Project'} · Otter</title>
-	<meta property="og:title" content={(project ? title(project) : 'Project') + ' · Otter'} />
-	{#if project}
-		<meta property="og:description" content={project.description ?? 'A Hack Club project'} />
-		{#if project.has_media}
-			<meta property="og:image" content={imageUrl(project.airtable_id)} />
-			<meta name="twitter:card" content="summary_large_image" />
-		{/if}
-	{/if}
-</svelte:head>
+<Head
+	title={(project ? title(project) : 'Project') + ' · Otter'}
+	description={project?.description ?? 'A Hack Club project'}
+	twitterCard={project?.has_media ? 'summary_large_image' : 'summary'}
+	image={project?.has_media ? imageUrl(project.airtable_id) : undefined}
+/>
 
 <div class="mx-auto flex min-h-screen max-w-4xl flex-col px-4 py-6 sm:py-8">
 	<div class="flex flex-row items-start text-center">
