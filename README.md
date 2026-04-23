@@ -22,3 +22,7 @@ bun i
 bun dev
 ```
 
+These should now be live:
+
+- **frontend**: [http://localhost:5173](http://localhost:5173)
+- **backend**: [http://localhost:3000](http://localhost:3000)
