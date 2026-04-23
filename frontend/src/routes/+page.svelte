@@ -180,7 +180,7 @@
 				{#if loading}
 					<Spinner /><span>Searching…</span>
 				{:else}
-					<span title="displaying {perPage}/{totalResults}"
+					<span title="displaying {results.length}/{totalResults}"
 						>{totalResults} result{totalResults !== 1 ? 's' : ''}</span
 					>
 					{#if timings}
