@@ -24,7 +24,11 @@
 	let query = $state(page.url.searchParams.get('q') ?? '');
 	let results = $state<SearchResult[]>([]);
 	let showLowScore = $state(false);
-	let validResults = $derived(showLowScore ? results : results.filter((r) => r.score !== null && r.score >= LOW_SCORE_THRESHOLD));
+	let validResults = $derived(
+		showLowScore
+			? results
+			: results.filter((r) => r.score !== null && r.score >= LOW_SCORE_THRESHOLD)
+	);
 	let loading = $state(false);
 	let searched = $state(false);
 	let viewMode = $state<ViewMode>('search');
@@ -241,7 +245,7 @@
 			<p class="mt-4 text-center text-sm text-muted-foreground">
 				{trueHiddenCount} result{trueHiddenCount !== 1 ? 's' : ''} hidden...
 				<button
-					class="underline hover:text-foreground cursor-pointer"
+					class="cursor-pointer underline hover:text-foreground"
 					onclick={() => (showLowScore = !showLowScore)}
 				>
 					{showLowScore ? 'Hide' : 'Show'} them?
@@ -252,7 +256,6 @@
 		{#if loading && results.length > 0}
 			<p class="py-12 text-center text-muted-foreground">Loading more results…</p>
 		{/if}
-
 
 		{#if !loading && totalPages > 1 && !showHiddenResultsNotice}
 			<div class="mt-6 flex items-center justify-center gap-2">
