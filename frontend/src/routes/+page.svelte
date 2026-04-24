@@ -71,6 +71,18 @@
 		}
 	}
 
+	function changeViewMode(mode: ViewMode) {
+		viewMode = mode;
+		const params = new SvelteURLSearchParams(page.url.search);
+		if (mode === 'search') {
+			params.delete('v');
+		} else {
+			params.set('v', mode);
+		}
+		const href = resolve(`/?${params.toString()}`);
+		goto(href, { replaceState: true, keepFocus: true, noScroll: true });
+	}
+
 	function goToPage(p: number) {
 		if (p < 1 || p > totalPages || loading) return;
 		const q = query.trim();
@@ -89,6 +101,7 @@
 		}
 
 		lastSubmittedQuery = q;
+		showLowScore = false;
 		const href = resolve(q ? `/?q=${encodeURIComponent(q)}` : '/');
 
 		await goto(href, { replaceState: true, keepFocus: true, noScroll: true });
@@ -97,6 +110,11 @@
 	$effect(() => {
 		const q = page.url.searchParams.get('q') ?? '';
 		const p = Math.max(1, Number(page.url.searchParams.get('p') ?? '1'));
+		const v = page.url.searchParams.get('v') as ViewMode | null;
+
+		if (v === 'search' || v === 'cards') {
+			viewMode = v;
+		}
 
 		if (q !== untrack(() => lastSearchedQuery) || p !== untrack(() => currentPage)) {
 			query = q;
@@ -212,14 +230,14 @@
 				<Button
 					variant={viewMode === 'search' ? 'default' : 'ghost'}
 					size="sm"
-					onclick={() => (viewMode = 'search')}
+					onclick={() => changeViewMode('search')}
 				>
 					<Search class="h-4 w-4" />
 				</Button>
 				<Button
 					variant={viewMode === 'cards' ? 'default' : 'ghost'}
 					size="sm"
-					onclick={() => (viewMode = 'cards')}
+					onclick={() => changeViewMode('cards')}
 				>
 					<LayoutGrid class="h-4 w-4" />
 				</Button>
@@ -242,7 +260,7 @@
 		{@const trueHiddenCount = Math.max(0, totalResults - pageOffset - validResults.length)}
 		{@const showHiddenResultsNotice = hiddenCount > 0 && validResults.length > 0}
 		{#if showHiddenResultsNotice && !loading}
-			<p class="mt-4 text-center text-sm text-muted-foreground">
+			<p class="mt-6 text-center text-sm text-muted-foreground">
 				{trueHiddenCount} result{trueHiddenCount !== 1 ? 's' : ''} hidden...
 				<button
 					class="cursor-pointer underline hover:text-foreground"
