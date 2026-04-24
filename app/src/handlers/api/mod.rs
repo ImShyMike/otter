@@ -1,6 +1,7 @@
 pub mod media;
 pub mod project;
 pub mod query;
+pub mod recent;
 pub mod search;
 pub mod ysws;
 
@@ -20,6 +21,7 @@ pub fn router() -> OpenApiRouter<AppState> {
         .routes(routes!(media::media))
         .routes(routes!(media::media_redirect))
         .routes(routes!(project::project_info))
+        .routes(routes!(recent::recent_projects))
 }
 
 static LOCAL_ONLY: OnceLock<bool> = OnceLock::new();
