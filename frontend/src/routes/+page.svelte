@@ -253,10 +253,6 @@
 			</p>
 		{/if}
 
-		{#if loading && results.length > 0}
-			<p class="py-12 text-center text-muted-foreground">Loading more results…</p>
-		{/if}
-
 		{#if !loading && totalPages > 1 && !showHiddenResultsNotice}
 			<div class="mt-6 flex items-center justify-center gap-2">
 				<Button
