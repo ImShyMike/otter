@@ -65,7 +65,7 @@
 							·
 						{/if}
 						{#if r.score !== null && r.score <= 1}
-							<span class="text-xs text-muted-foreground"
+							<span class="text-xs text-muted-foreground" title="Search score"
 								>Score {formatFloat(r.score * 100, 1)}%</span
 							>
 						{/if}

@@ -4,11 +4,10 @@ import type { SearchResult } from './types';
 export const API_BASE = (env.PUBLIC_API_BASE || 'http://localhost:3000').replace(/\/$/, '');
 
 const SCORE_BRACKETS: [number, string][] = [
-	[0, 'text-muted-foreground'],
-	[0.25, 'text-red-500'],
-	[0.5, 'text-yellow-500'],
-	[0.75, 'text-green-700'],
-	[1, 'text-blue-700']
+	[0.25, 'text-destructive'],
+	[0.5, 'text-muted-foreground'],
+	[0.75, 'text-foreground/70'],
+	[1, 'text-foreground/90']
 ];
 
 export function scoreClass(score: number | null): string {

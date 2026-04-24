@@ -64,12 +64,12 @@
 						</a>
 					{/if}
 					{#if formatApproved(r.approved_at)}
-						<span class="text-xs text-muted-foreground"
-							>Approved {formatApproved(r.approved_at)}</span
+						<span class="text-xs text-muted-foreground">
+							Approved {formatApproved(r.approved_at)}</span
 						>
 					{/if}
 					{#if r.score !== null && r.score <= 1}
-						<span class={cn('text-xs', scoreClass(r.score))}
+						<span class={cn('text-xs', scoreClass(r.score))} title="Search score"
 							>Score {formatFloat(r.score * 100, 1)}%</span
 						>
 					{/if}
