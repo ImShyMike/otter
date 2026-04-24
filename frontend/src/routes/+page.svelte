@@ -137,9 +137,6 @@
 	function clearSearch() {
 		if (!query) return;
 		query = '';
-		currentPage = 1;
-		totalResults = 0;
-		timings = null;
 	}
 </script>
 
