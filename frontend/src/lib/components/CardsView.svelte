@@ -8,7 +8,7 @@
 	import Star from '@lucide/svelte/icons/star';
 	import { imageUrl, title, truncate } from '$lib/search';
 	import type { SearchResult } from '$lib/types';
-	import { formatHours, formatApproved } from '$lib/utils';
+	import { formatHours, formatApproved, formatFloat } from '$lib/utils';
 	import { resolve } from '$app/paths';
 
 	let { results }: { results: SearchResult[] } = $props();
@@ -41,7 +41,7 @@
 						<Badge variant="outline" class="text-xs">{formatHours(r)}</Badge>
 					{/if}
 				</div>
-				{#if r.country || r.inferred_username || formatApproved(r.approved_at)}
+				{#if r.country || r.inferred_username || formatApproved(r.approved_at) || (r.score !== null && r.score <= 1)}
 					<Card.Description>
 						{r.country ?? ''}
 						{#if r.country && r.inferred_username}
@@ -61,8 +61,13 @@
 						{#if formatApproved(r.approved_at)}
 							Approved {formatApproved(r.approved_at)}
 						{/if}
-						{#if r.score !== null && r.score < 1}
-							<span class="text-xs text-muted-foreground">Score {(r.score * 100).toFixed(1)}%</span>
+						{#if (r.country || r.inferred_username) && formatApproved(r.approved_at) && r.score !== null && r.score <= 1}
+							·
+						{/if}
+						{#if r.score !== null && r.score <= 1}
+							<span class="text-xs text-muted-foreground"
+								>Score {formatFloat(r.score * 100, 1)}%</span
+							>
 						{/if}
 					</Card.Description>
 				{/if}

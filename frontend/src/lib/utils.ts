@@ -6,7 +6,7 @@ export function cn(...inputs: ClassValue[]) {
 	return twMerge(clsx(inputs));
 }
 
-function formatFloat(num: number, decimals: number): string {
+export function formatFloat(num: number, decimals: number): string {
 	if (num === 0) return '0';
 	return Number(num.toFixed(decimals)).toString();
 }
