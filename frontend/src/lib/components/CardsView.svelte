@@ -6,9 +6,9 @@
 	import Code from '@lucide/svelte/icons/code';
 	import ExternalLink from '@lucide/svelte/icons/external-link';
 	import Star from '@lucide/svelte/icons/star';
-	import { imageUrl, title, truncate } from '$lib/search';
+	import { imageUrl, scoreClass, title, truncate } from '$lib/search';
 	import type { SearchResult } from '$lib/types';
-	import { formatHours, formatApproved, formatFloat } from '$lib/utils';
+	import { formatHours, formatApproved, formatFloat, cn } from '$lib/utils';
 	import { resolve } from '$app/paths';
 
 	let { results }: { results: SearchResult[] } = $props();
@@ -65,7 +65,7 @@
 							·
 						{/if}
 						{#if r.score !== null && r.score <= 1}
-							<span class="text-xs text-muted-foreground" title="Search score"
+							<span class={cn('text-xs', scoreClass(r.score))} title="Search score"
 								>Score {formatFloat(r.score * 100, 1)}%</span
 							>
 						{/if}
