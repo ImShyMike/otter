@@ -55,7 +55,7 @@
 		searched = true;
 		try {
 			const res = await fetch(
-				`${API_BASE}/api/search?q=${encodeURIComponent(q)}&limit=${perPage}&page=${page}`
+				`${API_BASE}/api/v1/search?q=${encodeURIComponent(q)}&limit=${perPage}&page=${page}`
 			);
 			const body: SearchResults = await res.json();
 			results = body.data;

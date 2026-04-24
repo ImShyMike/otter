@@ -31,7 +31,7 @@
 	import X from '@lucide/svelte/icons/x';
 	import lzString from 'lz-string';
 	import { API_BASE, title as projectTitle, imageUrl } from '$lib/search';
-	import type { SearchResult } from '$lib/types';
+	import type { ProjectItem } from '$lib/types';
 	import { formatApproved } from '$lib/utils';
 	import { onMount, untrack } from 'svelte';
 	import { resolve } from '$app/paths';
@@ -53,7 +53,7 @@
 	}
 
 	interface QueryResponse {
-		data: SearchResult[];
+		data: ProjectItem[];
 		total: number;
 		page: number;
 		per_page: number;
@@ -67,7 +67,7 @@
 
 	type TableFeatures = typeof _features;
 
-	let data = $state<SearchResult[]>([]);
+	let data = $state<ProjectItem[]>([]);
 	let total = $state(0);
 	let loading = $state(false);
 
@@ -340,7 +340,7 @@
 
 	onMount(async () => {
 		try {
-			const res = await fetch(`${API_BASE}/api/ysws/list`);
+			const res = await fetch(`${API_BASE}/api/v1/ysws/list`);
 			yswsOptions = await res.json();
 		} catch {
 			yswsOptions = [];
@@ -453,7 +453,7 @@
 				}
 			}
 
-			const res = await fetch(`${API_BASE}/api/query`, {
+			const res = await fetch(`${API_BASE}/api/v1/query`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify(body)
@@ -508,7 +508,7 @@
 		return () => clearTimeout(debounceTimer);
 	});
 
-	const columns: ColumnDef<TableFeatures, SearchResult>[] = [
+	const columns: ColumnDef<TableFeatures, ProjectItem>[] = [
 		{
 			id: 'row_number',
 			header: 'ID',
@@ -664,13 +664,13 @@
 	});
 </script>
 
-{#snippet nameSnippet(r: SearchResult)}
+{#snippet nameSnippet(r: ProjectItem)}
 	<a href={resolve('/project/[id]', { id: r.airtable_id })} class="hover:underline"
 		>{projectTitle(r)}</a
 	>
 {/snippet}
 
-{#snippet mediaSnippet(r: SearchResult)}
+{#snippet mediaSnippet(r: ProjectItem)}
 	{#if r.has_media}
 		<a
 			href={imageUrl(r.airtable_id)}
@@ -683,7 +683,7 @@
 	{/if}
 {/snippet}
 
-{#snippet usernameSnippet(r: SearchResult)}
+{#snippet usernameSnippet(r: ProjectItem)}
 	{@const username = r.inferred_username || r.github_username}
 	{#if username}
 		<a

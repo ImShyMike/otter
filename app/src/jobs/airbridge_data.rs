@@ -134,7 +134,7 @@ async fn upsert_entries(entries: &[AirbridgeEntry], pg: &PgPool) -> anyhow::Resu
         qb.push_values(chunk, |mut b, entry| {
             b.push_bind(&entry.id)
                 .push_bind(entry.fields.ysws_name.as_ref().unwrap())
-                .push_bind(entry.fields.approved_at)
+                .push_bind(entry.fields.approved_at.map(|t| t.unix_timestamp()))
                 .push_bind(&entry.fields.code_url)
                 .push_bind(&entry.fields.playable_url)
                 .push_bind(&entry.fields.github_username)

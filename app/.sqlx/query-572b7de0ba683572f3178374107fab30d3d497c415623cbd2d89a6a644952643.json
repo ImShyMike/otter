@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id, airtable_id, ysws, EXTRACT(EPOCH FROM approved_at)::bigint AS approved_at, code_url, country, demo_url, description, github_username, hours, true_hours, (media_url IS NOT NULL) AS \"has_media!\", github_stars, display_name, archived_demo, archived_repo, inferred_repo, inferred_github_username AS inferred_username FROM projects WHERE deleted_at IS NULL AND airtable_id = $1 LIMIT 1",
+  "query": "SELECT id, airtable_id, ysws, approved_at, code_url, country, demo_url, description, github_username, hours, true_hours, has_media AS \"has_media!\", github_stars, display_name, archived_demo, archived_repo, inferred_repo, inferred_username FROM projects WHERE deleted_at IS NULL ORDER BY created_at DESC LIMIT $1",
   "describe": {
     "columns": [
       {
@@ -96,14 +96,13 @@
     ],
     "parameters": {
       "Left": [
-        "Text"
+        "Int8"
       ]
     },
     "nullable": [
       false,
       false,
       false,
-      null,
       true,
       true,
       true,
@@ -111,7 +110,8 @@
       true,
       true,
       true,
-      null,
+      true,
+      false,
       false,
       true,
       true,
@@ -120,5 +120,5 @@
       true
     ]
   },
-  "hash": "d52369e9ba714452cffedb1f915221bfe72aff0ec95212d7b2d782cc5b39a52f"
+  "hash": "572b7de0ba683572f3178374107fab30d3d497c415623cbd2d89a6a644952643"
 }

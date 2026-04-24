@@ -6,6 +6,7 @@ use tracing::instrument;
 use utoipa::ToSchema;
 
 use crate::error::AppError;
+use crate::handlers::api::ProjectItem;
 use crate::state::AppState;
 
 #[derive(Debug, Clone, Copy)]
@@ -64,12 +65,12 @@ impl Field {
             Field::Hours => FieldDef { column: "hours", kind: FieldKind::Int },
             Field::TrueHours => FieldDef { column: "true_hours", kind: FieldKind::Float },
             Field::GithubStars => FieldDef { column: "github_stars", kind: FieldKind::Int },
-            Field::ApprovedAt => FieldDef { column: "approved_at", kind: FieldKind::Timestamp },
+            Field::ApprovedAt => FieldDef { column: "approved_at", kind: FieldKind::Int },
             Field::CreatedAt => FieldDef { column: "created_at", kind: FieldKind::Timestamp },
             Field::UpdatedAt => FieldDef { column: "updated_at", kind: FieldKind::Timestamp },
             Field::HasMedia => FieldDef { column: "media_url", kind: FieldKind::Bool },
             Field::InferredRepo => FieldDef { column: "inferred_repo", kind: FieldKind::Text },
-            Field::InferredUsername => FieldDef { column: "inferred_github_username", kind: FieldKind::Text },
+            Field::InferredUsername => FieldDef { column: "inferred_username", kind: FieldKind::Text },
         }
     }
 }
@@ -154,35 +155,13 @@ struct QueryRow {
     archived_demo: Option<String>,
     archived_repo: Option<String>,
     inferred_repo: Option<String>,
-    inferred_github_username: Option<String>,
+    inferred_username: Option<String>,
     _total: i64,
 }
 
 #[derive(Serialize, ToSchema)]
-pub struct QueryResult {
-    id: i32,
-    airtable_id: String,
-    ysws: String,
-    approved_at: Option<i64>,
-    code_url: Option<String>,
-    country: Option<String>,
-    demo_url: Option<String>,
-    description: Option<String>,
-    github_username: Option<String>,
-    hours: Option<i32>,
-    true_hours: Option<f64>,
-    has_media: bool,
-    github_stars: i32,
-    display_name: Option<String>,
-    archived_demo: Option<String>,
-    archived_repo: Option<String>,
-    inferred_repo: Option<String>,
-    inferred_username: Option<String>,
-}
-
-#[derive(Serialize, ToSchema)]
 pub struct QueryResults {
-    data: Vec<QueryResult>,
+    data: Vec<ProjectItem>,
     total: i64,
     page: i64,
     per_page: i64,
@@ -207,10 +186,10 @@ pub async fn query(
     let offset = (page - 1) * limit;
 
     let mut qb: QueryBuilder<sqlx::Postgres> = QueryBuilder::new(
-        "SELECT id, airtable_id, ysws, EXTRACT(EPOCH FROM approved_at)::bigint AS approved_at, code_url, country, \
+        "SELECT id, airtable_id, ysws, approved_at, code_url, country, \
          demo_url, description, github_username, hours, true_hours, \
-         (media_url IS NOT NULL) AS has_media, github_stars, display_name, \
-         archived_demo, archived_repo, inferred_repo, inferred_github_username, \
+         has_media, github_stars, display_name, \
+         archived_demo, archived_repo, inferred_repo, inferred_username, \
          COUNT(*) OVER() AS _total FROM projects WHERE deleted_at IS NULL",
     );
 
@@ -434,7 +413,7 @@ pub async fn query(
     let total = rows.first().map(|r| r._total).unwrap_or(0);
     let data = rows
         .into_iter()
-        .map(|r| QueryResult {
+        .map(|r| ProjectItem {
             id: r.id,
             airtable_id: r.airtable_id,
             ysws: r.ysws,
@@ -452,7 +431,7 @@ pub async fn query(
             archived_demo: r.archived_demo,
             archived_repo: r.archived_repo,
             inferred_repo: r.inferred_repo,
-            inferred_username: r.inferred_github_username,
+            inferred_username: r.inferred_username,
         })
         .collect();
 

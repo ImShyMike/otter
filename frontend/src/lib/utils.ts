@@ -1,6 +1,6 @@
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
-import type { SearchResult } from './types';
+import type { ProjectItem } from './types';
 
 export function cn(...inputs: ClassValue[]) {
 	return twMerge(clsx(inputs));
@@ -16,7 +16,7 @@ export function formatApproved(ts: number | null): string {
 	return new Date(ts * 1000).toLocaleDateString();
 }
 
-export function formatHours(r: SearchResult): string {
+export function formatHours(r: ProjectItem): string {
 	if (r.hours != null) {
 		if (r.true_hours != null) {
 			if (Math.round(r.true_hours) === r.hours) {

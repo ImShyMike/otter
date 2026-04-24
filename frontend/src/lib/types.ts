@@ -1,4 +1,4 @@
-export interface SearchResult {
+export interface ProjectItem {
 	id: number;
 	airtable_id: string;
 	approved_at: number | null;
@@ -17,7 +17,10 @@ export interface SearchResult {
 	archived_repo: string | null;
 	inferred_repo: string | null;
 	inferred_username: string | null;
-	score: number | null;
+}
+
+export interface SearchResult extends ProjectItem {
+	score: number;
 }
 
 export interface SearchTimings {
