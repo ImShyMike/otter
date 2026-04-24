@@ -46,7 +46,7 @@ pub async fn media(
         ("id" = String, Path, description = "Project ID or Airtable ID"),
     ),
     responses(
-        (status = 302, description = "Redirect to media URL"),
+        (status = 303, description = "Redirect to media URL"),
         (status = 404, description = "Not found"),
     )
 )]
