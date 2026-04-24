@@ -96,7 +96,7 @@ async fn update_data(http_client: &reqwest::Client, pg: &PgPool) -> anyhow::Resu
     );
 
     upsert_projects(&entries, pg).await?;
-    update_media_urls(&entries, pg).await?;
+    // update_media_urls(&entries, pg).await?;
     soft_delete_missing(&entries, pg).await?;
 
     Ok(())
@@ -177,32 +177,32 @@ async fn upsert_projects(entries: &[YswsEntry], pg: &PgPool) -> anyhow::Result<(
     Ok(())
 }
 
-#[instrument(skip_all)]
-async fn update_media_urls(entries: &[YswsEntry], pg: &PgPool) -> anyhow::Result<()> {
-    let mut tx = pg.begin().await?;
-    let mut urls_updated = 0;
-    for chunk in entries.chunks(BATCH_SIZE) {
-        let ids: Vec<&str> = chunk.iter().map(|e| e.id.as_str()).collect();
-        let urls: Vec<Option<&str>> = chunk.iter().map(|e| e.screenshot_url.as_deref()).collect();
+// #[instrument(skip_all)]
+// async fn update_media_urls(entries: &[YswsEntry], pg: &PgPool) -> anyhow::Result<()> {
+//     let mut tx = pg.begin().await?;
+//     let mut urls_updated = 0;
+//     for chunk in entries.chunks(BATCH_SIZE) {
+//         let ids: Vec<&str> = chunk.iter().map(|e| e.id.as_str()).collect();
+//         let urls: Vec<Option<&str>> = chunk.iter().map(|e| e.screenshot_url.as_deref()).collect();
 
-        let result = sqlx::query(
-            "UPDATE projects SET media_url = data.screenshot_url \
-                FROM UNNEST($1::text[], $2::text[]) AS data(airtable_id, screenshot_url) \
-                WHERE projects.airtable_id = data.airtable_id \
-                AND projects.media_url IS DISTINCT FROM data.screenshot_url",
-        )
-        .bind(&ids)
-        .bind(&urls)
-        .execute(&mut *tx)
-        .await?;
-        urls_updated += result.rows_affected();
-    }
+//         let result = sqlx::query(
+//             "UPDATE projects SET media_url = data.screenshot_url \
+//                 FROM UNNEST($1::text[], $2::text[]) AS data(airtable_id, screenshot_url) \
+//                 WHERE projects.airtable_id = data.airtable_id \
+//                 AND projects.media_url IS DISTINCT FROM data.screenshot_url",
+//         )
+//         .bind(&ids)
+//         .bind(&urls)
+//         .execute(&mut *tx)
+//         .await?;
+//         urls_updated += result.rows_affected();
+//     }
 
-    tx.commit().await?;
-    info!("updated screenshot URLs for {} entries", urls_updated);
+//     tx.commit().await?;
+//     info!("updated screenshot URLs for {} entries", urls_updated);
 
-    Ok(())
-}
+//     Ok(())
+// }
 
 #[instrument(skip_all)]
 async fn soft_delete_missing(entries: &[YswsEntry], pg: &PgPool) -> anyhow::Result<()> {
