@@ -14,6 +14,9 @@
 	import Code from '@lucide/svelte/icons/code';
 	import Head from '$lib/components/Head.svelte';
 	import { goBack } from '$lib/stores/back';
+	import Share2 from '@lucide/svelte/icons/share-2';
+
+	let shareStatus = $state<'idle' | 'copied' | 'failed'>('idle');
 
 	function renderDescription(description: string | null): string {
 		const markdownHtml = marked.parse(description ?? '', {
@@ -26,6 +29,23 @@
 			stripIgnoreTag: true,
 			stripIgnoreTagBody: ['script', 'style']
 		});
+	}
+
+	async function copyShareLink() {
+		if (typeof window === 'undefined') return;
+
+		const url = new URL(window.location.href);
+
+		try {
+			await navigator.clipboard.writeText(url.toString());
+			shareStatus = 'copied';
+		} catch {
+			shareStatus = 'failed';
+		}
+
+		setTimeout(() => {
+			shareStatus = 'idle';
+		}, 2000);
 	}
 
 	let { data }: { data: PageData } = $props();
@@ -42,13 +62,23 @@
 />
 
 <div class="mx-auto flex min-h-screen max-w-4xl flex-col px-4 py-6 sm:py-8">
-	<div class="flex flex-row items-start text-center">
+	<div class="flex flex-row items-start justify-between text-center">
 		<button
 			onclick={goBack}
 			class="mb-4 flex cursor-pointer items-center justify-center gap-1 text-sm text-muted-foreground underline underline-offset-2 hover:text-foreground"
 		>
 			<ArrowLeft class="h-3 w-3" /> Back
 		</button>
+		<div>
+			{#if shareStatus === 'copied'}
+				<span class="text-xs text-muted-foreground">Copied link!</span>
+			{:else if shareStatus === 'failed'}
+				<span class="text-xs text-muted-foreground">Copy failed</span>
+			{/if}
+			<Button variant="outline" size="sm" onclick={copyShareLink} class="ml-auto">
+				<Share2 class="mr-1 h-3 w-3" /> Share
+			</Button>
+		</div>
 	</div>
 	{#if project}
 		{@const p = project}

@@ -821,7 +821,7 @@
 					Share View
 				</Button>
 				{#if shareStatus === 'copied'}
-					<span class="text-xs text-muted-foreground">Copied link</span>
+					<span class="text-xs text-muted-foreground">Copied link!</span>
 				{:else if shareStatus === 'failed'}
 					<span class="text-xs text-muted-foreground">Copy failed</span>
 				{/if}
