@@ -155,16 +155,19 @@
 		</div>
 
 		<div class="flex flex-col items-center">
-			<p
-				class="m-3 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-center text-xs text-muted-foreground"
-			>
+			<p class="m-3 text-center text-xs leading-relaxed wrap-break-word text-muted-foreground">
 				<span class="font-medium tracking-wide text-foreground/80">tip:</span>
-				<span class="opacity-70">use</span>
+				<span class="opacity-70">use </span>
 				<span
-					class="rounded bg-muted px-1.5 py-0.5 font-mono text-[11px] whitespace-nowrap text-foreground"
+					class="rounded bg-muted px-1 py-0.5 font-mono text-[11px] wrap-break-word whitespace-nowrap text-foreground"
+					>"quoted phrase"</span
+				>
+				<span class="opacity-70"> for exact phrase matches, and </span>
+				<span
+					class="rounded bg-muted px-1 py-0.5 font-mono text-[11px] wrap-break-word whitespace-nowrap text-foreground"
 					>user:username</span
 				>
-				<span class="opacity-70">to search for projects by a user</span>
+				<span class="opacity-70"> to search projects by user</span>
 			</p>
 			<a
 				href={resolve('/explore')}

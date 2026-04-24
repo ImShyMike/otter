@@ -3,10 +3,10 @@
 	import Code from '@lucide/svelte/icons/code';
 	import Globe from '@lucide/svelte/icons/globe';
 	import Star from '@lucide/svelte/icons/star';
-	import { imageUrl, title, truncate } from '$lib/search';
+	import { imageUrl, scoreClass, title, truncate } from '$lib/search';
 	import { ExpandableImage } from '$lib/components/ui/image';
 	import type { SearchResult } from '$lib/types';
-	import { formatHours, formatApproved } from '$lib/utils';
+	import { formatHours, formatApproved, cn, formatFloat } from '$lib/utils';
 	import { resolve } from '$app/paths';
 
 	let { results }: { results: SearchResult[] } = $props();
@@ -68,8 +68,10 @@
 							>Approved {formatApproved(r.approved_at)}</span
 						>
 					{/if}
-					{#if r.score !== null && r.score < 1}
-						<span class="text-xs text-muted-foreground">Score {(r.score * 100).toFixed(1)}%</span>
+					{#if r.score !== null && r.score <= 1}
+						<span class={cn('text-xs', scoreClass(r.score))}
+							>Score {formatFloat(r.score * 100, 1)}%</span
+						>
 					{/if}
 				</div>
 			</div>

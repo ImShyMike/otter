@@ -179,6 +179,7 @@ pub async fn search(
     let phrase_candidate_limit = (limit * 8).clamp(80, 1500);
     let semantic_candidate_limit = (limit * 8).clamp(80, 1250);
     let trigram_candidate_limit = (limit * 15).clamp(150, 3000);
+    let literal_candidate_limit = (limit * 12).clamp(120, 2500);
 
     // user-only search
     if filters.cleaned_query.is_empty()
@@ -295,6 +296,72 @@ pub async fn search(
             ORDER BY ps.phrase_score DESC
             LIMIT $11
         ),
+        query_terms AS (
+            SELECT lower(trim(BOTH FROM REPLACE($1, '"', ''))) AS raw_q
+        ),
+        literal_results AS (
+            SELECT
+                p.id,
+                GREATEST(
+                    CASE
+                        WHEN qt.raw_q <> '' AND lower(COALESCE(p.inferred_repo, '')) = qt.raw_q THEN 4.0
+                        ELSE 0.0
+                    END,
+                    CASE
+                        WHEN qt.raw_q <> '' AND lower(COALESCE(p.display_name, '')) = qt.raw_q THEN 3.5
+                        ELSE 0.0
+                    END,
+                    CASE
+                        WHEN qt.raw_q <> '' AND lower(COALESCE(p.ysws, '')) = qt.raw_q THEN 3.0
+                        ELSE 0.0
+                    END,
+                    CASE
+                        WHEN qt.raw_q <> '' AND lower(p.search_repo) LIKE qt.raw_q || '%' THEN 2.4
+                        ELSE 0.0
+                    END,
+                    CASE
+                        WHEN qt.raw_q <> '' AND lower(COALESCE(p.display_name, '')) LIKE qt.raw_q || '%' THEN 2.2
+                        ELSE 0.0
+                    END,
+                    CASE
+                        WHEN qt.raw_q <> '' AND lower(p.search_username) LIKE qt.raw_q || '%' THEN 2.0
+                        ELSE 0.0
+                    END,
+                    CASE
+                        WHEN qt.raw_q <> '' AND STRPOS(lower(p.search_repo), qt.raw_q) > 0 THEN 1.5
+                        ELSE 0.0
+                    END,
+                    CASE
+                        WHEN qt.raw_q <> '' AND STRPOS(lower(COALESCE(p.display_name, '')), qt.raw_q) > 0 THEN 1.35
+                        ELSE 0.0
+                    END,
+                    CASE
+                        WHEN qt.raw_q <> '' AND STRPOS(lower(p.search_username), qt.raw_q) > 0 THEN 1.2
+                        ELSE 0.0
+                    END,
+                    CASE
+                        WHEN qt.raw_q <> '' AND STRPOS(lower(COALESCE(p.code_url, '')), qt.raw_q) > 0 THEN 1.0
+                        ELSE 0.0
+                    END
+                )::double precision AS literal_score
+            FROM filtered_projects p
+            CROSS JOIN query_terms qt
+            WHERE qt.raw_q <> ''
+              AND (
+                    lower(COALESCE(p.inferred_repo, '')) = qt.raw_q OR
+                    lower(COALESCE(p.display_name, '')) = qt.raw_q OR
+                    lower(COALESCE(p.ysws, '')) = qt.raw_q OR
+                    lower(p.search_repo) LIKE qt.raw_q || '%' OR
+                    lower(COALESCE(p.display_name, '')) LIKE qt.raw_q || '%' OR
+                    lower(p.search_username) LIKE qt.raw_q || '%' OR
+                    STRPOS(lower(p.search_repo), qt.raw_q) > 0 OR
+                    STRPOS(lower(COALESCE(p.display_name, '')), qt.raw_q) > 0 OR
+                    STRPOS(lower(p.search_username), qt.raw_q) > 0 OR
+                    STRPOS(lower(COALESCE(p.code_url, '')), qt.raw_q) > 0
+              )
+            ORDER BY literal_score DESC
+            LIMIT $12
+        ),
         embedding_candidates AS (
             SELECT
                 pe.project_id AS id,
@@ -339,6 +406,8 @@ pub async fn search(
             UNION
             SELECT id FROM phrase_results
             UNION
+            SELECT id FROM literal_results
+            UNION
             SELECT id FROM embedding_results
             UNION
             SELECT id FROM trigram_results
@@ -366,6 +435,7 @@ pub async fn search(
                 (
                     COALESCE(f.fts_score, 0) * $3 +
                     COALESCE(ph.phrase_score, 0) * GREATEST($3, $4) +
+                    COALESCE(l.literal_score, 0) * GREATEST($3, $5) +
                     COALESCE(e.similarity_score, 0) * $4 +
                     COALESCE(t.trigram_score, 0) * $5
                 )::double precision as raw_score
@@ -373,6 +443,7 @@ pub async fn search(
             INNER JOIN candidates c ON p.id = c.id
             LEFT JOIN fts_results f ON p.id = f.id
             LEFT JOIN phrase_results ph ON p.id = ph.id
+            LEFT JOIN literal_results l ON p.id = l.id
             LEFT JOIN embedding_results e ON p.id = e.id
             LEFT JOIN trigram_results t ON p.id = t.id
         )
@@ -404,7 +475,7 @@ pub async fn search(
         FROM scored s
         ORDER BY s.raw_score DESC, s.approved_at DESC NULLS LAST
         LIMIT $6
-        OFFSET $12
+        OFFSET $13
         "#,
     )
     .bind(&filters.cleaned_query)
@@ -418,6 +489,7 @@ pub async fn search(
     .bind(trigram_candidate_limit)
     .bind(user_like)
     .bind(phrase_candidate_limit)
+    .bind(literal_candidate_limit)
     .bind(offset)
     .fetch_all(&state.pg)
     .await?;
