@@ -342,6 +342,10 @@ pub async fn search(
                     CASE
                         WHEN qt.raw_q <> '' AND STRPOS(lower(COALESCE(p.code_url, '')), qt.raw_q) > 0 THEN 1.0
                         ELSE 0.0
+                    END,
+                    CASE
+                        WHEN qt.raw_q <> '' AND STRPOS(lower(COALESCE(p.demo_url, '')), qt.raw_q) > 0 THEN 1.0
+                        ELSE 0.0
                     END
                 )::double precision AS literal_score
             FROM filtered_projects p
@@ -357,7 +361,8 @@ pub async fn search(
                     STRPOS(lower(p.search_repo), qt.raw_q) > 0 OR
                     STRPOS(lower(COALESCE(p.display_name, '')), qt.raw_q) > 0 OR
                     STRPOS(lower(p.search_username), qt.raw_q) > 0 OR
-                    STRPOS(lower(COALESCE(p.code_url, '')), qt.raw_q) > 0
+                    STRPOS(lower(COALESCE(p.code_url, '')), qt.raw_q) > 0 OR
+                    STRPOS(lower(COALESCE(p.demo_url, '')), qt.raw_q) > 0
               )
             ORDER BY literal_score DESC
             LIMIT $12
