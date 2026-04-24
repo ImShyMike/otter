@@ -19,7 +19,7 @@
 
 	type ViewMode = 'search' | 'cards';
 
-	const LOW_SCORE_THRESHOLD = 0.5;
+	const LOW_SCORE_THRESHOLD = 0.25;
 
 	let query = $state(page.url.searchParams.get('q') ?? '');
 	let results = $state<SearchResult[]>([]);
@@ -233,9 +233,13 @@
 			{/if}
 		{/if}
 
-		{#if validResults.length !== results.length && validResults.length > 0}
+		{@const hiddenCount = results.length - validResults.length}
+		{@const pageOffset = (currentPage - 1) * perPage}
+		{@const trueHiddenCount = Math.max(0, totalResults - pageOffset - validResults.length)}
+		{@const showHiddenResultsNotice = hiddenCount > 0 && validResults.length > 0}
+		{#if showHiddenResultsNotice && !loading}
 			<p class="mt-4 text-center text-sm text-muted-foreground">
-				{results.length - validResults.length} result{results.length - validResults.length !== 1 ? 's' : ''} hidden...
+				{trueHiddenCount} result{trueHiddenCount !== 1 ? 's' : ''} hidden...
 				<button
 					class="underline hover:text-foreground cursor-pointer"
 					onclick={() => (showLowScore = !showLowScore)}
@@ -250,7 +254,7 @@
 		{/if}
 
 
-		{#if !loading && totalPages > 1}
+		{#if !loading && totalPages > 1 && !showHiddenResultsNotice}
 			<div class="mt-6 flex items-center justify-center gap-2">
 				<Button
 					variant="outline"
