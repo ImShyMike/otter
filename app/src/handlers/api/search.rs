@@ -271,6 +271,7 @@ pub async fn search(
                 )::double precision as phrase_score
             FROM filtered_projects p
             INNER JOIN quoted_phrases qp ON TRUE
+            WHERE EXISTS (SELECT 1 FROM quoted_phrases)
             GROUP BY p.id
         ),
         phrase_results AS (
@@ -284,6 +285,18 @@ pub async fn search(
         ),
         query_terms AS (
             SELECT lower(trim(BOTH FROM REPLACE($1, '"', ''))) AS raw_q
+        ),
+        literal_candidates AS (
+            SELECT p.id
+            FROM projects p
+            WHERE p.deleted_at IS NULL
+              AND (
+                    p.inferred_repo % $1 OR
+                    p.display_name % $1 OR
+                    p.ysws % $1 OR
+                    p.github_username % $1 OR
+                    p.inferred_username % $1
+              )
         ),
         literal_results AS (
             SELECT
@@ -335,21 +348,9 @@ pub async fn search(
                     END
                 )::double precision AS literal_score
             FROM filtered_projects p
+            INNER JOIN literal_candidates lc ON p.id = lc.id
             CROSS JOIN query_terms qt
             WHERE qt.raw_q <> ''
-              AND (
-                    lower(COALESCE(p.inferred_repo, '')) = qt.raw_q OR
-                    lower(COALESCE(p.display_name, '')) = qt.raw_q OR
-                    lower(COALESCE(p.ysws, '')) = qt.raw_q OR
-                    lower(p.search_repo) LIKE qt.raw_q || '%' OR
-                    lower(COALESCE(p.display_name, '')) LIKE qt.raw_q || '%' OR
-                    lower(p.search_username) LIKE qt.raw_q || '%' OR
-                    STRPOS(lower(p.search_repo), qt.raw_q) > 0 OR
-                    STRPOS(lower(COALESCE(p.display_name, '')), qt.raw_q) > 0 OR
-                    STRPOS(lower(p.search_username), qt.raw_q) > 0 OR
-                    STRPOS(lower(COALESCE(p.code_url, '')), qt.raw_q) > 0 OR
-                    STRPOS(lower(COALESCE(p.demo_url, '')), qt.raw_q) > 0
-              )
             ORDER BY literal_score DESC
             LIMIT $12
         ),
