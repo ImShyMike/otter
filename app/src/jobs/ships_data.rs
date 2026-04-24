@@ -123,7 +123,7 @@ async fn upsert_projects(entries: &[YswsEntry], pg: &PgPool) -> anyhow::Result<(
         qb.push_values(chunk, |mut b, entry| {
             b.push_bind(&entry.id)
                 .push_bind(&entry.ysws)
-                .push_bind(entry.approved_at)
+                .push_bind(entry.approved_at.map(|t| t.unix_timestamp()))
                 .push_bind(&entry.code_url)
                 .push_bind(&entry.country)
                 .push_bind(&entry.demo_url)

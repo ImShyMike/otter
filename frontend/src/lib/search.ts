@@ -1,5 +1,5 @@
 import { env } from '$env/dynamic/public';
-import type { SearchResult } from './types';
+import type { ProjectItem } from './types';
 
 export const API_BASE = (env.PUBLIC_API_BASE || 'http://localhost:3000').replace(/\/$/, '');
 
@@ -19,10 +19,10 @@ export function scoreClass(score: number | null): string {
 }
 
 export function imageUrl(airtable_id: string) {
-	return `${API_BASE}/api/media/${airtable_id}/r`;
+	return `${API_BASE}/api/v1/media/${airtable_id}/r`;
 }
 
-export function title(r: SearchResult) {
+export function title(r: ProjectItem) {
 	return r.inferred_repo ?? `Project #${r.id}`;
 }
 

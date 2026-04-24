@@ -8,7 +8,7 @@ use tracing::instrument;
 use utoipa::{IntoParams, ToSchema};
 
 use crate::error::AppError;
-use crate::handlers::api::local_only;
+use crate::handlers::api::{ProjectItem, local_only};
 use crate::state::AppState;
 use crate::utils::embeddings;
 
@@ -44,25 +44,9 @@ pub struct SearchResults {
 
 #[derive(Serialize, ToSchema)]
 pub struct SearchResult {
-    id: i32,
-    airtable_id: String,
-    ysws: String,
-    approved_at: Option<i64>,
-    code_url: Option<String>,
-    country: Option<String>,
-    demo_url: Option<String>,
-    description: Option<String>,
-    github_username: Option<String>,
-    hours: Option<i32>,
-    true_hours: Option<f64>,
-    has_media: bool,
-    github_stars: i32,
-    display_name: Option<String>,
-    archived_demo: Option<String>,
-    archived_repo: Option<String>,
-    inferred_repo: Option<String>,
-    inferred_username: Option<String>,
-    score: f64,
+    #[serde(flatten)]
+    pub item: ProjectItem,
+    pub score: f64,
 }
 
 #[derive(sqlx::FromRow)]
@@ -84,7 +68,7 @@ struct SearchRow {
     archived_demo: Option<String>,
     archived_repo: Option<String>,
     inferred_repo: Option<String>,
-    inferred_github_username: Option<String>,
+    inferred_username: Option<String>,
     score: f64,
     _total: i64,
 }
@@ -92,24 +76,26 @@ struct SearchRow {
 impl From<SearchRow> for SearchResult {
     fn from(row: SearchRow) -> Self {
         Self {
-            id: row.id,
-            airtable_id: row.airtable_id,
-            ysws: row.ysws,
-            approved_at: row.approved_at,
-            code_url: row.code_url,
-            country: row.country,
-            demo_url: row.demo_url,
-            description: row.description,
-            github_username: row.github_username,
-            hours: row.hours,
-            true_hours: row.true_hours,
-            has_media: row.has_media,
-            github_stars: row.github_stars,
-            display_name: row.display_name,
-            archived_demo: row.archived_demo,
-            archived_repo: row.archived_repo,
-            inferred_repo: row.inferred_repo,
-            inferred_username: row.inferred_github_username,
+            item: ProjectItem {
+                id: row.id,
+                airtable_id: row.airtable_id,
+                ysws: row.ysws,
+                approved_at: row.approved_at,
+                code_url: row.code_url,
+                country: row.country,
+                demo_url: row.demo_url,
+                description: row.description,
+                github_username: row.github_username,
+                hours: row.hours,
+                true_hours: row.true_hours,
+                has_media: row.has_media,
+                github_stars: row.github_stars,
+                display_name: row.display_name,
+                archived_demo: row.archived_demo,
+                archived_repo: row.archived_repo,
+                inferred_repo: row.inferred_repo,
+                inferred_username: row.inferred_username,
+            },
             score: row.score,
         }
     }
@@ -228,22 +214,22 @@ pub async fn search(
                 p.github_username,
                 p.hours,
                 p.true_hours,
-                p.media_url,
+                p.has_media,
                 p.github_stars,
                 p.display_name,
                 p.archived_demo,
                 p.archived_repo,
                 p.tsv,
                 p.inferred_repo,
-                p.inferred_github_username,
-                COALESCE(p.github_username, p.inferred_github_username, '') AS search_username,
+                p.inferred_username,
+                COALESCE(p.github_username, p.inferred_username, '') AS search_username,
                 COALESCE(REPLACE(REPLACE(p.inferred_repo, '-', ' '), '_', ' '), '') AS search_repo
             FROM projects p
             WHERE p.deleted_at IS NULL
               AND (
                     $10::text IS NULL OR
                     p.github_username ILIKE $10 OR
-                    p.inferred_github_username ILIKE $10 OR
+                    p.inferred_username ILIKE $10 OR
                     p.display_name ILIKE $10 OR
                     p.code_url ILIKE $10 OR
                     p.inferred_repo ILIKE $10
@@ -391,7 +377,7 @@ pub async fn search(
                     similarity(p.display_name, $1),
                     similarity(p.ysws, $1),
                     similarity(p.github_username, $1),
-                    similarity(p.inferred_github_username, $1),
+                    similarity(p.inferred_username, $1),
                     similarity(p.inferred_repo, $1)
                 ) as trigram_score
             FROM projects p
@@ -400,7 +386,7 @@ pub async fn search(
                     p.display_name % $1 OR
                     p.ysws % $1 OR
                     p.github_username % $1 OR
-                    p.inferred_github_username % $1 OR
+                    p.inferred_username % $1 OR
                     p.inferred_repo % $1
               )
             ORDER BY trigram_score DESC
@@ -422,7 +408,7 @@ pub async fn search(
                 p.id,
                 p.airtable_id,
                 p.ysws,
-                EXTRACT(EPOCH FROM p.approved_at)::bigint AS approved_at,
+                p.approved_at,
                 p.code_url,
                 p.country,
                 p.demo_url,
@@ -430,13 +416,13 @@ pub async fn search(
                 p.github_username,
                 p.hours,
                 p.true_hours,
-                (p.media_url IS NOT NULL) AS has_media,
+                p.has_media,
                 p.github_stars,
                 p.display_name,
                 p.archived_demo,
                 p.archived_repo,
                 p.inferred_repo,
-                p.inferred_github_username,
+                p.inferred_username,
                 (
                     COALESCE(f.fts_score, 0) * $3 +
                     COALESCE(ph.phrase_score, 0) * GREATEST($3, $4) +
@@ -470,7 +456,7 @@ pub async fn search(
             s.archived_demo,
             s.archived_repo,
             s.inferred_repo,
-            s.inferred_github_username,
+            s.inferred_username,
             CASE
                 WHEN MAX(s.raw_score) OVER () > 0
                     THEN (s.raw_score / MAX(s.raw_score) OVER ())::double precision
@@ -529,7 +515,7 @@ pub async fn user_search(
             p.id,
             p.airtable_id,
             p.ysws,
-            EXTRACT(EPOCH FROM p.approved_at)::bigint AS approved_at,
+            p.approved_at,
             p.code_url,
             p.country,
             p.demo_url,
@@ -537,20 +523,20 @@ pub async fn user_search(
             p.github_username,
             p.hours,
             p.true_hours,
-            (p.media_url IS NOT NULL) AS has_media,
+            p.has_media,
             p.github_stars,
             p.display_name,
             p.archived_demo,
             p.archived_repo,
             p.inferred_repo,
-            p.inferred_github_username,
+            p.inferred_username,
             1.0::double precision as score,
             COUNT(*) OVER() AS _total
         FROM projects p
         WHERE p.deleted_at IS NULL
             AND (
             p.github_username ILIKE $1
-            OR p.inferred_github_username ILIKE $1
+            OR p.inferred_username ILIKE $1
             OR p.display_name ILIKE $1
             OR p.inferred_repo ILIKE $1
             OR p.code_url ILIKE $1
