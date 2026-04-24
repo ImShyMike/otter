@@ -121,7 +121,9 @@
 
 <div class="overflow-none mx-auto flex min-h-screen max-w-4xl flex-col px-4 py-8">
 	<div class="mb-8 text-center" class:mt-[20vh]={!searched} class:mt-0={searched}>
-		<h1 class="mb-2 text-3xl font-bold tracking-tight">Otter</h1>
+		<a href={resolve('/')}>
+			<h1 class="mb-2 text-3xl font-bold tracking-tight">Otter</h1>
+		</a>
 		<p class="mb-6 text-sm text-muted-foreground">Search engine for Hack Club projects!</p>
 
 		<div class="mx-auto flex max-w-xl gap-2">
