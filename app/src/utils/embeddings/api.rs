@@ -83,7 +83,7 @@ pub async fn get_embeddings(texts: &[String]) -> anyhow::Result<(String, Vec<Vec
             "requesting api embeddings"
         );
 
-        let response = cfg
+        let response_text = cfg
             .client
             .post(&cfg.url)
             .header("Authorization", format!("Bearer {}", cfg.key))
@@ -95,8 +95,16 @@ pub async fn get_embeddings(texts: &[String]) -> anyhow::Result<(String, Vec<Vec
             .send()
             .await?
             .error_for_status()?
-            .json::<EmbeddingsResponse>()
+            .text()
             .await?;
+
+        let response: EmbeddingsResponse = serde_json::from_str(&response_text).map_err(|e| {
+            anyhow::anyhow!(
+                "failed to deserialize embeddings response: {}. response body: {}",
+                e,
+                response_text
+            )
+        })?;
 
         for item in response.data {
             embeddings.push(item.embedding);
