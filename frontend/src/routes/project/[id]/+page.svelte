@@ -89,6 +89,7 @@
 					src={imageUrl(p.airtable_id)}
 					alt={title(p)}
 					missing={!p.has_media}
+					loading="eager"
 					buttonClass="h-full w-full"
 					thumbnailClass="h-full w-full border-b bg-muted object-contain"
 					transitionPrefix="cards-image"
