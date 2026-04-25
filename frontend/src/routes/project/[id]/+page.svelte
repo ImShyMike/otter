@@ -62,10 +62,10 @@
 />
 
 <div class="mx-auto flex min-h-screen max-w-4xl flex-col px-4 py-6 sm:py-8">
-	<div class="flex flex-row items-start justify-between text-center">
+	<div class="mb-4 flex flex-row items-center justify-between text-center">
 		<button
 			onclick={goBack}
-			class="mb-4 flex cursor-pointer items-center justify-center gap-1 text-sm text-muted-foreground underline underline-offset-2 hover:text-foreground"
+			class="flex cursor-pointer items-center justify-center gap-1 text-sm text-muted-foreground underline underline-offset-2 hover:text-foreground"
 		>
 			<ArrowLeft class="h-3 w-3" /> Back
 		</button>
@@ -135,7 +135,7 @@
 				</div>
 			</Card.Content>
 			{#if p.code_url || p.demo_url || p.archived_repo || p.archived_demo}
-				<Card.Footer class="gap-2">
+				<Card.Footer class="flex flex-row flex-wrap gap-2">
 					{#if p.demo_url}
 						<a href={p.demo_url} target="_blank" rel="noopener external">
 							<Button variant="outline" size="sm">
