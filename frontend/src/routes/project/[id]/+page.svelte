@@ -53,7 +53,7 @@
 </script>
 
 <Head
-	title={(project ? title(project) : 'Project')}
+	title={project ? title(project) : 'Project'}
 	description={project
 		? truncate(project?.description ?? 'A Hack Club project', 200)
 		: 'Project not found'}
