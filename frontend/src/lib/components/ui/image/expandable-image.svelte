@@ -102,6 +102,7 @@
 	type="button"
 	{title}
 	disabled={missing}
+	data-umami-event="image-expand"
 >
 	<Image
 		{src}

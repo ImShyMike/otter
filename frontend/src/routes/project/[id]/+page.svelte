@@ -66,6 +66,7 @@
 		<button
 			onclick={goBack}
 			class="flex cursor-pointer items-center justify-center gap-1 text-sm text-muted-foreground underline underline-offset-2 hover:text-foreground"
+			data-umami-event="project-back"
 		>
 			<ArrowLeft class="h-3 w-3" /> Back
 		</button>
@@ -75,7 +76,14 @@
 			{:else if shareStatus === 'failed'}
 				<span class="text-xs text-muted-foreground">Copy failed</span>
 			{/if}
-			<Button variant="outline" size="sm" onclick={copyShareLink} class="ml-auto">
+			<Button
+				variant="outline"
+				size="sm"
+				onclick={copyShareLink}
+				class="ml-auto"
+				data-umami-event="project-share"
+				data-umami-event-project={project?.airtable_id ?? ''}
+			>
 				<Share2 class="mr-1 h-3 w-3" /> Share
 			</Button>
 		</div>
@@ -138,28 +146,52 @@
 			{#if p.code_url || p.demo_url || p.archived_repo || p.archived_demo}
 				<Card.Footer class="flex flex-row flex-wrap gap-2">
 					{#if p.demo_url}
-						<a href={p.demo_url} target="_blank" rel="noopener external">
+						<a
+							href={p.demo_url}
+							target="_blank"
+							rel="noopener external"
+							data-umami-event="project-demo"
+							data-umami-event-url={p.demo_url}
+						>
 							<Button variant="outline" size="sm">
 								<ExternalLink class="mr-1 h-3 w-3" /> Demo
 							</Button>
 						</a>
 					{/if}
 					{#if p.code_url}
-						<a href={p.code_url} target="_blank" rel="noopener external">
+						<a
+							href={p.code_url}
+							target="_blank"
+							rel="noopener external"
+							data-umami-event="project-code"
+							data-umami-event-url={p.code_url}
+						>
 							<Button variant="outline" size="sm">
 								<Code class="mr-1 h-3 w-3" /> Code
 							</Button>
 						</a>
 					{/if}
 					{#if p.archived_demo}
-						<a href={p.demo_url} target="_blank" rel="noopener external">
+						<a
+							href={p.demo_url}
+							target="_blank"
+							rel="noopener external"
+							data-umami-event="project-archived-demo"
+							data-umami-event-url={p.demo_url}
+						>
 							<Button variant="outline" size="sm">
 								<ExternalLink class="mr-1 h-3 w-3" /> Archived Demo
 							</Button>
 						</a>
 					{/if}
 					{#if p.archived_repo}
-						<a href={p.code_url} target="_blank" rel="noopener external">
+						<a
+							href={p.code_url}
+							target="_blank"
+							rel="noopener external"
+							data-umami-event="project-archived-code"
+							data-umami-event-url={p.code_url}
+						>
 							<Button variant="outline" size="sm">
 								<Code class="mr-1 h-3 w-3" /> Archived Code
 							</Button>

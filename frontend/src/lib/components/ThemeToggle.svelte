@@ -29,6 +29,8 @@
 	onclick={toggleTheme}
 	aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
 	title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+	data-umami-event="theme-toggle"
+	data-umami-event-theme={isDark ? 'light' : 'dark'}
 >
 	{#if isDark}
 		<Sun class="size-6" />

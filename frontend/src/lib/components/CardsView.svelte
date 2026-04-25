@@ -29,8 +29,11 @@
 			<Card.Header>
 				<div class="flex flex-wrap items-center gap-2">
 					<Card.Title class="text-base"
-						><a href={resolve('/project/[id]', { id: r.airtable_id })} class="hover:text-foreground"
-							>{title(r)}</a
+						><a
+							href={resolve('/project/[id]', { id: r.airtable_id })}
+							class="hover:text-foreground"
+							data-umami-event="card-result-click"
+							data-umami-event-project={r.airtable_id}>{title(r)}</a
 						></Card.Title
 					>
 					<Badge variant="secondary" class="text-xs">{r.ysws}</Badge>
@@ -78,14 +81,26 @@
 			{#if r.code_url || r.demo_url || r.archived_repo || r.archived_demo}
 				<Card.Footer class="gap-2">
 					{#if r.demo_url}
-						<a href={r.demo_url} target="_blank" rel="noopener external">
+						<a
+							href={r.demo_url}
+							target="_blank"
+							rel="noopener external"
+							data-umami-event="card-demo-click"
+							data-umami-event-url={r.demo_url}
+						>
 							<Button variant="outline" size="sm">
 								<ExternalLink class="mr-1 h-3 w-3" /> Demo
 							</Button>
 						</a>
 					{/if}
 					{#if r.code_url}
-						<a href={r.code_url} target="_blank" rel="noopener external">
+						<a
+							href={r.code_url}
+							target="_blank"
+							rel="noopener external"
+							data-umami-event="card-code-click"
+							data-umami-event-url={r.code_url}
+						>
 							<Button variant="outline" size="sm">
 								<Code class="mr-1 h-3 w-3" /> Code
 							</Button>

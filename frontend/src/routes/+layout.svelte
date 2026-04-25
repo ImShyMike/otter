@@ -3,6 +3,7 @@
 	import ThemeToggle from '$lib/components/ThemeToggle.svelte';
 	import { page } from '$app/state';
 	import { lastPageUrl } from '$lib/stores/back';
+	import { API_BASE } from '$lib/search';
 
 	let { children } = $props();
 	let previousUrl: string | null = null;
@@ -23,6 +24,7 @@
 </div>
 
 <svelte:head>
+	<link rel="preconnect" href={API_BASE} />
 	<script>
 		(() => {
 			const storedTheme = localStorage.getItem('theme');

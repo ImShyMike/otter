@@ -173,6 +173,7 @@
 				onclick={() => void submitSearch()}
 				disabled={loading || query.trim() === lastSubmittedQuery}
 				size="lg"
+				data-umami-event="search-submit"
 			>
 				<Search class="mr-2 h-4 w-4" />
 				Search
@@ -197,6 +198,7 @@
 			<a
 				href={resolve('/explore')}
 				class="mt-2 inline-flex items-center gap-1 text-sm text-muted-foreground underline underline-offset-2 hover:text-foreground"
+				data-umami-event="explore-link"
 			>
 				<TableIcon class="h-3 w-3" /> Explore all projects
 			</a>
@@ -228,6 +230,7 @@
 					variant={viewMode === 'search' ? 'default' : 'ghost'}
 					size="sm"
 					onclick={() => changeViewMode('search')}
+					data-umami-event="view-mode-search"
 				>
 					<Search class="h-4 w-4" />
 				</Button>
@@ -235,6 +238,7 @@
 					variant={viewMode === 'cards' ? 'default' : 'ghost'}
 					size="sm"
 					onclick={() => changeViewMode('cards')}
+					data-umami-event="view-mode-cards"
 				>
 					<LayoutGrid class="h-4 w-4" />
 				</Button>
@@ -262,6 +266,7 @@
 				<button
 					class="cursor-pointer underline hover:text-foreground"
 					onclick={() => (showLowScore = !showLowScore)}
+					data-umami-event="toggle-low-score"
 				>
 					{showLowScore ? 'Hide' : 'Show'} them?
 				</button>
