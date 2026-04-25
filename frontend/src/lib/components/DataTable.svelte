@@ -665,8 +665,11 @@
 </script>
 
 {#snippet nameSnippet(r: ProjectItem)}
-	<a href={resolve('/project/[id]', { id: r.airtable_id })} class="hover:underline"
-		>{projectTitle(r)}</a
+	<a
+		href={resolve('/project/[id]', { id: r.airtable_id })}
+		class="hover:underline"
+		data-umami-event="explore-project-click"
+		data-umami-event-project={r.airtable_id}>{projectTitle(r)}</a
 	>
 {/snippet}
 
@@ -676,7 +679,8 @@
 			href={imageUrl(r.airtable_id)}
 			target="_blank"
 			rel="noopener external"
-			class="text-muted-foreground underline underline-offset-2 hover:text-foreground">Media</a
+			class="text-muted-foreground underline underline-offset-2 hover:text-foreground"
+			data-umami-event="explore-media-click">Media</a
 		>
 	{:else}
 		—
@@ -691,6 +695,8 @@
 			target="_blank"
 			rel="noopener external"
 			class="text-muted-foreground underline underline-offset-2 hover:text-foreground"
+			data-umami-event="explore-github-click"
+			data-umami-event-username={username}
 		>
 			{r.display_name
 				? r.display_name == username
@@ -730,6 +736,8 @@
 		onclick={() => {
 			setYSWSFilter(value);
 		}}
+		data-umami-event="explore-ysws-filter"
+		data-umami-event-ysws={value}
 	>
 		<Badge variant="secondary" class="cursor-pointer">{value}</Badge>
 	</button>
@@ -742,6 +750,9 @@
 			target="_blank"
 			rel="noopener external"
 			class="text-muted-foreground underline underline-offset-2 hover:text-foreground"
+			data-umami-event="explore-url-click"
+			data-umami-event-label={link.label}
+			data-umami-event-url={link.url}
 		>
 			{link.label}
 		</a>
@@ -803,20 +814,41 @@
 							/>
 						{/if}
 					{/if}
-					<Button variant="ghost" size="icon-sm" onclick={() => removeFilter(filter.id)}>
+					<Button
+						variant="ghost"
+						size="icon-sm"
+						onclick={() => removeFilter(filter.id)}
+						data-umami-event="explore-remove-filter"
+					>
 						<X class="h-3.5 w-3.5" />
 					</Button>
 				</div>
 			{/each}
 			<div class="flex flex-wrap items-center gap-2">
-				<Button variant="outline" size="sm" onclick={addFilter}>
+				<Button
+					variant="outline"
+					size="sm"
+					onclick={addFilter}
+					data-umami-event="explore-add-filter"
+				>
 					<Plus class="mr-1 h-3.5 w-3.5" />
 					Add Filter
 				</Button>
-				<Button variant="outline" size="sm" onclick={clearFilters} disabled={filters.length === 0}>
+				<Button
+					variant="outline"
+					size="sm"
+					onclick={clearFilters}
+					disabled={filters.length === 0}
+					data-umami-event="explore-clear-filters"
+				>
 					Clear Filters
 				</Button>
-				<Button variant="outline" size="sm" onclick={copyShareLink}>
+				<Button
+					variant="outline"
+					size="sm"
+					onclick={copyShareLink}
+					data-umami-event="explore-share-view"
+				>
 					<Share2 class="mr-1 h-3.5 w-3.5" />
 					Share View
 				</Button>
@@ -846,6 +878,7 @@
 										<button
 											class="flex cursor-pointer items-center gap-1"
 											onclick={() => header.column.toggleSorting()}
+											data-umami-event="explore-sort-column"
 										>
 											<FlexRender {header} />
 											{#if header.column.getIsSorted() === 'asc'}

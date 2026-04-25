@@ -18,8 +18,11 @@
 			<div class="flex flex-1 flex-col">
 				<div class="flex flex-wrap items-center gap-2">
 					<h3 class="text-lg font-medium">
-						<a href={resolve('/project/[id]', { id: r.airtable_id })} class="hover:text-foreground"
-							>{title(r)}</a
+						<a
+							href={resolve('/project/[id]', { id: r.airtable_id })}
+							class="hover:text-foreground"
+							data-umami-event="search-result-click"
+							data-umami-event-project={r.airtable_id}>{title(r)}</a
 						>
 					</h3>
 					<Badge variant="secondary" class="text-xs">{r.ysws}</Badge>
@@ -49,6 +52,8 @@
 							target="_blank"
 							rel="noopener external"
 							class="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+							data-umami-event="search-demo-click"
+							data-umami-event-url={r.demo_url}
 						>
 							<Globe class="h-3 w-3" /> Demo
 						</a>
@@ -59,6 +64,8 @@
 							target="_blank"
 							rel="noopener external"
 							class="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+							data-umami-event="search-code-click"
+							data-umami-event-url={r.code_url}
 						>
 							<Code class="h-3 w-3" /> Code
 						</a>

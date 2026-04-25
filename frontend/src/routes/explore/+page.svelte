@@ -12,6 +12,7 @@
 		<button
 			class="flex cursor-pointer items-center gap-1 text-sm text-muted-foreground underline underline-offset-2 hover:text-foreground"
 			onclick={goBack}
+			data-umami-event="explore-back"
 		>
 			<ArrowLeft class="h-3 w-3" /> Back
 		</button>
