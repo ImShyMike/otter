@@ -12,6 +12,7 @@
 		src,
 		alt = '',
 		missing = false,
+		loading = 'lazy',
 		buttonClass,
 		thumbnailClass,
 		expandedClass,
@@ -23,6 +24,7 @@
 		src: string;
 		alt?: string;
 		missing?: boolean;
+		loading?: 'lazy' | 'eager';
 		buttonClass?: string;
 		thumbnailClass?: string;
 		expandedClass?: string;
@@ -107,7 +109,7 @@
 		{missing}
 		class={cn('h-24 w-36 shrink-0 bg-muted object-cover', thumbnailClass)}
 		style={`view-transition-name: ${transitionName()}`}
-		loading="lazy"
+		{loading}
 	/>
 </button>
 
