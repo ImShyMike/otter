@@ -4,7 +4,10 @@ mod ships_data;
 use std::pin::Pin;
 
 use sqlx::PgPool;
+use time::OffsetDateTime;
 use tokio_cron_scheduler::{Job, JobScheduler};
+
+use crate::handlers::api::status::set_last_refreshed_at;
 
 type JobFn =
     for<'a> fn(&'a PgPool) -> Pin<Box<dyn Future<Output = anyhow::Result<()>> + Send + 'a>>;
@@ -82,6 +85,8 @@ async fn with_lock(pg: &PgPool, lock_id: i64, f: JobFn) -> anyhow::Result<()> {
     }
 
     f(pg).await?;
+
+    set_last_refreshed_at(OffsetDateTime::now_utc()).await;
 
     tx.commit().await?;
     Ok(())

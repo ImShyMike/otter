@@ -3,11 +3,12 @@
 	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
 	import Head from '$lib/components/Head.svelte';
 	import { goBack } from '$lib/stores/back';
+	import RefreshStatus from '$lib/components/RefreshStatus.svelte';
 </script>
 
 <Head title="Explore · Otter" description="Explore Hack Club projects" />
 
-<div class="mx-auto flex max-w-7xl flex-col px-4 py-6 sm:py-8">
+<div class="mx-auto flex min-h-screen max-w-7xl flex-col px-4 pt-6 pb-4 sm:pt-8">
 	<div class="mb-4 flex items-center gap-4">
 		<button
 			class="flex cursor-pointer items-center gap-1 text-sm text-muted-foreground underline underline-offset-2 hover:text-foreground"
@@ -20,4 +21,6 @@
 	</div>
 
 	<DataTable />
+
+	<RefreshStatus />
 </div>
