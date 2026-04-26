@@ -30,6 +30,7 @@
 			: results.filter((r) => r.score !== null && r.score >= LOW_SCORE_THRESHOLD)
 	);
 	let loading = $state(false);
+	let loadingMore = $state(false);
 	let searched = $state(false);
 	let viewMode = $state<ViewMode>('search');
 	let lastSearchedQuery = $state('');
@@ -38,9 +39,10 @@
 	let totalResults = $state(0);
 	let perPage = $state(20);
 	let timings = $state<SearchTimings | null>(null);
-	let totalPages = $derived(Math.max(1, Math.ceil(totalResults / perPage)));
+	let hasMore = $derived(results.length < totalResults);
+	let sentinel = $state<HTMLDivElement | null>(null);
 
-	async function doSearch(q: string, page = 1) {
+	async function doSearch(q: string, page = 1, append = false) {
 		lastSearchedQuery = q;
 
 		if (!q) {
@@ -48,28 +50,55 @@
 			searched = false;
 			totalResults = 0;
 			timings = null;
+			currentPage = 1;
 			return;
 		}
 
-		loading = true;
+		if (append) {
+			loadingMore = true;
+		} else {
+			loading = true;
+		}
 		searched = true;
 		try {
 			const res = await fetch(
 				`${API_BASE}/api/v1/search?q=${encodeURIComponent(q)}&limit=${perPage}&page=${page}`
 			);
 			const body: SearchResults = await res.json();
-			results = body.data;
+			results = append ? [...results, ...body.data] : body.data;
 			totalResults = body.total;
 			currentPage = body.page;
 			timings = body.timings;
 		} catch {
-			results = [];
-			totalResults = 0;
-			timings = null;
+			if (!append) {
+				results = [];
+				totalResults = 0;
+				timings = null;
+			}
 		} finally {
 			loading = false;
+			loadingMore = false;
 		}
 	}
+
+	async function loadMore() {
+		if (loading || loadingMore || !hasMore) return;
+		const q = lastSearchedQuery;
+		if (!q) return;
+		await doSearch(q, currentPage + 1, true);
+	}
+
+	$effect(() => {
+		if (!sentinel) return;
+		const observer = new IntersectionObserver(
+			(entries) => {
+				if (entries.some((e) => e.isIntersecting)) void loadMore();
+			},
+			{ rootMargin: '400px' }
+		);
+		observer.observe(sentinel);
+		return () => observer.disconnect();
+	});
 
 	function changeViewMode(mode: ViewMode) {
 		viewMode = mode;
@@ -79,16 +108,6 @@
 		} else {
 			params.set('v', mode);
 		}
-		const href = resolve(`/?${params.toString()}`);
-		goto(href, { replaceState: true, keepFocus: true, noScroll: true });
-	}
-
-	function goToPage(p: number) {
-		if (p < 1 || p > totalPages || loading) return;
-		const q = query.trim();
-		const params = new SvelteURLSearchParams();
-		if (q) params.set('q', q);
-		if (p > 1) params.set('p', String(p));
 		const href = resolve(`/?${params.toString()}`);
 		goto(href, { replaceState: true, keepFocus: true, noScroll: true });
 	}
@@ -109,18 +128,17 @@
 
 	$effect(() => {
 		const q = page.url.searchParams.get('q') ?? '';
-		const p = Math.max(1, Number(page.url.searchParams.get('p') ?? '1'));
 		const v = page.url.searchParams.get('v') as ViewMode | null;
 
 		if (v === 'search' || v === 'cards') {
 			viewMode = v;
 		}
 
-		if (q !== untrack(() => lastSearchedQuery) || p !== untrack(() => currentPage)) {
+		if (q !== untrack(() => lastSearchedQuery)) {
 			query = q;
 			if (q) {
 				lastSubmittedQuery = q;
-				void doSearch(q, p);
+				void doSearch(q, 1);
 			} else {
 				results = [];
 				searched = false;
@@ -171,7 +189,7 @@
 			</div>
 			<Button
 				onclick={() => void submitSearch()}
-				disabled={loading || query.trim() === lastSubmittedQuery}
+				disabled={loading || (query.trim() === lastSubmittedQuery && lastSubmittedQuery !== '')}
 				size="lg"
 				data-umami-event="search-submit"
 			>
@@ -273,27 +291,11 @@
 			</p>
 		{/if}
 
-		{#if !loading && totalPages > 1 && !showHiddenResultsNotice}
-			<div class="mt-6 flex items-center justify-center gap-2">
-				<Button
-					variant="outline"
-					size="sm"
-					disabled={currentPage <= 1}
-					onclick={() => goToPage(currentPage - 1)}
-				>
-					Previous
-				</Button>
-				<span class="text-sm text-muted-foreground">
-					Page {currentPage} of {totalPages}
-				</span>
-				<Button
-					variant="outline"
-					size="sm"
-					disabled={currentPage >= totalPages}
-					onclick={() => goToPage(currentPage + 1)}
-				>
-					Next
-				</Button>
+		{#if !loading && results.length > 0 && hasMore && !showHiddenResultsNotice}
+			<div bind:this={sentinel} class="mt-6 flex items-center justify-center py-4">
+				{#if loadingMore}
+					<Spinner /><span class="ml-2 text-sm text-muted-foreground">Loading more…</span>
+				{/if}
 			</div>
 		{/if}
 	{/if}
