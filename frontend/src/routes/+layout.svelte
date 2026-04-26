@@ -19,7 +19,7 @@
 	});
 </script>
 
-<div class="fixed top-4 right-4 z-50 sm:top-auto sm:bottom-4">
+<div class="absolute top-4 right-4 z-50 sm:fixed sm:top-auto sm:bottom-4">
 	<ThemeToggle />
 </div>
 
