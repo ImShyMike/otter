@@ -25,6 +25,7 @@
 
 <svelte:head>
 	<link rel="preconnect" href={API_BASE} />
+	<link rel="preconnect" href="https://airtableusercontent.com" />
 	<script>
 		(() => {
 			const storedTheme = localStorage.getItem('theme');
