@@ -31,7 +31,7 @@
 	<footer
 		class="mt-auto w-full pt-6 text-center font-mono text-xs text-muted-foreground/65 transition-colors hover:text-foreground/80"
 	>
-        <p class="mb-1">projects may take a few days to get added here even after being submitted</p>
+		<p class="mb-1">projects may take a few days to get added here even after being submitted</p>
 		<div class="inline-flex items-center gap-2">
 			<Clock3 class="h-3 w-3" />
 			<span>last updated at {formatRefreshTime(lastRefreshedAt)}</span>

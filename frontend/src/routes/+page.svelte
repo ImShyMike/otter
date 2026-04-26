@@ -17,6 +17,7 @@
 	import { untrack } from 'svelte';
 	import Head from '$lib/components/Head.svelte';
 	import RefreshStatus from '$lib/components/RefreshStatus.svelte';
+	import Disclaimer from '$lib/components/Disclaimer.svelte';
 
 	type ViewMode = 'search' | 'cards';
 
@@ -160,6 +161,8 @@
 </script>
 
 <Head title="Otter" description="Search engine for Hack Club projects" />
+
+<Disclaimer />
 
 <div class="overflow-none mx-auto flex min-h-screen max-w-4xl flex-col px-4 py-4 pt-8">
 	<div class="mb-8 text-center" class:mt-[20vh]={!searched} class:mt-0={searched}>

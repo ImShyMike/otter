@@ -135,7 +135,7 @@
 		value: string;
 	}
 
-	const STORAGE_KEY = 'otter-explore-state';
+	const STORAGE_KEY = 'explore-state';
 	const SHARE_QUERY_KEY = 'view';
 
 	const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
