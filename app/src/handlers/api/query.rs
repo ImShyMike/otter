@@ -68,7 +68,7 @@ impl Field {
             Field::ApprovedAt => FieldDef { column: "approved_at", kind: FieldKind::Int },
             Field::CreatedAt => FieldDef { column: "created_at", kind: FieldKind::Timestamp },
             Field::UpdatedAt => FieldDef { column: "updated_at", kind: FieldKind::Timestamp },
-            Field::HasMedia => FieldDef { column: "media_url", kind: FieldKind::Bool },
+            Field::HasMedia => FieldDef { column: "has_media", kind: FieldKind::Bool },
             Field::InferredRepo => FieldDef { column: "inferred_repo", kind: FieldKind::Text },
             Field::InferredUsername => FieldDef { column: "inferred_username", kind: FieldKind::Text },
         }

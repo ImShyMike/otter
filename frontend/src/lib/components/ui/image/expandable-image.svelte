@@ -135,6 +135,7 @@
 		<Image
 			{src}
 			alt={expandedAlt}
+			loading="eager"
 			class={cn('max-h-[90vh] max-w-[90vw] object-contain', expandedClass)}
 			style={`view-transition-name: ${transitionPrefix}-${id}`}
 		/>

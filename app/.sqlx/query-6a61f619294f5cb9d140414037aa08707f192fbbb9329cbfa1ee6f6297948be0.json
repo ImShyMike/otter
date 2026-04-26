@@ -1,0 +1,22 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT m.url FROM media m INNER JOIN projects p ON p.id = m.project_id WHERE p.airtable_id = $1 ORDER BY m.id LIMIT 1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "url",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "6a61f619294f5cb9d140414037aa08707f192fbbb9329cbfa1ee6f6297948be0"
+}

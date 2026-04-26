@@ -84,9 +84,12 @@ async fn get_media_url(state: &AppState, id: &str) -> Result<Option<String>, App
                 cached_url => Some(cached_url.to_string()),
             });
         }
-        sqlx::query_scalar!("SELECT media_url FROM projects WHERE id = $1", int_id)
-            .fetch_one(&state.pg)
-            .await
+        sqlx::query_scalar!(
+            "SELECT url FROM media WHERE project_id = $1 ORDER BY id LIMIT 1",
+            int_id
+        )
+        .fetch_optional(&state.pg)
+        .await
     } else {
         if let Ok(Some(cached_url)) = conn.get::<_, Option<String>>(&cache_key).await {
             return Ok(match cached_url.as_str() {
@@ -94,8 +97,11 @@ async fn get_media_url(state: &AppState, id: &str) -> Result<Option<String>, App
                 cached_url => Some(cached_url.to_string()),
             });
         }
-        sqlx::query_scalar!("SELECT media_url FROM projects WHERE airtable_id = $1", id)
-            .fetch_one(&state.pg)
+        sqlx::query_scalar!(
+            "SELECT m.url FROM media m INNER JOIN projects p ON p.id = m.project_id WHERE p.airtable_id = $1 ORDER BY m.id LIMIT 1",
+            id
+        )
+            .fetch_optional(&state.pg)
             .await
     };
 

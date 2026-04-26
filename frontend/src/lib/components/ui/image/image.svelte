@@ -37,6 +37,7 @@
 		onerror={() => (imageFailed = true)}
 		{src}
 		{alt}
+		decoding="async"
 		class={cn('object-cover', className)}
 		{...restProps}
 	/>

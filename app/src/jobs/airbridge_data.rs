@@ -1,4 +1,4 @@
-use std::{pin::Pin, time::Duration};
+use std::{collections::HashMap, pin::Pin, time::Duration};
 
 use serde::Deserialize;
 use sqlx::{PgPool, Postgres, QueryBuilder};
@@ -7,10 +7,7 @@ use tracing::{Instrument, error, info, instrument};
 
 use crate::utils::{
     http,
-    serde::{
-        deserialize_null_float, deserialize_null_screenshot, deserialize_null_string,
-        deserialize_timestamp,
-    },
+    serde::{deserialize_null_float, deserialize_null_string, deserialize_timestamp},
 };
 
 const AIRBRIDGE_API_URL: &str =
@@ -56,12 +53,45 @@ struct AirbridgeFields {
         deserialize_with = "deserialize_null_string"
     )]
     ysws_name: Option<String>,
-    #[serde(
-        default,
-        rename = "Screenshot",
-        deserialize_with = "deserialize_null_screenshot"
-    )]
-    screenshot_url: Option<String>,
+    #[serde(default, rename = "Screenshot")]
+    screenshots: Vec<AirtableAttachment>,
+}
+
+#[derive(Deserialize)]
+pub struct AirtableAttachment {
+    pub id: String,
+    pub url: String,
+    #[serde(default)]
+    pub filename: Option<String>,
+    #[serde(default, rename = "type")]
+    pub mime_type: Option<String>,
+    #[serde(default)]
+    pub size: Option<i64>,
+    #[serde(default)]
+    pub width: Option<i32>,
+    #[serde(default)]
+    pub height: Option<i32>,
+    #[serde(default)]
+    pub thumbnails: Option<AirtableThumbnails>,
+}
+
+#[derive(Deserialize)]
+pub struct AirtableThumbnails {
+    #[serde(default)]
+    pub small: Option<AirtableThumbnail>,
+    #[serde(default)]
+    pub large: Option<AirtableThumbnail>,
+    #[serde(default)]
+    pub full: Option<AirtableThumbnail>,
+}
+
+#[derive(Deserialize)]
+pub struct AirtableThumbnail {
+    pub url: String,
+    #[serde(default)]
+    pub width: Option<i32>,
+    #[serde(default)]
+    pub height: Option<i32>,
 }
 
 #[derive(Deserialize)]
@@ -102,7 +132,7 @@ pub fn run<'a>(pg: &'a PgPool) -> Pin<Box<dyn Future<Output = anyhow::Result<()>
             );
 
             upsert_entries(&entries, pg).await?;
-            update_media_urls(&entries, pg).await?;
+            sync_media(&entries, pg).await?;
             soft_delete_missing(&entries, pg).await?;
 
             info!("done");
@@ -170,32 +200,144 @@ async fn upsert_entries(entries: &[AirbridgeEntry], pg: &PgPool) -> anyhow::Resu
 }
 
 #[instrument(skip_all)]
-async fn update_media_urls(entries: &[AirbridgeEntry], pg: &PgPool) -> anyhow::Result<()> {
+async fn sync_media(entries: &[AirbridgeEntry], pg: &PgPool) -> anyhow::Result<()> {
+    let airtable_ids: Vec<&str> = entries.iter().map(|e| e.id.as_str()).collect();
+    let rows = sqlx::query!(
+        "SELECT id, airtable_id FROM projects WHERE airtable_id = ANY($1)",
+        &airtable_ids as &[&str]
+    )
+    .fetch_all(pg)
+    .await?;
+    let project_id_by_airtable: HashMap<String, i32> =
+        rows.into_iter().map(|r| (r.airtable_id, r.id)).collect();
+
     let mut tx = pg.begin().await?;
-    let mut urls_updated = 0;
+    let mut upserted: u64 = 0;
+    let mut deleted: u64 = 0;
 
     for chunk in entries.chunks(BATCH_SIZE) {
-        let ids: Vec<&str> = chunk.iter().map(|e| e.id.as_str()).collect();
-        let urls: Vec<Option<&str>> = chunk
+        let media_rows: Vec<(i32, &AirtableAttachment)> = chunk
             .iter()
-            .map(|e| e.fields.screenshot_url.as_deref())
+            .filter_map(|entry| {
+                project_id_by_airtable
+                    .get(&entry.id)
+                    .copied()
+                    .map(|pid| (pid, entry))
+            })
+            .flat_map(|(pid, entry)| entry.fields.screenshots.iter().map(move |a| (pid, a)))
             .collect();
 
+        if media_rows.is_empty() {
+            continue;
+        }
+
+        let mut qb: QueryBuilder<Postgres> = QueryBuilder::new(
+            "INSERT INTO media (project_id, airtable_id, filename, mime_type, size_bytes, \
+             width, height, url, \
+             thumb_small_url, thumb_small_width, thumb_small_height, \
+             thumb_large_url, thumb_large_width, thumb_large_height, \
+             thumb_full_url, thumb_full_width, thumb_full_height) ",
+        );
+
+        qb.push_values(media_rows.iter(), |mut b, (pid, att)| {
+            let small = att.thumbnails.as_ref().and_then(|t| t.small.as_ref());
+            let large = att.thumbnails.as_ref().and_then(|t| t.large.as_ref());
+            let full = att.thumbnails.as_ref().and_then(|t| t.full.as_ref());
+
+            b.push_bind(*pid)
+                .push_bind(&att.id)
+                .push_bind(&att.filename)
+                .push_bind(
+                    att.mime_type
+                        .as_deref()
+                        .unwrap_or("application/octet-stream"),
+                )
+                .push_bind(att.size)
+                .push_bind(att.width)
+                .push_bind(att.height)
+                .push_bind(&att.url)
+                .push_bind(small.map(|t| t.url.as_str()))
+                .push_bind(small.and_then(|t| t.width))
+                .push_bind(small.and_then(|t| t.height))
+                .push_bind(large.map(|t| t.url.as_str()))
+                .push_bind(large.and_then(|t| t.width))
+                .push_bind(large.and_then(|t| t.height))
+                .push_bind(full.map(|t| t.url.as_str()))
+                .push_bind(full.and_then(|t| t.width))
+                .push_bind(full.and_then(|t| t.height));
+        });
+
+        qb.push(
+            " ON CONFLICT (project_id, airtable_id) DO UPDATE SET \
+                filename = EXCLUDED.filename, \
+                mime_type = EXCLUDED.mime_type, \
+                size_bytes = EXCLUDED.size_bytes, \
+                width = EXCLUDED.width, \
+                height = EXCLUDED.height, \
+                url = EXCLUDED.url, \
+                thumb_small_url = EXCLUDED.thumb_small_url, \
+                thumb_small_width = EXCLUDED.thumb_small_width, \
+                thumb_small_height = EXCLUDED.thumb_small_height, \
+                thumb_large_url = EXCLUDED.thumb_large_url, \
+                thumb_large_width = EXCLUDED.thumb_large_width, \
+                thumb_large_height = EXCLUDED.thumb_large_height, \
+                thumb_full_url = EXCLUDED.thumb_full_url, \
+                thumb_full_width = EXCLUDED.thumb_full_width, \
+                thumb_full_height = EXCLUDED.thumb_full_height, \
+                updated_at = NOW() \
+                WHERE media.url IS DISTINCT FROM EXCLUDED.url \
+                OR media.filename IS DISTINCT FROM EXCLUDED.filename \
+                OR media.mime_type IS DISTINCT FROM EXCLUDED.mime_type \
+                OR media.size_bytes IS DISTINCT FROM EXCLUDED.size_bytes \
+                OR media.width IS DISTINCT FROM EXCLUDED.width \
+                OR media.height IS DISTINCT FROM EXCLUDED.height \
+                OR media.thumb_small_url IS DISTINCT FROM EXCLUDED.thumb_small_url \
+                OR media.thumb_large_url IS DISTINCT FROM EXCLUDED.thumb_large_url \
+                OR media.thumb_full_url IS DISTINCT FROM EXCLUDED.thumb_full_url",
+        );
+
+        upserted += qb.build().execute(&mut *tx).await?.rows_affected();
+    }
+
+    let mut keep_project_ids: Vec<i32> = Vec::new();
+    let mut keep_airtable_ids: Vec<&str> = Vec::new();
+    let mut synced_project_ids: Vec<i32> = Vec::with_capacity(entries.len());
+
+    for entry in entries {
+        let Some(&pid) = project_id_by_airtable.get(&entry.id) else {
+            continue;
+        };
+        synced_project_ids.push(pid);
+        for att in &entry.fields.screenshots {
+            keep_project_ids.push(pid);
+            keep_airtable_ids.push(att.id.as_str());
+        }
+    }
+
+    if !synced_project_ids.is_empty() {
         let result = sqlx::query(
-            "UPDATE projects SET media_url = data.screenshot_url \
-                FROM UNNEST($1::text[], $2::text[]) AS data(airtable_id, screenshot_url) \
-                WHERE projects.airtable_id = data.airtable_id \
-                AND projects.media_url IS DISTINCT FROM data.screenshot_url",
+            "DELETE FROM media m \
+             WHERE m.project_id = ANY($1) \
+               AND NOT EXISTS ( \
+                   SELECT 1 FROM UNNEST($2::int[], $3::text[]) AS keep(project_id, airtable_id) \
+                   WHERE keep.project_id = m.project_id AND keep.airtable_id = m.airtable_id \
+               )",
         )
-        .bind(&ids)
-        .bind(&urls)
+        .bind(&synced_project_ids)
+        .bind(&keep_project_ids)
+        .bind(&keep_airtable_ids)
         .execute(&mut *tx)
         .await?;
-        urls_updated += result.rows_affected();
+        deleted = result.rows_affected();
     }
 
     tx.commit().await?;
-    info!("updated screenshot URLs for {} entries", urls_updated);
+    info!(
+        "synced media: {} upserted, {} deleted (across {} projects)",
+        upserted,
+        deleted,
+        synced_project_ids.len()
+    );
 
     Ok(())
 }
