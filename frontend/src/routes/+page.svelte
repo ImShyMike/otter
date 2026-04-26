@@ -16,6 +16,7 @@
 	import { SvelteURLSearchParams } from 'svelte/reactivity';
 	import { untrack } from 'svelte';
 	import Head from '$lib/components/Head.svelte';
+	import RefreshStatus from '$lib/components/RefreshStatus.svelte';
 
 	type ViewMode = 'search' | 'cards';
 
@@ -160,7 +161,7 @@
 
 <Head title="Otter" description="Search engine for Hack Club projects" />
 
-<div class="overflow-none mx-auto flex min-h-screen max-w-4xl flex-col px-4 py-8">
+<div class="overflow-none mx-auto flex min-h-screen max-w-4xl flex-col px-4 py-4 pt-8">
 	<div class="mb-8 text-center" class:mt-[20vh]={!searched} class:mt-0={searched}>
 		<a href={resolve('/')}>
 			<h1 class="mb-2 text-3xl font-bold tracking-tight">Otter</h1>
@@ -299,4 +300,6 @@
 			</div>
 		{/if}
 	{/if}
+
+	<RefreshStatus />
 </div>

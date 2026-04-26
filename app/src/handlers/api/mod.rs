@@ -3,6 +3,7 @@ pub mod project;
 pub mod query;
 pub mod recent;
 pub mod search;
+pub mod status;
 pub mod ysws;
 
 use serde::Serialize;
@@ -46,6 +47,7 @@ pub fn router() -> OpenApiRouter<AppState> {
         .routes(routes!(media::media_redirect))
         .routes(routes!(project::project_info))
         .routes(routes!(recent::recent_projects))
+        .routes(routes!(status::data_refresh_status))
 }
 
 static LOCAL_ONLY: OnceLock<bool> = OnceLock::new();
