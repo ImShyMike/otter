@@ -1,0 +1,124 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id, project_id, airtable_id, filename, mime_type, size_bytes, width, height, url, thumb_small_url, thumb_small_width, thumb_small_height, thumb_large_url, thumb_large_width, thumb_large_height, thumb_full_url, thumb_full_width, thumb_full_height FROM media WHERE project_id = $1 ORDER BY id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "project_id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 2,
+        "name": "airtable_id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "filename",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 4,
+        "name": "mime_type",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 5,
+        "name": "size_bytes",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 6,
+        "name": "width",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 7,
+        "name": "height",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 8,
+        "name": "url",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 9,
+        "name": "thumb_small_url",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 10,
+        "name": "thumb_small_width",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 11,
+        "name": "thumb_small_height",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 12,
+        "name": "thumb_large_url",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 13,
+        "name": "thumb_large_width",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 14,
+        "name": "thumb_large_height",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 15,
+        "name": "thumb_full_url",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 16,
+        "name": "thumb_full_width",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 17,
+        "name": "thumb_full_height",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      false,
+      true,
+      true,
+      true,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "1c4f38db358e9fe8713747b0ce8dcbf22b627dfad6e9e358037db1ce9e394777"
+}

@@ -69,6 +69,7 @@ struct SearchRow {
     archived_repo: Option<String>,
     inferred_repo: Option<String>,
     inferred_username: Option<String>,
+    preview_blurhash: Option<String>,
     score: f64,
     _total: i64,
 }
@@ -95,6 +96,7 @@ impl From<SearchRow> for SearchResult {
                 archived_repo: row.archived_repo,
                 inferred_repo: row.inferred_repo,
                 inferred_username: row.inferred_username,
+                preview_blurhash: row.preview_blurhash,
             },
             score: row.score,
         }
@@ -222,6 +224,7 @@ pub async fn search(
                 p.tsv,
                 p.inferred_repo,
                 p.inferred_username,
+                p.preview_blurhash,
                 COALESCE(p.github_username, p.inferred_username, '') AS search_username,
                 COALESCE(REPLACE(REPLACE(p.inferred_repo, '-', ' '), '_', ' '), '') AS search_repo
             FROM projects p
@@ -424,6 +427,7 @@ pub async fn search(
                 p.archived_repo,
                 p.inferred_repo,
                 p.inferred_username,
+                p.preview_blurhash,
                 (
                     COALESCE(f.fts_score, 0) * $3 +
                     COALESCE(ph.phrase_score, 0) * GREATEST($3, $4) +
@@ -458,6 +462,7 @@ pub async fn search(
             s.archived_repo,
             s.inferred_repo,
             s.inferred_username,
+            s.preview_blurhash,
             CASE
                 WHEN MAX(s.raw_score) OVER () > 0
                     THEN (s.raw_score / MAX(s.raw_score) OVER ())::double precision
@@ -531,6 +536,7 @@ pub async fn user_search(
             p.archived_repo,
             p.inferred_repo,
             p.inferred_username,
+            p.preview_blurhash,
             1.0::double precision as score,
             COUNT(*) OVER() AS _total
         FROM projects p

@@ -1,8 +1,10 @@
-use std::{collections::HashMap, pin::Pin, time::Duration};
+use std::{collections::HashMap, fmt::Write as _, pin::Pin, time::Duration};
 
 use serde::Deserialize;
-use sqlx::{PgPool, Postgres, QueryBuilder};
+use sha2::{Digest, Sha256};
+use sqlx::{PgPool, Postgres, QueryBuilder, Row};
 use time::OffsetDateTime;
+use tokio::task::JoinSet;
 use tracing::{Instrument, error, info, instrument};
 
 use crate::utils::{
@@ -13,7 +15,13 @@ use crate::utils::{
 const AIRBRIDGE_API_URL: &str =
     "https://api2.hackclub.com/v0.1/Unified%20YSWS%20Projects%20DB/Approved%20Projects";
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(180);
+const PREVIEW_REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
 const BATCH_SIZE: usize = 1000;
+const PREVIEW_BATCH_SIZE: usize = 32;
+const PREVIEW_MAX_BYTES: usize = 5 * 1024 * 1024;
+const PREVIEW_SIZE_PX: u32 = 32;
+const BLURHASH_X_COMPONENTS: u32 = 4;
+const BLURHASH_Y_COMPONENTS: u32 = 3;
 
 #[derive(Deserialize)]
 struct AirbridgeFields {
@@ -57,7 +65,7 @@ struct AirbridgeFields {
     screenshots: Vec<AirtableAttachment>,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Clone)]
 pub struct AirtableAttachment {
     pub id: String,
     pub url: String,
@@ -75,7 +83,7 @@ pub struct AirtableAttachment {
     pub thumbnails: Option<AirtableThumbnails>,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Clone)]
 pub struct AirtableThumbnails {
     #[serde(default)]
     pub small: Option<AirtableThumbnail>,
@@ -85,7 +93,7 @@ pub struct AirtableThumbnails {
     pub full: Option<AirtableThumbnail>,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Clone)]
 pub struct AirtableThumbnail {
     pub url: String,
     #[serde(default)]
@@ -98,6 +106,11 @@ pub struct AirtableThumbnail {
 struct AirbridgeEntry {
     id: String,
     fields: AirbridgeFields,
+}
+
+struct PreviewState {
+    id: i32,
+    preview_blurhash_source_key: Option<String>,
 }
 
 pub fn run<'a>(pg: &'a PgPool) -> Pin<Box<dyn Future<Output = anyhow::Result<()>> + Send + 'a>> {
@@ -202,14 +215,94 @@ async fn upsert_entries(entries: &[AirbridgeEntry], pg: &PgPool) -> anyhow::Resu
 #[instrument(skip_all)]
 async fn sync_media(entries: &[AirbridgeEntry], pg: &PgPool) -> anyhow::Result<()> {
     let airtable_ids: Vec<&str> = entries.iter().map(|e| e.id.as_str()).collect();
-    let rows = sqlx::query!(
-        "SELECT id, airtable_id FROM projects WHERE airtable_id = ANY($1)",
-        &airtable_ids as &[&str]
+    let rows = sqlx::query(
+        "SELECT id, airtable_id, preview_blurhash_source_key FROM projects WHERE airtable_id = ANY($1)",
     )
+    .bind(&airtable_ids)
     .fetch_all(pg)
     .await?;
-    let project_id_by_airtable: HashMap<String, i32> =
-        rows.into_iter().map(|r| (r.airtable_id, r.id)).collect();
+
+    let project_state_by_airtable: HashMap<String, PreviewState> = rows
+        .into_iter()
+        .map(|r| {
+            let airtable_id: String = r.get("airtable_id");
+            (
+                airtable_id,
+                PreviewState {
+                    id: r.get("id"),
+                    preview_blurhash_source_key: r.get("preview_blurhash_source_key"),
+                },
+            )
+        })
+        .collect();
+
+    let preview_http_client = reqwest::Client::builder()
+        .timeout(PREVIEW_REQUEST_TIMEOUT)
+        .build()?;
+
+    let mut project_previews: Vec<(i32, String, Option<String>)> =
+        Vec::with_capacity(entries.len());
+    let preview_batch_count = entries.len().div_ceil(PREVIEW_BATCH_SIZE);
+    info!(
+        projects = entries.len(),
+        batches = preview_batch_count,
+        "syncing media previews"
+    );
+
+    for (batch_idx, chunk) in entries.chunks(PREVIEW_BATCH_SIZE).enumerate() {
+        // calculate which projects changed their media
+        let mut to_process: Vec<(i32, String, Vec<AirtableAttachment>)> = Vec::new();
+        for entry in chunk {
+            if let Some(state) = project_state_by_airtable.get(&entry.id) {
+                let source_key = preview_source_key(&entry.fields.screenshots);
+                if state.preview_blurhash_source_key.as_deref() == Some(source_key.as_str()) {
+                    // no change, skip
+                    continue;
+                }
+
+                // record for processing
+                to_process.push((state.id, source_key, entry.fields.screenshots.clone()));
+            }
+        }
+
+        if to_process.is_empty() {
+            continue;
+        }
+
+        let mut tasks = JoinSet::new();
+
+        info!(
+            batch = batch_idx + 1,
+            total_batches = preview_batch_count,
+            batch_projects = to_process.len(),
+            "processing media preview batch"
+        );
+
+        // compue blurhashes in parallel
+        for (project_id, source_key, screenshots) in to_process {
+            if screenshots.is_empty() {
+                project_previews.push((project_id, source_key, None));
+                continue;
+            }
+
+            let http_client = preview_http_client.clone();
+            tasks.spawn(async move {
+                let mut preview_blurhash = None;
+                for attachment in &screenshots {
+                    preview_blurhash = compute_attachment_blurhash(&http_client, attachment).await;
+                    if preview_blurhash.is_some() {
+                        break;
+                    }
+                }
+
+                (project_id, source_key, preview_blurhash)
+            });
+        }
+
+        while let Some(result) = tasks.join_next().await {
+            project_previews.push(result?);
+        }
+    }
 
     let mut tx = pg.begin().await?;
     let mut upserted: u64 = 0;
@@ -219,10 +312,9 @@ async fn sync_media(entries: &[AirbridgeEntry], pg: &PgPool) -> anyhow::Result<(
         let media_rows: Vec<(i32, &AirtableAttachment)> = chunk
             .iter()
             .filter_map(|entry| {
-                project_id_by_airtable
+                project_state_by_airtable
                     .get(&entry.id)
-                    .copied()
-                    .map(|pid| (pid, entry))
+                    .map(|state| (state.id, entry))
             })
             .flat_map(|(pid, entry)| entry.fields.screenshots.iter().map(move |a| (pid, a)))
             .collect();
@@ -304,9 +396,10 @@ async fn sync_media(entries: &[AirbridgeEntry], pg: &PgPool) -> anyhow::Result<(
     let mut synced_project_ids: Vec<i32> = Vec::with_capacity(entries.len());
 
     for entry in entries {
-        let Some(&pid) = project_id_by_airtable.get(&entry.id) else {
+        let Some(state) = project_state_by_airtable.get(&entry.id) else {
             continue;
         };
+        let pid = state.id;
         synced_project_ids.push(pid);
         for att in &entry.fields.screenshots {
             keep_project_ids.push(pid);
@@ -329,6 +422,25 @@ async fn sync_media(entries: &[AirbridgeEntry], pg: &PgPool) -> anyhow::Result<(
         .execute(&mut *tx)
         .await?;
         deleted = result.rows_affected();
+
+        // update project preview_blurhash for projects that had media changes
+        for preview_chunk in project_previews.chunks(BATCH_SIZE) {
+            let mut qb: QueryBuilder<Postgres> = QueryBuilder::new(
+                "UPDATE projects AS p SET preview_blurhash = v.preview_blurhash, preview_blurhash_source_key = v.preview_blurhash_source_key FROM (",
+            );
+            qb.push_values(
+                preview_chunk,
+                |mut b, (project_id, preview_blurhash_source_key, preview_blurhash)| {
+                    b.push_bind(*project_id)
+                        .push_bind(preview_blurhash_source_key)
+                        .push_bind(preview_blurhash);
+                },
+            );
+            qb.push(
+                ") AS v(id, preview_blurhash_source_key, preview_blurhash) WHERE p.id = v.id AND p.deleted_at IS NULL",
+            );
+            qb.build().execute(&mut *tx).await?;
+        }
     }
 
     tx.commit().await?;
@@ -357,4 +469,108 @@ async fn soft_delete_missing(entries: &[AirbridgeEntry], pg: &PgPool) -> anyhow:
     }
 
     Ok(())
+}
+
+/// small -> large -> full -> original
+fn preferred_preview_url(att: &AirtableAttachment) -> &str {
+    att.thumbnails
+        .as_ref()
+        .and_then(|thumbs| thumbs.small.as_ref())
+        .map(|thumb| thumb.url.as_str())
+        .or_else(|| {
+            att.thumbnails
+                .as_ref()
+                .and_then(|thumbs| thumbs.large.as_ref())
+                .map(|thumb| thumb.url.as_str())
+        })
+        .or_else(|| {
+            att.thumbnails
+                .as_ref()
+                .and_then(|thumbs| thumbs.full.as_ref())
+                .map(|thumb| thumb.url.as_str())
+        })
+        .unwrap_or(att.url.as_str())
+}
+
+async fn compute_attachment_blurhash(
+    http_client: &reqwest::Client,
+    att: &AirtableAttachment,
+) -> Option<String> {
+    if let Some(mime) = att.mime_type.as_deref()
+        && !is_preview_compatible_mime(mime)
+    {
+        return None;
+    }
+
+    let url = preferred_preview_url(att);
+    compute_blurhash_from_url(http_client, url).await
+}
+
+fn is_preview_compatible_mime(mime: &str) -> bool {
+    mime.starts_with("image/") || mime.starts_with("video/")
+}
+
+async fn compute_blurhash_from_url(http_client: &reqwest::Client, url: &str) -> Option<String> {
+    let response = http::fetch_with_retries(http_client, url, 2).await.ok()?;
+    let bytes = response.bytes().await.ok()?;
+    if bytes.len() > PREVIEW_MAX_BYTES {
+        return None;
+    }
+
+    let thumbnail = image::load_from_memory(&bytes)
+        .ok()?
+        .thumbnail(PREVIEW_SIZE_PX, PREVIEW_SIZE_PX)
+        .to_rgba8();
+    let (width, height) = thumbnail.dimensions();
+    if width == 0 || height == 0 {
+        return None;
+    }
+
+    blurhash::encode(
+        BLURHASH_X_COMPONENTS,
+        BLURHASH_Y_COMPONENTS,
+        width,
+        height,
+        &thumbnail,
+    )
+    .ok()
+}
+
+fn preview_source_key(screenshots: &[AirtableAttachment]) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update((screenshots.len() as u64).to_le_bytes());
+
+    for screenshot in screenshots {
+        hash_string(&mut hasher, &screenshot.id);
+        hash_option_i64(&mut hasher, screenshot.size);
+    }
+
+    to_hex(hasher.finalize())
+}
+
+fn hash_string(hasher: &mut Sha256, value: &str) {
+    hasher.update([0x01]);
+    hasher.update((value.len() as u64).to_le_bytes());
+    hasher.update(value.as_bytes());
+}
+
+fn hash_option_i64(hasher: &mut Sha256, value: Option<i64>) {
+    match value {
+        Some(value) => {
+            hasher.update([0x01]);
+            hasher.update(value.to_le_bytes());
+        }
+        None => hasher.update([0x00]),
+    }
+}
+
+fn to_hex(bytes: impl AsRef<[u8]>) -> String {
+    let bytes = bytes.as_ref();
+    let mut output = String::with_capacity(bytes.len() * 2);
+
+    for byte in bytes {
+        write!(&mut output, "{byte:02x}").expect("writing to a String cannot fail");
+    }
+
+    output
 }

@@ -3,7 +3,7 @@
 	import Code from '@lucide/svelte/icons/code';
 	import Globe from '@lucide/svelte/icons/globe';
 	import Star from '@lucide/svelte/icons/star';
-	import { imageUrl, scoreClass, title, truncate } from '$lib/search';
+	import { scoreClass, title, truncate } from '$lib/search';
 	import { ExpandableImage } from '$lib/components/ui/image';
 	import type { SearchResult } from '$lib/types';
 	import { formatHours, formatApproved, cn, formatFloat } from '$lib/utils';
@@ -84,7 +84,8 @@
 			</div>
 			<ExpandableImage
 				id={r.id}
-				src={imageUrl(r.airtable_id)}
+				airtableId={r.airtable_id}
+				blurhash={r.preview_blurhash ?? undefined}
 				alt={title(r)}
 				missing={!r.has_media}
 				buttonClass="hidden sm:block"

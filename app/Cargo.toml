@@ -1,14 +1,17 @@
 [package]
 name = "otter"
-version = "0.3.0"
+version = "0.5.0"
 edition = "2024"
 
 [dependencies]
 anyhow = "1.0.102"
 axum = { version = "0.8.9", features = ["macros"] }
+blurhash = "0.2.3"
 deadpool-redis = "0.23.0"
 dotenvy = "0.15.7"
-fastembed = "5.13.3"
+fastembed = "5.13.4"
+image = { version = "0.25.8", default-features = false, features = ["jpeg", "png", "webp"] }
+sha2 = "0.11.0"
 opentelemetry = { version = "0.31", features = ["trace", "logs", "metrics"] }
 opentelemetry-appender-tracing = "0.31"
 opentelemetry-otlp = { version = "0.31", features = ["trace", "logs", "metrics", "http-proto"] }
@@ -16,7 +19,7 @@ opentelemetry_sdk = { version = "0.31", features = ["trace", "logs", "metrics", 
 pgvector = { version = "0.4.1", features = ["sqlx"] }
 redis = { version = "1.2.0", features = ["tokio-comp"] }
 regex = "1.12.3"
-reqwest = { version = "0.13.2", features = ["json", "gzip"] }
+reqwest = { version = "0.13.3", features = ["json", "gzip"] }
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.149"
 sqlx = { version = "0.8.6", features = ["macros", "postgres", "runtime-tokio", "time"] }
