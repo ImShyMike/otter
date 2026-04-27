@@ -213,7 +213,7 @@
 			src={transitioning || !fullImageReady ? (thumbSrc ?? fullSrc) : fullSrc}
 			alt={transitioning || !fullImageReady ? alt : expandedAlt}
 			loading="eager"
-			class={cn('h-[90vh] w-[90vw] object-contain', expandedClass)}
+			class={cn('h-[90vh] object-contain', expandedClass)}
 			style={`view-transition-name: ${transitionPrefix}-${id}`}
 		/>
 	</div>
