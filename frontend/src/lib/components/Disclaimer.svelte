@@ -25,6 +25,7 @@
 					Projects can take a while to appear in the Unified DB, and some may never be added if they
 					do not meet quality standards.
 				</p>
+				<p>THE DATABASE ONLY CONTAINS <span class="font-bold">SUBMITTED PROJECTS</span></p>
 				<p>Tips if you cannot find a project:</p>
 				<ul class="list-disc pl-5">
 					<li>
