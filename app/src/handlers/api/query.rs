@@ -156,6 +156,7 @@ struct QueryRow {
     archived_repo: Option<String>,
     inferred_repo: Option<String>,
     inferred_username: Option<String>,
+    preview_blurhash: Option<String>,
     _total: i64,
 }
 
@@ -187,10 +188,10 @@ pub async fn query(
 
     let mut qb: QueryBuilder<sqlx::Postgres> = QueryBuilder::new(
         "SELECT id, airtable_id, ysws, approved_at, code_url, country, \
-         demo_url, description, github_username, hours, true_hours, \
-         has_media, github_stars, display_name, \
-         archived_demo, archived_repo, inferred_repo, inferred_username, \
-         COUNT(*) OVER() AS _total FROM projects WHERE deleted_at IS NULL",
+        demo_url, description, github_username, hours, true_hours, \
+        has_media, github_stars, display_name, \
+        archived_demo, archived_repo, inferred_repo, inferred_username, preview_blurhash, \
+        COUNT(*) OVER() AS _total FROM projects WHERE deleted_at IS NULL",
     );
 
     for filter in &body.filters {
@@ -432,6 +433,7 @@ pub async fn query(
             archived_repo: r.archived_repo,
             inferred_repo: r.inferred_repo,
             inferred_username: r.inferred_username,
+            preview_blurhash: r.preview_blurhash,
         })
         .collect();
 

@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id, airtable_id, ysws, approved_at, code_url, country, demo_url, description, github_username, hours, true_hours, has_media AS \"has_media!\", github_stars, display_name, archived_demo, archived_repo, inferred_repo, inferred_username FROM projects WHERE deleted_at IS NULL AND airtable_id = $1 LIMIT 1",
+  "query": "SELECT id, airtable_id, ysws, approved_at, code_url, country, demo_url, description, github_username, hours, true_hours, has_media AS \"has_media!\", github_stars, display_name, archived_demo, archived_repo, inferred_repo, inferred_username, preview_blurhash FROM projects WHERE deleted_at IS NULL AND id = $1 LIMIT 1",
   "describe": {
     "columns": [
       {
@@ -92,11 +92,16 @@
         "ordinal": 17,
         "name": "inferred_username",
         "type_info": "Text"
+      },
+      {
+        "ordinal": 18,
+        "name": "preview_blurhash",
+        "type_info": "Text"
       }
     ],
     "parameters": {
       "Left": [
-        "Text"
+        "Int4"
       ]
     },
     "nullable": [
@@ -117,8 +122,9 @@
       true,
       true,
       true,
+      true,
       true
     ]
   },
-  "hash": "2826605cc0d5820a95aa77d90f55b743e709a9c2481a1b16630c2e9b7d91003b"
+  "hash": "4b9cae72aca6b47aaed61bae06820831857ac019b10891cda3ddebd1ebf996e8"
 }

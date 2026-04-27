@@ -1,3 +1,15 @@
+export interface MediaItem {
+	project_id: number;
+	mime_type: string;
+	url: string;
+	thumb_small_url?: string;
+	thumb_large_url?: string;
+}
+
+export interface MediaBatchResponse {
+	media: Record<string, MediaItem[]>;
+}
+
 export interface ProjectItem {
 	id: number;
 	airtable_id: string;
@@ -17,6 +29,7 @@ export interface ProjectItem {
 	archived_repo: string | null;
 	inferred_repo: string | null;
 	inferred_username: string | null;
+	preview_blurhash: string | null;
 }
 
 export interface SearchResult extends ProjectItem {

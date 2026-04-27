@@ -36,6 +36,7 @@ pub struct ProjectItem {
     pub archived_repo: Option<String>,
     pub inferred_repo: Option<String>,
     pub inferred_username: Option<String>,
+    pub preview_blurhash: Option<String>,
 }
 
 pub fn router() -> OpenApiRouter<AppState> {
@@ -45,6 +46,7 @@ pub fn router() -> OpenApiRouter<AppState> {
         .routes(routes!(query::query))
         .routes(routes!(media::media))
         .routes(routes!(media::media_redirect))
+        .routes(routes!(media::media_batch))
         .routes(routes!(project::project_info))
         .routes(routes!(recent::recent_projects))
         .routes(routes!(status::data_refresh_status))

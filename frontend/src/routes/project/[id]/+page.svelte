@@ -94,7 +94,8 @@
 			<div class="aspect-video bg-muted">
 				<ExpandableImage
 					id={p.id}
-					src={imageUrl(p.airtable_id)}
+					airtableId={p.airtable_id}
+					blurhash={p.preview_blurhash ?? undefined}
 					alt={title(p)}
 					missing={!p.has_media}
 					loading="eager"

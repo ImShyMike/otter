@@ -6,7 +6,7 @@
 	import Code from '@lucide/svelte/icons/code';
 	import ExternalLink from '@lucide/svelte/icons/external-link';
 	import Star from '@lucide/svelte/icons/star';
-	import { imageUrl, scoreClass, title, truncate } from '$lib/search';
+	import { scoreClass, title, truncate } from '$lib/search';
 	import type { SearchResult } from '$lib/types';
 	import { formatHours, formatApproved, formatFloat, cn } from '$lib/utils';
 	import { resolve } from '$app/paths';
@@ -19,7 +19,8 @@
 		<Card.Card class="flex flex-col">
 			<ExpandableImage
 				id={r.id}
-				src={imageUrl(r.airtable_id)}
+				airtableId={r.airtable_id}
+				blurhash={r.preview_blurhash ?? undefined}
 				alt={title(r)}
 				missing={!r.has_media}
 				buttonClass="w-full"

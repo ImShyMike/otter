@@ -2,6 +2,7 @@
 	import X from '@lucide/svelte/icons/x';
 	import { Image } from '$lib/components/ui/image';
 	import { cn } from '$lib/utils.js';
+	import { fullUrl, getMedia, thumbUrl, type MediaState } from '$lib/media';
 
 	type DocumentWithViewTransition = Document & {
 		startViewTransition?: (updateCallback: () => void) => { finished: Promise<void> };
@@ -10,6 +11,8 @@
 	let {
 		id,
 		src,
+		airtableId,
+		blurhash,
 		alt = '',
 		missing = false,
 		loading = 'lazy',
@@ -21,7 +24,9 @@
 		expandedAlt = 'Expanded view'
 	}: {
 		id: number | string;
-		src: string;
+		src?: string;
+		airtableId?: string;
+		blurhash?: string;
 		alt?: string;
 		missing?: boolean;
 		loading?: 'lazy' | 'eager';
@@ -35,6 +40,72 @@
 
 	let expanded = $state(false);
 	let transitioning = $state(false);
+	let preloadedFullSrc = $state<string | null>(null);
+	let fullImageReady = $state(false);
+
+	const mediaStore = $derived(airtableId && !missing ? getMedia(airtableId) : null);
+	let mediaState = $state<MediaState | null>(null);
+
+	$effect(() => {
+		mediaState = null;
+		const store = mediaStore;
+		if (!store) return;
+		const unsub = store.subscribe((value) => {
+			mediaState = value;
+		});
+		return unsub;
+	});
+
+	const firstItem = $derived.by(() => {
+		if (!mediaState || mediaState.status !== 'loaded') return null;
+		return mediaState.items[0] ?? null;
+	});
+
+	const effectiveMissing = $derived.by(() => {
+		if (missing) return true;
+		if (airtableId) {
+			if (!mediaState) return false; // still loading
+			if (mediaState.status === 'loaded' && !firstItem) return true;
+			if (mediaState.status === 'error') return true;
+		}
+		return false;
+	});
+
+	const thumbSrc = $derived.by(() => {
+		if (firstItem) return thumbUrl(firstItem);
+		if (!airtableId) return src;
+		return undefined;
+	});
+
+	const fullSrc = $derived.by(() => {
+		if (firstItem) return fullUrl(firstItem);
+		if (!airtableId) return src;
+		return undefined;
+	});
+
+	$effect(() => {
+		if (preloadedFullSrc && preloadedFullSrc !== fullSrc) {
+			preloadedFullSrc = null;
+			fullImageReady = false;
+		}
+	});
+
+	function preloadFullImage() {
+		const srcToPreload = fullSrc;
+		if (!srcToPreload || preloadedFullSrc === srcToPreload || typeof window === 'undefined') {
+			return;
+		}
+
+		const preloader = new window.Image();
+		preloader.onload = () => {
+			fullImageReady = true;
+		};
+		preloader.onerror = () => {
+			fullImageReady = false;
+		};
+		preloader.src = srcToPreload;
+		preloadedFullSrc = srcToPreload;
+	}
 
 	function runWithViewTransition(update: () => void, onFinish?: () => void) {
 		const doc = document as DocumentWithViewTransition;
@@ -62,9 +133,11 @@
 	}
 
 	function open() {
-		if (missing) {
+		if (effectiveMissing) {
 			return;
 		}
+
+		preloadFullImage();
 
 		transitioning = true;
 
@@ -98,16 +171,20 @@
 
 <button
 	onclick={open}
+	onpointerenter={preloadFullImage}
+	onfocus={preloadFullImage}
+	ontouchstart={preloadFullImage}
 	class={cn('cursor-pointer transition-opacity hover:opacity-80', buttonClass)}
 	type="button"
 	{title}
-	disabled={missing}
+	disabled={effectiveMissing}
 	data-umami-event="image-expand"
 >
 	<Image
-		{src}
+		src={thumbSrc}
+		{blurhash}
 		{alt}
-		{missing}
+		missing={effectiveMissing}
 		class={cn('h-24 w-36 shrink-0 bg-muted object-cover', thumbnailClass)}
 		style={`view-transition-name: ${transitionName()}`}
 		{loading}
@@ -133,10 +210,10 @@
 			<X class="h-8 w-8" />
 		</button>
 		<Image
-			{src}
-			alt={expandedAlt}
+			src={transitioning || !fullImageReady ? (thumbSrc ?? fullSrc) : fullSrc}
+			alt={transitioning || !fullImageReady ? alt : expandedAlt}
 			loading="eager"
-			class={cn('max-h-[90vh] max-w-[90vw] object-contain', expandedClass)}
+			class={cn('h-[90vh] w-[90vw] object-contain', expandedClass)}
 			style={`view-transition-name: ${transitionPrefix}-${id}`}
 		/>
 	</div>
