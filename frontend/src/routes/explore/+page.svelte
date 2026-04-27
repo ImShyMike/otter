@@ -2,7 +2,7 @@
 	import DataTable from '$lib/components/DataTable.svelte';
 	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
 	import Head from '$lib/components/Head.svelte';
-	import { goBack } from '$lib/stores/back';
+	import { goBack } from '$lib/back';
 	import ServerStatus from '$lib/components/ServerStatus.svelte';
 </script>
 
