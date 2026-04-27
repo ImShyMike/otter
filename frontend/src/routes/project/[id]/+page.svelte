@@ -13,7 +13,7 @@
 	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
 	import Code from '@lucide/svelte/icons/code';
 	import Head from '$lib/components/Head.svelte';
-	import { goBack } from '$lib/stores/back';
+	import { goBack } from '$lib/back';
 	import Share2 from '@lucide/svelte/icons/share-2';
 
 	let shareStatus = $state<'idle' | 'copied' | 'failed'>('idle');

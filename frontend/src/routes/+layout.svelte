@@ -1,22 +1,9 @@
 <script lang="ts">
 	import './layout.css';
 	import ThemeToggle from '$lib/components/ThemeToggle.svelte';
-	import { page } from '$app/state';
-	import { lastPageUrl } from '$lib/stores/back';
 	import { API_BASE } from '$lib/search';
 
 	let { children } = $props();
-	let previousUrl: string | null = null;
-
-	$effect(() => {
-		const currentUrl = `${page.url.pathname}${page.url.search}${page.url.hash}`;
-
-		if (previousUrl && previousUrl !== currentUrl) {
-			lastPageUrl.set(previousUrl);
-		}
-
-		previousUrl = currentUrl;
-	});
 </script>
 
 <div class="absolute top-4 right-4 z-50 sm:fixed sm:top-auto sm:bottom-4">
