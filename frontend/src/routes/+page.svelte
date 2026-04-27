@@ -16,12 +16,28 @@
 	import { SvelteURLSearchParams } from 'svelte/reactivity';
 	import { untrack } from 'svelte';
 	import Head from '$lib/components/Head.svelte';
-	import RefreshStatus from '$lib/components/RefreshStatus.svelte';
+	import ServerStatus from '$lib/components/ServerStatus.svelte';
 	import Disclaimer from '$lib/components/Disclaimer.svelte';
 
 	type ViewMode = 'search' | 'cards';
 
+	type SuggestedSearch = {
+		label: string;
+		query: string;
+	};
+
 	const LOW_SCORE_THRESHOLD = 0.25;
+
+	const suggestedSearches: SuggestedSearch[] = [
+		{ label: 'DoomPDF', query: 'DoomPDF' },
+		{ label: 'VERT', query: 'VERT' },
+		{ label: 'Specter', query: 'Specter' },
+		{ label: 'Blind Defusal', query: 'Blind Defusal' },
+		{ label: 'High Seas', query: '"High Seas"' },
+		{ label: 'Art', query: 'art' },
+		{ label: 'Music', query: 'music' },
+		{ label: 'ShyMike', query: 'user:ShyMike' }
+	];
 
 	let query = $state(page.url.searchParams.get('q') ?? '');
 	let results = $state<SearchResult[]>([]);
@@ -202,8 +218,28 @@
 			</Button>
 		</div>
 
+		<div class="mt-3 mb-2 text-center">
+			<div class="mt-2 flex flex-wrap justify-center gap-2">
+				{#each suggestedSearches as suggestion (suggestion.query)}
+					<Button
+						onclick={() => {
+							query = suggestion.query;
+							void submitSearch();
+						}}
+						variant={query.trim() === suggestion.query ? 'default' : 'outline'}
+						size="sm"
+						class="rounded-full"
+						data-umami-event="search-suggestion"
+						aria-label={`Search for ${suggestion.label}`}
+					>
+						{suggestion.label}
+					</Button>
+				{/each}
+			</div>
+		</div>
+
 		<div class="flex flex-col items-center">
-			<p class="m-3 text-center text-xs leading-relaxed wrap-break-word text-muted-foreground">
+			<p class="mb-3 text-center text-xs leading-relaxed wrap-break-word text-muted-foreground">
 				<span class="font-medium tracking-wide text-foreground/80">tip:</span>
 				<span class="opacity-70">use </span>
 				<span
@@ -304,5 +340,5 @@
 		{/if}
 	{/if}
 
-	<RefreshStatus />
+	<ServerStatus />
 </div>

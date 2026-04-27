@@ -1,21 +1,26 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import Clock3 from '@lucide/svelte/icons/clock-3';
+	import ChartColumnBig from '@lucide/svelte/icons/chart-column-big';
 	import { API_BASE } from '$lib/search';
 
 	interface ServerStatusResponse {
 		last_refreshed_at: number | null;
+		total_projects: number;
 	}
 
 	let lastRefreshedAt = $state<number | null>(null);
+	let totalProjects = $state<number | null>(null);
 
 	onMount(async () => {
 		try {
 			const res = await fetch(`${API_BASE}/api/v1/status`);
 			const body = (await res.json()) as ServerStatusResponse;
 			lastRefreshedAt = body.last_refreshed_at;
+			totalProjects = body.total_projects;
 		} catch {
 			lastRefreshedAt = null;
+			totalProjects = null;
 		}
 	});
 
@@ -32,9 +37,12 @@
 		class="mt-auto w-full pt-6 text-center font-mono text-xs text-muted-foreground/65 transition-colors hover:text-foreground/80"
 	>
 		<p class="mb-1">projects may take a few days to get added here even after being submitted</p>
-		<div class="inline-flex items-center gap-2">
+		<div class="inline-flex items-center gap-1">
 			<Clock3 class="h-3 w-3" />
 			<span>last updated at {formatRefreshTime(lastRefreshedAt)}</span>
+			<span>-</span>
+			<ChartColumnBig class="h-3 w-3" />
+			<span>total projects: {totalProjects ?? 'unknown'}</span>
 		</div>
 	</footer>
 {/if}

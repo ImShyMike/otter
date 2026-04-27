@@ -3,7 +3,7 @@
 	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
 	import Head from '$lib/components/Head.svelte';
 	import { goBack } from '$lib/stores/back';
-	import RefreshStatus from '$lib/components/RefreshStatus.svelte';
+	import ServerStatus from '$lib/components/ServerStatus.svelte';
 </script>
 
 <Head title="Explore · Otter" description="Explore Hack Club projects" />
@@ -22,5 +22,5 @@
 
 	<DataTable />
 
-	<RefreshStatus />
+	<ServerStatus />
 </div>
