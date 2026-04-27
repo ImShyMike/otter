@@ -230,6 +230,7 @@
 						size="sm"
 						class="rounded-full"
 						data-umami-event="search-suggestion"
+						data-umami-event-query={suggestion.query}
 						aria-label={`Search for ${suggestion.label}`}
 					>
 						{suggestion.label}
