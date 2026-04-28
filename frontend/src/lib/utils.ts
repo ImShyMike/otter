@@ -36,7 +36,7 @@ export function formatHours(r: ProjectItem): string {
 		return `~${r.true_hours.toFixed(1)}h`;
 	}
 
-	return '0';
+	return '0h';
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
