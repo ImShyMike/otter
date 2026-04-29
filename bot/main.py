@@ -251,6 +251,20 @@ def send_projects_response(
         }
     ]
 
+    if target["kind"] == "slack" and not github_username and username:
+        blocks.append(
+            {
+                "type": "context",
+                "elements": [
+                    {
+                        "type": "mrkdwn",
+                        "text": ":warning: This user hasn't set their GitHub "
+                        "in their profile. Results may be inaccurate.",
+                    }
+                ],
+            }
+        )
+
     if projects:
         carousel_cards = []
         for idx, project in enumerate(projects[:10]):
