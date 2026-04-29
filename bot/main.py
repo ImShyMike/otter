@@ -52,6 +52,8 @@ GITHUB_USERNAME_RE = re.compile(r"^[A-Za-z0-9-]{1,39}$")
 
 GITHUB_FIELD_ID = "Xf09V176UVK5"
 
+OTTER_CHANNEL_ID = "C0B0603KY6T"
+
 
 def media_image_url(airtable_id: str | None) -> str | None:
     """Get the media url from an airtable id"""
@@ -83,7 +85,7 @@ def fetch_projects_for_user(github_username: str) -> list[ProjectItem]:
 def parse_target(text: str, sender_id: str):
     """Return the requested target as either a Slack user id or GitHub username"""
     text = (text or "").strip()
-    if not text:
+    if not text or text.lower() in {"me", "my", "mine"}:
         return {"kind": "slack", "value": sender_id, "label": f"<@{sender_id}>"}
 
     match = USER_MENTION_RE.search(text)
@@ -172,26 +174,20 @@ def log_command(command, success: bool):
     )
 
 
-@app.action(re.compile(r"^id_.*"))
-def handle_project_link(ack, body):
-    """Log project link clicks"""
-    ack()
-    action_id = body["actions"][0]["action_id"]
-    user_id = body["user"]["id"]
-    username = body["user"]["username"]
-    print(f"click: {action_id[3:]} by {username} ({user_id})")
-
-
-@app.command("/otter")
-def list_projects(ack, command, client, respond):
-    """Handle the /otter command"""
-    ack()
-
+def send_projects_response(
+    *,
+    client,
+    channel_id: str,
+    source_user_id: str,
+    text: str,
+    thread_ts: str | None = None,
+):
+    """Build and send the projects response."""
     github_username = None
     user = {}
     profile = {}
 
-    target = parse_target(command.get("text", ""), command["user_id"])
+    target = parse_target(text, source_user_id)
 
     if target["kind"] == "slack":
         target_user_id = target["value"]
@@ -200,8 +196,11 @@ def list_projects(ack, command, client, respond):
             info = client.users_info(user=target_user_id)
             profile_resp = client.users_profile_get(user=target_user_id)
         except Exception as exc:  # pylint: disable=broad-except
-            respond(f":warning: Could not fetch user `{target_user_id}`: {exc}")
-            return
+            return {
+                "ok": False,
+                "error_code": "user_lookup_failed",
+                "error": f":warning: Could not fetch user `{target_user_id}`: {exc}",
+            }
 
         user = info.get("user", {}) or {}
         profile = {
@@ -228,8 +227,8 @@ def list_projects(ack, command, client, respond):
     projects = deduplicate_projects(projects)
 
     requested_by = (
-        f"(requested by <@{command['user_id']}>)"
-        if command.get("user_id") != target.get("value")
+        f"(requested by <@{source_user_id}>)"
+        if source_user_id != target.get("value")
         else ""
     )
 
@@ -371,19 +370,90 @@ def list_projects(ack, command, client, respond):
 
     try:
         client.chat_postMessage(
-            channel=command["channel_id"],
+            channel=channel_id,
+            thread_ts=thread_ts,
             blocks=blocks,
             text=f"{target['label']}'s projects {requested_by}",
             unfurl_links=False,
             icon_emoji=":otter:",
         )
-        log_command(command, success=True)
     except SlackApiError as exc:
-        if exc.response.get("error") != "channel_not_found":
-            raise
+        return {
+            "ok": False,
+            "error_code": exc.response.get("error"),
+            "error": str(exc),
+        }
 
+    return {"ok": True}
+
+
+@app.action(re.compile(r"^id_.*"))
+def handle_project_link(ack, body):
+    """Log project link clicks"""
+    ack()
+    action_id = body["actions"][0]["action_id"]
+    user_id = body["user"]["id"]
+    username = body["user"]["username"]
+    print(f"click: {action_id[3:]} by {username} ({user_id})")
+
+
+@app.command("/otter")
+def list_projects(ack, command, client, respond):
+    """Handle the /otter command"""
+    ack()
+
+    result = send_projects_response(
+        client=client,
+        channel_id=command["channel_id"],
+        source_user_id=command["user_id"],
+        text=command.get("text", ""),
+    )
+
+    if result["ok"]:
+        log_command(command, success=True)
+        return
+
+    error_code = result.get("error_code")
+    error_text = result.get("error")
+
+    if error_code == "user_lookup_failed" and isinstance(error_text, str):
+        respond(error_text)
+        return
+
+    if error_code == "channel_not_found":
         log_command(command, success=False)
         respond("Please add me to the channel before using the command!")
+        return
+
+    log_command(command, success=False)
+    respond("Please add me to the channel before using the command!")
+
+
+@app.event("message")
+def handle_message_events(body, client):
+    """Send projects in thread"""
+    event = body.get("event", {})
+    channel_id = event.get("channel")
+    user_id = event.get("user")
+    text = event.get("text", "")
+
+    if (
+        channel_id == OTTER_CHANNEL_ID
+        and user_id
+        and not event.get("bot_id")
+        and not event.get("subtype")
+        and not event.get("thread_ts")
+    ):
+        result = send_projects_response(
+            client=client,
+            channel_id=channel_id,
+            source_user_id=user_id,
+            text=text,
+            thread_ts=event.get("thread_ts") or event.get("ts"),
+        )
+
+        if not result["ok"]:
+            print(result["error"])
 
 
 def main():
