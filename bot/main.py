@@ -8,6 +8,7 @@ import requests
 from dotenv import load_dotenv
 from slack_bolt import App
 from slack_bolt.adapter.socket_mode import SocketModeHandler
+from slack_sdk.errors import SlackApiError
 
 
 class ProjectItem(TypedDict, total=False):
@@ -153,10 +154,11 @@ def deduplicate_projects(projects: list[ProjectItem]) -> list[ProjectItem]:
     return list(seen.values())
 
 
-def log_command(command):
+def log_command(command, success: bool):
     """Log command usage"""
+    failed_text = "FAILED - " if not success else ""
     print(
-        f"#{command['channel_name']} ({command['team_domain']}) - "
+        f"{failed_text}#{command['channel_name']} ({command['team_domain']}) - "
         f"{command['user_name']} ({command['user_id']}) "
         f"ran {command['command']} {command['text']}"
     )
@@ -175,7 +177,6 @@ def handle_project_link(ack, body):
 @app.command("/otter")
 def list_projects(ack, command, client, respond):
     """Handle the /otter command"""
-    log_command(command)
     ack()
 
     github_username = None
@@ -349,13 +350,21 @@ def list_projects(ack, command, client, respond):
             }
         )
 
-    client.chat_postMessage(
-        channel=command["channel_id"],
-        blocks=blocks,
-        text=f"Projects for {target['label']}",
-        unfurl_links=False,
-        icon_emoji=":otter:",
-    )
+    try:
+        client.chat_postMessage(
+            channel=command["channel_id"],
+            blocks=blocks,
+            text=f"Projects for {target['label']}",
+            unfurl_links=False,
+            icon_emoji=":otter:",
+        )
+        log_command(command, success=True)
+    except SlackApiError as exc:
+        if exc.response.get("error") != "channel_not_found":
+            raise
+
+        log_command(command, success=False)
+        respond("Please add me to the channel before using the command!")
 
 
 def main():
