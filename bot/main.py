@@ -60,6 +60,15 @@ def media_image_url(airtable_id: str | None) -> str | None:
     return f"{API_BASE}/api/v1/media/{airtable_id}/r"
 
 
+def pluralize(count: int, singular: str, plural: Optional[str] = None) -> str:
+    """Return a pluralized string based on the count"""
+    if count == 1:
+        return f"{count} {singular}"
+
+    plural_form = plural or singular + "s"
+    return f"{count} {plural_form}"
+
+
 def fetch_projects_for_user(github_username: str) -> list[ProjectItem]:
     """Fetch projects for a given username"""
 
@@ -220,7 +229,7 @@ def list_projects(ack, command, client, respond):
     projects = deduplicate_projects(projects)
 
     requested_by = (
-        f"(request by <@{command['user_id']}>)"
+        f"(requested by <@{command['user_id']}>)"
         if command.get("user_id") != target.get("value")
         else ""
     )
@@ -323,15 +332,16 @@ def list_projects(ack, command, client, respond):
             }
         )
 
-        if len(projects) > 10:
+        count = len(projects)
+        if count > 10:
             blocks.append(
                 {
                     "type": "context",
                     "elements": [
                         {
                             "type": "mrkdwn",
-                            "text": f"_and {len(projects) - 10} more projects"
-                            " (showing 10 in carousel)_",
+                            "text": f"_and {count - 10} more {pluralize(count - 10, 'project')}"
+                            " (showing 10)_",
                         }
                     ],
                 }
@@ -354,7 +364,7 @@ def list_projects(ack, command, client, respond):
         client.chat_postMessage(
             channel=command["channel_id"],
             blocks=blocks,
-            text=f"Projects for {target['label']}",
+            text=f"{target['label']}'s projects {requested_by}",
             unfurl_links=False,
             icon_emoji=":otter:",
         )
