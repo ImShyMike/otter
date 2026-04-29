@@ -346,6 +346,16 @@ def list_projects(ack, command, client, respond):
                     ],
                 }
             )
+    else:
+        blocks.append(
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": "_No projects found_",
+                },
+            }
+        )
 
     if github_username:
         blocks.append(
