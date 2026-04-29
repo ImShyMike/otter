@@ -63,10 +63,9 @@ def media_image_url(airtable_id: str | None) -> str | None:
 def pluralize(count: int, singular: str, plural: Optional[str] = None) -> str:
     """Return a pluralized string based on the count"""
     if count == 1:
-        return f"{count} {singular}"
+        return singular
 
-    plural_form = plural or singular + "s"
-    return f"{count} {plural_form}"
+    return plural or singular + "s"
 
 
 def fetch_projects_for_user(github_username: str) -> list[ProjectItem]:
