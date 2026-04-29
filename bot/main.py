@@ -258,8 +258,8 @@ def send_projects_response(
                 "elements": [
                     {
                         "type": "mrkdwn",
-                        "text": ":warning: This user hasn't set their GitHub "
-                        "in their profile. Results may be inaccurate.",
+                        "text": ":siren1: This user hasn't set their GitHub "
+                        "in their profile. Results may be inaccurate. :siren1:",
                     }
                 ],
             }
