@@ -9,7 +9,7 @@ features:
   slash_commands:
     - command: /otter
       description: List a user's projects projects.
-      usage_hint: "[@user]"
+      usage_hint: "[@user|github_username|github_url]"
       should_escape: true
 oauth_config:
   scopes:
