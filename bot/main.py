@@ -258,7 +258,7 @@ def list_projects(ack, command, client, respond):
             if ysws:
                 subtitle_parts.append(ysws)
             if stars:
-                subtitle_parts.append(f":tw_star: {stars} stars")
+                subtitle_parts.append(f":star: {stars} stars")
             if hours:
                 subtitle_parts.append(f":clock2: {round(hours, 1)}h")
             subtitle = " • ".join(subtitle_parts) if subtitle_parts else "No stats"
