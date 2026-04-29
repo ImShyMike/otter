@@ -1,4 +1,5 @@
 use axum::{Router, routing::get};
+use tower_http::compression::CompressionLayer;
 use tower_http::cors::CorsLayer;
 use tower_http::trace::TraceLayer;
 use utoipa::OpenApi;
@@ -20,6 +21,7 @@ pub fn build() -> Router<AppState> {
 
     router
         .merge(Scalar::with_url("/docs", api))
+        .layer(CompressionLayer::new().gzip(true))
         .layer(CorsLayer::very_permissive())
         .layer(
             TraceLayer::new_for_http().make_span_with(
