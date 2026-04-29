@@ -2,6 +2,7 @@ display_information:
   name: Otter
   description: Browse submitted projects inside Slack.
   background_color: "#1f2937"
+  long_description: "Usage: /otter [@user|github_username|github_url]󠀠󠀠󠀠󠀠󠀠󠀠󠀠󠀠󠀠󠀠󠀠󠀠󠀠󠀠󠀠󠀠󠀠󠀠󠀠󠀠󠀠󠀠󠀠󠀠󠀠󠀠󠀠󠀠󠀠󠀠󠀠󠀠󠀠󠀠󠀠󠀠󠀠󠀠󠀠󠀠󠀠󠀠󠀠󠀠󠀠󠀠󠀠󠀠󠀠󠀠󠀠󠀠󠀠󠀠󠀠󠀠󠀠󠀠󠀠󠀠󠀠󠀠󠀠󠀠"
 features:
   bot_user:
     display_name: Otter
@@ -14,14 +15,20 @@ features:
 oauth_config:
   scopes:
     bot:
-      - commands
-      - users:read
-      - users.profile:read
-      - chat:write
       - chat:write.customize
+      - chat:write
+      - commands
+      - users.profile:read
+      - users:read
+      - channels:history
+  pkce_enabled: false
 settings:
+  event_subscriptions:
+    bot_events:
+      - message.channels
   interactivity:
     is_enabled: true
   org_deploy_enabled: false
   socket_mode_enabled: true
   token_rotation_enabled: false
+  is_mcp_enabled: false
