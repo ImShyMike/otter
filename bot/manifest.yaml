@@ -7,6 +7,11 @@ features:
   bot_user:
     display_name: Otter
     always_online: true
+  shortcuts:
+    - name: Delete Otter message
+      type: message
+      callback_id: delete_otter_message
+      description: Deletes a message sent by Otter.
   slash_commands:
     - command: /otter
       description: List a user's projects projects.

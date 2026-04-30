@@ -43,6 +43,7 @@ API_BASE = os.environ.get("OTTER_API_BASE", "http://localhost:3000").rstrip("/")
 FRONTEND_BASE = os.environ.get("OTTER_FRONTEND_BASE", "http://localhost:5173").rstrip(
     "/"
 )
+OTTER_OWNER_ID = os.environ.get("OTTER_OWNER_ID", "").strip()
 
 USER_MENTION_RE = re.compile(r"<@([UW][A-Z0-9]+)(?:\|[^>]+)?>")
 GITHUB_URL_RE = re.compile(
@@ -390,6 +391,10 @@ def send_projects_response(
             text=f"{target['label']}'s projects {requested_by}",
             unfurl_links=False,
             icon_emoji=":otter:",
+            metadata={
+                "event_type": "otter_message",
+                "event_payload": {"source_user_id": source_user_id},
+            },
         )
     except SlackApiError as exc:
         return {
@@ -409,6 +414,51 @@ def handle_project_link(ack, body):
     user_id = body["user"]["id"]
     username = body["user"]["username"]
     print(f"click: {action_id[3:]} by {username} ({user_id})")
+
+
+@app.shortcut("delete_otter_message")
+def handle_delete_bot_message(ack, body, client):
+    """Delete an Otter bot message"""
+    ack()
+
+    clicked_user_id = body["user"]["id"]
+    message = body.get("message", {}) or {}
+    metadata = message.get("metadata", {}) or {}
+    event_payload = metadata.get("event_payload", {}) or {}
+    requester_user_id = event_payload.get("source_user_id", "")
+    authorized_user_ids = {requester_user_id}
+
+    if OTTER_OWNER_ID:
+        authorized_user_ids.add(OTTER_OWNER_ID)
+
+    if clicked_user_id not in authorized_user_ids:
+        channel_id = body.get("container", {}).get("channel_id") or body.get(
+            "channel", {}
+        ).get("id")
+        if channel_id:
+            client.chat_postEphemeral(
+                channel=channel_id,
+                user=clicked_user_id,
+                text="You are not allowed to delete this message.",
+            )
+        return
+
+    if not (message.get("bot_id") or message.get("subtype") == "bot_message"):
+        print("delete_bot_message: refusing to delete a non-bot message")
+        return
+
+    container = body.get("container", {}) or {}
+    channel_id = container.get("channel_id") or body.get("channel", {}).get("id")
+    message_ts = container.get("message_ts") or message.get("ts")
+
+    if not channel_id or not message_ts:
+        print("delete_bot_message: missing channel or message timestamp")
+        return
+
+    try:
+        client.chat_delete(channel=channel_id, ts=message_ts)
+    except SlackApiError as exc:
+        print(f"delete_bot_message failed: {exc.response.get('error')}")
 
 
 @app.command("/otter")
@@ -440,7 +490,9 @@ def list_projects(ack, command, client, respond):
         return
 
     log_command(command, success=False)
-    respond("Please add me to the channel before using the command!")
+    print(f"Error handling /otter command -> {error_code}: {error_text}")
+    respond(f"{error_code}: {error_text}")
+    return
 
 
 @app.event("message")
