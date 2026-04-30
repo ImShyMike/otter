@@ -202,7 +202,7 @@
 	>
 		<button
 			onclick={close}
-			class="absolute top-4 right-4 cursor-pointer text-white transition-colors hover:text-gray-300"
+			class="absolute top-4 right-4 z-100 cursor-pointer text-white transition-colors hover:text-gray-300"
 			type="button"
 			title="Close"
 			aria-label="Close image"
