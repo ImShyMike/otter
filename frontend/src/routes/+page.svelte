@@ -16,6 +16,7 @@
 	import { SvelteURLSearchParams } from 'svelte/reactivity';
 	import { untrack } from 'svelte';
 	import Head from '$lib/components/Head.svelte';
+	import StarIcon from '@lucide/svelte/icons/star';
 	import ServerStatus from '$lib/components/ServerStatus.svelte';
 	import Disclaimer from '$lib/components/Disclaimer.svelte';
 
@@ -179,6 +180,20 @@
 <Head title="Otter" description="Search engine for Hack Club projects" />
 
 <Disclaimer />
+
+<div class="absolute top-4 left-4 z-50 sm:fixed sm:top-auto sm:bottom-4">
+	<a
+		href="https://github.com/ImShyMike/otter"
+		target="_blank"
+		rel="noopener"
+		class="inline-flex size-12 items-center justify-center rounded-md bg-transparent text-sm font-medium ring-offset-background transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none"
+		aria-label="View on GitHub"
+		title="View on GitHub"
+		data-umami-event="github-link"
+	>
+		<StarIcon class="size-6" />
+	</a>
+</div>
 
 <div class="overflow-none mx-auto flex min-h-screen max-w-4xl flex-col px-4 py-4 pt-8">
 	<div class="mb-8 text-center" class:mt-[20vh]={!searched} class:mt-0={searched}>

@@ -61,7 +61,7 @@
 	image={project?.has_media ? imageUrl(project.airtable_id) : undefined}
 />
 
-<div class="mx-auto flex min-h-screen max-w-4xl flex-col px-4 py-6 sm:py-8">
+<div class="mx-auto flex min-h-screen max-w-4xl flex-col px-4 py-6.5 sm:py-8">
 	<div class="mb-4 flex flex-row items-center justify-between text-center">
 		<button
 			onclick={goBack}
@@ -70,7 +70,7 @@
 		>
 			<ArrowLeft class="h-3 w-3" /> Back
 		</button>
-		<div>
+		<div class="pr-13 sm:pr-0">
 			{#if shareStatus === 'copied'}
 				<span class="text-xs text-muted-foreground">Copied link!</span>
 			{:else if shareStatus === 'failed'}
