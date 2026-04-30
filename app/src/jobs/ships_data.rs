@@ -86,6 +86,8 @@ async fn update_data(http_client: &reqwest::Client, pg: &PgPool) -> anyhow::Resu
     let entries_count = entries.len();
     info!("fetched {} entries", entries_count);
 
+    let all_airtable_ids: Vec<String> = entries.iter().map(|e| e.id.clone()).collect();
+
     let entries: Vec<YswsEntry> = entries.into_iter().filter(|e| e.ysws.is_some()).collect();
 
     info!(
@@ -94,6 +96,7 @@ async fn update_data(http_client: &reqwest::Client, pg: &PgPool) -> anyhow::Resu
     );
 
     upsert_projects(&entries, pg).await?;
+    soft_delete_missing(&all_airtable_ids, pg).await?;
 
     Ok(())
 }
@@ -168,6 +171,23 @@ async fn upsert_projects(entries: &[YswsEntry], pg: &PgPool) -> anyhow::Result<(
 
     tx.commit().await?;
     info!("upserted {} entries ({} modified)", entries.len(), modified);
+
+    Ok(())
+}
+
+#[instrument(skip_all)]
+async fn soft_delete_missing(airtable_ids: &[String], pg: &PgPool) -> anyhow::Result<()> {
+    let ids: Vec<&str> = airtable_ids.iter().map(String::as_str).collect();
+    let deleted = sqlx::query_scalar!(
+        "UPDATE projects SET deleted_at = NOW() WHERE airtable_id != ALL($1) AND deleted_at IS NULL RETURNING 1 as count",
+        &ids as &[&str]
+    )
+    .fetch_all(pg)
+    .await?;
+
+    if !deleted.is_empty() {
+        info!("soft-deleted {} missing projects", deleted.len());
+    }
 
     Ok(())
 }

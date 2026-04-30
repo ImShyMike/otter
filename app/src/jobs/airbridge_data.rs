@@ -146,7 +146,6 @@ pub fn run<'a>(pg: &'a PgPool) -> Pin<Box<dyn Future<Output = anyhow::Result<()>
 
             upsert_entries(&entries, pg).await?;
             sync_media(&entries, pg).await?;
-            soft_delete_missing(&entries, pg).await?;
 
             info!("done");
 
@@ -450,23 +449,6 @@ async fn sync_media(entries: &[AirbridgeEntry], pg: &PgPool) -> anyhow::Result<(
         deleted,
         synced_project_ids.len()
     );
-
-    Ok(())
-}
-
-#[instrument(skip_all)]
-async fn soft_delete_missing(entries: &[AirbridgeEntry], pg: &PgPool) -> anyhow::Result<()> {
-    let airtable_ids: Vec<&str> = entries.iter().map(|e| e.id.as_str()).collect();
-    let deleted = sqlx::query_scalar!(
-        "UPDATE projects SET deleted_at = NOW() WHERE airtable_id != ALL($1) AND deleted_at IS NULL RETURNING 1 as count",
-        &airtable_ids as &[&str]
-    )
-    .fetch_all(pg)
-    .await?;
-
-    if !deleted.is_empty() {
-        info!("soft-deleted {} missing projects", deleted.len());
-    }
 
     Ok(())
 }
