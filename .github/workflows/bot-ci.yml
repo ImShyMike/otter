@@ -1,0 +1,46 @@
+name: Bot CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - bot/**
+      - .github/workflows/bot-ci.yml
+  pull_request:
+    paths:
+      - bot/**
+      - .github/workflows/bot-ci.yml
+
+defaults:
+  run:
+    working-directory: bot
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: bot/uv.lock
+
+      - name: Set up Python
+        run: uv python install
+
+      - name: Install dependencies
+        run: uv sync --locked
+
+      - name: Syntax check
+        run: uv run python -m compileall -q .
+
+      - name: Lint with ruff
+        run: uvx ruff check .
+
+      - name: Check formatting with ruff
+        run: uvx ruff format --check .
