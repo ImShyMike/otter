@@ -37,7 +37,7 @@
 		{ label: 'High Seas', query: '"High Seas"' },
 		{ label: 'Art', query: 'art' },
 		{ label: 'Music', query: 'music' },
-		{ label: 'ShyMike', query: 'user:ShyMike' }
+		{ label: 'ShyMike', query: 'user:ImShyMike' }
 	];
 
 	let query = $state(page.url.searchParams.get('q') ?? '');
