@@ -2,7 +2,6 @@ use axum::Json;
 use axum::extract::State;
 use redis::AsyncCommands;
 use serde::Serialize;
-use tracing::instrument;
 
 use crate::error::AppError;
 use crate::state::AppState;
@@ -12,7 +11,6 @@ pub struct ApiResponse {
     value: String,
 }
 
-#[instrument(skip(state))]
 pub async fn health(State(state): State<AppState>) -> Result<Json<ApiResponse>, AppError> {
     let mut conn = state.redis.get().await?;
     let _: () = conn.set("key", "up").await?;
