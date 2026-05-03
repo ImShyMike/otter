@@ -1,6 +1,14 @@
-# Otter
+<p align="center">
+    <img alt="Search engine for all Hack Club projects!" src="assets/hero.png" />
+</p>
 
-![Search engine for all Hack Club projects!](assets/hero.png)
+<p align="center">
+    <a href="https://github.com/ImShyMike/otter"><img alt="GitHub branch check runs" src="https://img.shields.io/github/check-runs/ImShyMike/otter/main"></a>
+    <a href="https://github.com/ImShyMike/otter/stargazers"><img alt="GitHub stars" src="https://img.shields.io/github/stars/ImShyMike/otter?style=flat&logo=github" /></a>
+    <a href="https://github.com/ImShyMike/otter/commits/main"><img alt="Last commit" src="https://img.shields.io/github/last-commit/ImShyMike/otter" /></a>
+    <a href="https://github.com/ImShyMike/otter"><img alt="GitHub repo size" src="https://img.shields.io/github/repo-size/ImShyMike/otter"></a>
+    <a href="LICENSE"><img alt="License" src="https://img.shields.io/github/license/ImShyMike/otter" /></a>
+</p>
 
 ---
 
@@ -32,3 +40,13 @@ These should now be live:
 
 - **frontend**: [http://localhost:5173](http://localhost:5173)
 - **backend**: [http://localhost:3000](http://localhost:3000)
+
+## Star History
+
+<a href="https://www.star-history.com/?repos=ImShyMike%2Fotter&type=date&legend=top-left">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=ImShyMike/otter&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=ImShyMike/otter&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=ImShyMike/otter&type=date&legend=top-left" />
+ </picture>
+</a>
