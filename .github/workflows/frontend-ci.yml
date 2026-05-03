@@ -11,13 +11,14 @@ on:
       - frontend/**
       - .github/workflows/frontend-ci.yml
 
+defaults:
+  run:
+    working-directory: frontend
+
 jobs:
   quality:
     name: Format, Check & Lint
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: frontend
     steps:
       - name: Checkout
         uses: actions/checkout@v4

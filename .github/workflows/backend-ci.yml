@@ -17,6 +17,10 @@ env:
   REDIS_URL: redis://localhost:6379
   SQLX_OFFLINE: true
 
+defaults:
+  run:
+    working-directory: app
+
 jobs:
   check:
     name: Check & Lint
@@ -34,10 +38,8 @@ jobs:
           workspaces: app
       - name: Format
         run: cargo fmt --check
-        working-directory: app
       - name: Clippy
         run: cargo clippy -- -D warnings
-        working-directory: app
 
   test:
     name: Test
@@ -78,10 +80,7 @@ jobs:
         run: cargo install sqlx-cli --no-default-features --features postgres
       - name: Run migrations
         run: cargo sqlx migrate run
-        working-directory: app
       - name: Verify sqlx cache
         run: cargo sqlx prepare --check
-        working-directory: app
       - name: Test
         run: cargo test
-        working-directory: app
