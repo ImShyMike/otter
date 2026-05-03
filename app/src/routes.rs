@@ -15,7 +15,6 @@ pub fn build() -> Router<AppState> {
 
     let (router, api) = OpenApiRouter::with_openapi(ApiDoc::openapi())
         .route("/", get(handlers::homepage))
-        .route("/health", get(handlers::health))
         .nest("/api/v1", handlers::api::router())
         .split_for_parts();
 
@@ -28,4 +27,5 @@ pub fn build() -> Router<AppState> {
                 tower_http::trace::DefaultMakeSpan::new().level(tracing::Level::INFO),
             ),
         )
+        .route("/health", get(handlers::health))
 }
