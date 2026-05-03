@@ -5,14 +5,10 @@ on:
     branches: [main]
     paths:
       - app/**
-      - Dockerfile
-      - docker-compose.yml
       - .github/workflows/backend-ci.yml
   pull_request:
     paths:
       - app/**
-      - Dockerfile
-      - docker-compose.yml
       - .github/workflows/backend-ci.yml
 
 env:
