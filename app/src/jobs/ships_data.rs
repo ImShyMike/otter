@@ -86,8 +86,6 @@ async fn update_data(http_client: &reqwest::Client, pg: &PgPool) -> anyhow::Resu
     let entries_count = entries.len();
     info!("fetched {} entries", entries_count);
 
-    let all_airtable_ids: Vec<String> = entries.iter().map(|e| e.id.clone()).collect();
-
     let entries: Vec<YswsEntry> = entries.into_iter().filter(|e| e.ysws.is_some()).collect();
 
     info!(
@@ -96,7 +94,6 @@ async fn update_data(http_client: &reqwest::Client, pg: &PgPool) -> anyhow::Resu
     );
 
     upsert_projects(&entries, pg).await?;
-    soft_delete_missing(&all_airtable_ids, pg).await?;
 
     Ok(())
 }
@@ -148,9 +145,9 @@ async fn upsert_projects(entries: &[YswsEntry], pg: &PgPool) -> anyhow::Result<(
                 github_stars = EXCLUDED.github_stars, \
                 display_name = EXCLUDED.display_name, \
                 archived_demo = EXCLUDED.archived_demo, \
-                archived_repo = EXCLUDED.archived_repo, \
-                deleted_at = NULL \
-                WHERE projects.ysws IS DISTINCT FROM EXCLUDED.ysws \
+                archived_repo = EXCLUDED.archived_repo \
+                WHERE projects.deleted_at IS NULL \
+                AND (projects.ysws IS DISTINCT FROM EXCLUDED.ysws \
                 OR projects.approved_at IS DISTINCT FROM EXCLUDED.approved_at \
                 OR projects.code_url IS DISTINCT FROM EXCLUDED.code_url \
                 OR projects.country IS DISTINCT FROM EXCLUDED.country \
@@ -161,8 +158,7 @@ async fn upsert_projects(entries: &[YswsEntry], pg: &PgPool) -> anyhow::Result<(
                 OR projects.github_stars IS DISTINCT FROM EXCLUDED.github_stars \
                 OR projects.display_name IS DISTINCT FROM EXCLUDED.display_name \
                 OR projects.archived_demo IS DISTINCT FROM EXCLUDED.archived_demo \
-                OR projects.archived_repo IS DISTINCT FROM EXCLUDED.archived_repo \
-                OR projects.deleted_at IS NOT NULL",
+                OR projects.archived_repo IS DISTINCT FROM EXCLUDED.archived_repo)",
         );
 
         let result = qb.build().execute(&mut *tx).await?;
@@ -171,23 +167,6 @@ async fn upsert_projects(entries: &[YswsEntry], pg: &PgPool) -> anyhow::Result<(
 
     tx.commit().await?;
     info!("upserted {} entries ({} modified)", entries.len(), modified);
-
-    Ok(())
-}
-
-#[instrument(skip_all)]
-async fn soft_delete_missing(airtable_ids: &[String], pg: &PgPool) -> anyhow::Result<()> {
-    let ids: Vec<&str> = airtable_ids.iter().map(String::as_str).collect();
-    let deleted = sqlx::query_scalar!(
-        "UPDATE projects SET deleted_at = NOW() WHERE airtable_id != ALL($1) AND deleted_at IS NULL RETURNING 1 as count",
-        &ids as &[&str]
-    )
-    .fetch_all(pg)
-    .await?;
-
-    if !deleted.is_empty() {
-        info!("soft-deleted {} missing projects", deleted.len());
-    }
 
     Ok(())
 }
