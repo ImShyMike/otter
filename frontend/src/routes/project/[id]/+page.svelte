@@ -174,11 +174,11 @@
 					{/if}
 					{#if p.archived_demo}
 						<a
-							href={p.demo_url}
+							href={p.archived_demo}
 							target="_blank"
 							rel="noopener external"
 							data-umami-event="project-archived-demo"
-							data-umami-event-url={p.demo_url}
+							data-umami-event-url={p.archived_demo}
 						>
 							<Button variant="outline" size="sm">
 								<ExternalLink class="mr-1 h-3 w-3" /> Archived Demo
@@ -187,11 +187,11 @@
 					{/if}
 					{#if p.archived_repo}
 						<a
-							href={p.code_url}
+							href={p.archived_repo}
 							target="_blank"
 							rel="noopener external"
 							data-umami-event="project-archived-code"
-							data-umami-event-url={p.code_url}
+							data-umami-event-url={p.archived_repo}
 						>
 							<Button variant="outline" size="sm">
 								<Code class="mr-1 h-3 w-3" /> Archived Code
