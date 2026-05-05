@@ -74,7 +74,12 @@ pub fn run<'a>(pg: &'a PgPool) -> Pin<Box<dyn Future<Output = anyhow::Result<()>
                     break;
                 }
 
-                let ids: Vec<&str> = transactions
+                let inbound_transactions: Vec<&Transaction> = transactions
+                    .iter()
+                    .filter(|transaction| transaction.amount_cents > 0)
+                    .collect();
+
+                let ids: Vec<&str> = inbound_transactions
                     .iter()
                     .map(|transaction| transaction.id.as_str())
                     .collect();
@@ -88,12 +93,12 @@ pub fn run<'a>(pg: &'a PgPool) -> Pin<Box<dyn Future<Output = anyhow::Result<()>
                 .into_iter()
                 .collect();
 
-                let stop_at = transactions
+                let stop_at = inbound_transactions
                     .iter()
                     .position(|transaction| existing_ids.contains(&transaction.id))
-                    .unwrap_or(transactions.len());
+                    .unwrap_or(inbound_transactions.len());
 
-                let new_transactions = &transactions[..stop_at];
+                let new_transactions = &inbound_transactions[..stop_at];
 
                 if !new_transactions.is_empty() {
                     inserted += insert_transactions(new_transactions, pg).await?;
@@ -139,7 +144,7 @@ async fn fetch_transactions(
 }
 
 #[instrument(skip_all)]
-async fn insert_transactions(transactions: &[Transaction], pg: &PgPool) -> anyhow::Result<u64> {
+async fn insert_transactions(transactions: &[&Transaction], pg: &PgPool) -> anyhow::Result<u64> {
     let mut tx = pg.begin().await?;
 
     let mut inserted = 0;
