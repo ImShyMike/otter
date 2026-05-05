@@ -20,6 +20,7 @@ features:
 oauth_config:
   scopes:
     bot:
+      - files:write
       - chat:write.customize
       - chat:write
       - commands
