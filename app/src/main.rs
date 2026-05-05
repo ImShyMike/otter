@@ -45,18 +45,26 @@ async fn main() -> anyhow::Result<()> {
 
     jobs::schedule_all(&pg).await?;
 
-    let pg_startup = pg.clone();
-    tokio::spawn(async move {
-        if let Err(e) = jobs::run_job(&pg_startup, JobKind::ShipsData).await {
-            tracing::error!("startup fetch_data failed: {e}");
+    let run_jobs_on_startup = env::var("RUN_JOBS_ON_STARTUP")
+        .map(|v| v == "true")
+        .unwrap_or(true);
+
+    if run_jobs_on_startup {
+        let startup_jobs = [
+            JobKind::ShipsData,
+            JobKind::AirbridgeData,
+            JobKind::FinesData,
+        ];
+        for job in startup_jobs {
+            let pg_startup = pg.clone();
+            let job_name = format!("{job:?}").to_lowercase();
+            tokio::spawn(async move {
+                if let Err(e) = jobs::run_job(&pg_startup, job).await {
+                    tracing::error!("startup {} failed: {e}", job_name);
+                }
+            });
         }
-    });
-    let pg_startup = pg.clone();
-    tokio::spawn(async move {
-        if let Err(e) = jobs::run_job(&pg_startup, JobKind::AirbridgeData).await {
-            tracing::error!("startup airbridge_data failed: {e}");
-        }
-    });
+    }
 
     let state = AppState { pg, redis };
     let app = routes::build().with_state(state);

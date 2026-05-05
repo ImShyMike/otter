@@ -1,4 +1,5 @@
 mod airbridge_data;
+mod fines_data;
 mod ships_data;
 
 use std::pin::Pin;
@@ -13,18 +14,26 @@ type JobFn =
     for<'a> fn(&'a PgPool) -> Pin<Box<dyn Future<Output = anyhow::Result<()>> + Send + 'a>>;
 
 /// Job list
+#[derive(Debug)]
+#[allow(clippy::enum_variant_names)]
 pub enum JobKind {
     ShipsData,
     AirbridgeData,
+    FinesData,
 }
 
 impl JobKind {
-    const ALL: &[JobKind] = &[JobKind::ShipsData, JobKind::AirbridgeData];
+    const ALL: &[JobKind] = &[
+        JobKind::ShipsData,
+        JobKind::AirbridgeData,
+        JobKind::FinesData,
+    ];
 
     fn lock_id(&self) -> i64 {
         match self {
             JobKind::ShipsData => 1,
             JobKind::AirbridgeData => 2,
+            JobKind::FinesData => 3,
         }
     }
 
@@ -32,6 +41,7 @@ impl JobKind {
         match self {
             JobKind::ShipsData => "0 0 */3 * * *",
             JobKind::AirbridgeData => "0 0 */1 * * *",
+            JobKind::FinesData => "0 0 */1 * * *",
         }
     }
 
@@ -39,6 +49,7 @@ impl JobKind {
         match self {
             JobKind::ShipsData => ships_data::run,
             JobKind::AirbridgeData => airbridge_data::run,
+            JobKind::FinesData => fines_data::run,
         }
     }
 }
