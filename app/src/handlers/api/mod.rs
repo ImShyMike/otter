@@ -1,3 +1,4 @@
+pub mod fines;
 pub mod media;
 pub mod project;
 pub mod query;
@@ -44,6 +45,7 @@ pub fn router() -> OpenApiRouter<AppState> {
         .routes(routes!(search::search))
         .routes(routes!(ysws::ysws_program_list))
         .routes(routes!(query::query))
+        .routes(routes!(fines::fines))
         .routes(routes!(media::media))
         .routes(routes!(media::media_redirect))
         .routes(routes!(media::media_batch))
