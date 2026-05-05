@@ -11,7 +11,7 @@ const cache = new Map<string, Writable<MediaState>>();
 const pending = new Set<string>();
 let flushTimer: ReturnType<typeof setTimeout> | null = null;
 const FLUSH_DELAY_MS = 30;
-const MAX_BATCH = 200;
+const MAX_BATCH = 100;
 
 function ensureFlushScheduled() {
 	if (flushTimer || pending.size === 0) return;
