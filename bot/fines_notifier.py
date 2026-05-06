@@ -129,7 +129,7 @@ def upload_file_with_comment(
     filename = f"deleted-projects-fine-{fine_id(fine)}-{timestamp}.csv"
 
     comment_lines = [
-        f"*New fine: ID {fine_id(fine)}*",
+        "*New fine*",
         f"Amount: {amount_dollars(fine.get('amount_cents'))}",
         f"YSWS: {fine.get('ysws') or 'unknown'}",
         f"Date: {fine.get('date') or 'unknown'}",
