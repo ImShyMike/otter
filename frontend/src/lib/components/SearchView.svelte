@@ -15,7 +15,7 @@
 <div class="flex flex-col gap-4">
 	{#each results as r (r.id)}
 		<div class="flex gap-4">
-			<div class="flex flex-1 flex-col">
+			<div class="flex min-w-0 flex-1 flex-col">
 				<div class="flex flex-wrap items-center gap-2">
 					<h3 class="text-lg font-medium">
 						<a
@@ -44,7 +44,7 @@
 						>
 					{/if}
 				</div>
-				<p class="mt-1 flex-2 text-sm text-muted-foreground">{truncate(r.description)}</p>
+				<p class="mt-1 text-sm wrap-break-word text-muted-foreground">{truncate(r.description)}</p>
 				<div class="mt-auto flex flex-wrap gap-3 pt-2">
 					{#if r.demo_url}
 						<a

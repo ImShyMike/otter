@@ -77,7 +77,7 @@
 				{/if}
 			</Card.Header>
 			<Card.Content class="flex-1">
-				<p class="text-sm text-muted-foreground">{truncate(r.description, 120)}</p>
+				<p class="text-sm wrap-break-word text-muted-foreground">{truncate(r.description, 120)}</p>
 			</Card.Content>
 			{#if r.code_url || r.demo_url || r.archived_repo || r.archived_demo}
 				<Card.Footer class="gap-2">
