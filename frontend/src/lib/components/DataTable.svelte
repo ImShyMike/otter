@@ -30,7 +30,7 @@
 	import Share2 from '@lucide/svelte/icons/share-2';
 	import X from '@lucide/svelte/icons/x';
 	import lzString from 'lz-string';
-	import { API_BASE, title as projectTitle, imageUrl } from '$lib/search';
+	import { title as projectTitle, imageUrl } from '$lib/search';
 	import type { ProjectItem } from '$lib/types';
 	import { formatApproved } from '$lib/utils';
 	import { onMount, untrack } from 'svelte';
@@ -340,7 +340,7 @@
 
 	onMount(async () => {
 		try {
-			const res = await fetch(`${API_BASE}/api/v1/ysws/list`);
+			const res = await fetch('/api/v1/ysws/list');
 			yswsOptions = await res.json();
 		} catch {
 			yswsOptions = [];
@@ -453,7 +453,7 @@
 				}
 			}
 
-			const res = await fetch(`${API_BASE}/api/v1/query`, {
+			const res = await fetch('/api/v1/query', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify(body)
