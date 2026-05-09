@@ -1,4 +1,5 @@
 import { writable, type Readable, type Writable } from 'svelte/store';
+import { API_BASE } from './search';
 import type { MediaBatchResponse, MediaItem } from './types';
 
 export type MediaState =
@@ -25,7 +26,7 @@ async function flush() {
 	for (const id of ids) pending.delete(id);
 
 	try {
-		const res = await fetch('/api/v1/media/batch', {
+		const res = await fetch(`${API_BASE}/api/v1/media/batch`, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({ ids })

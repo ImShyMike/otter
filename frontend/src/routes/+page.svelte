@@ -5,6 +5,7 @@
 	import LayoutGrid from '@lucide/svelte/icons/layout-grid';
 	import SearchView from '$lib/components/SearchView.svelte';
 	import CardsView from '$lib/components/CardsView.svelte';
+	import { API_BASE } from '$lib/search';
 	import type { SearchResult, SearchResults, SearchTimings } from '$lib/types';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
@@ -80,7 +81,7 @@
 		searched = true;
 		try {
 			const res = await fetch(
-				`/api/v1/search?q=${encodeURIComponent(q)}&limit=${perPage}&page=${page}`
+				`${API_BASE}/api/v1/search?q=${encodeURIComponent(q)}&limit=${perPage}&page=${page}`
 			);
 			const body: SearchResults = await res.json();
 			results = append ? [...results, ...body.data] : body.data;

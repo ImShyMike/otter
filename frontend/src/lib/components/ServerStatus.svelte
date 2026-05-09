@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import Clock3 from '@lucide/svelte/icons/clock-3';
 	import ChartColumnBig from '@lucide/svelte/icons/chart-column-big';
+	import { API_BASE } from '$lib/search';
 
 	interface ServerStatusResponse {
 		last_refreshed_at: number | null;
@@ -13,7 +14,7 @@
 
 	onMount(async () => {
 		try {
-			const res = await fetch('/api/v1/status');
+			const res = await fetch(`${API_BASE}/api/v1/status`);
 			const body = (await res.json()) as ServerStatusResponse;
 			lastRefreshedAt = body.last_refreshed_at;
 			totalProjects = body.total_projects;

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import './layout.css';
 	import ThemeToggle from '$lib/components/ThemeToggle.svelte';
+	import { API_BASE } from '$lib/search';
 
 	let { children } = $props();
 </script>
@@ -10,6 +11,7 @@
 </div>
 
 <svelte:head>
+	<link rel="preconnect" href={API_BASE} />
 	<link rel="preconnect" href="https://airtableusercontent.com" />
 	<script>
 		(() => {
