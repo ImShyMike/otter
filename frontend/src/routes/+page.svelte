@@ -210,6 +210,7 @@
 					bind:value={query}
 					onkeydown={handleKeydown}
 					class="h-9 pr-9"
+					autofocus
 				/>
 				{#if query}
 					<button
