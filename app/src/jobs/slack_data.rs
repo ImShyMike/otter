@@ -2,8 +2,8 @@ use std::{env, pin::Pin, time::Duration};
 
 use serde::{Deserialize, Serialize};
 use sqlx::{PgPool, Postgres, QueryBuilder};
-use tracing::{info, instrument, warn, Instrument};
 use std::future::Future;
+use tracing::{Instrument, info, instrument, warn};
 
 const SLACK_USERS_URL: &str = "https://slack.com/api/users.list";
 const PAGE_LIMIT: usize = 1000;
@@ -49,7 +49,7 @@ struct SlackUserProfile {
     #[serde(default)]
     image_72: Option<String>,
     #[serde(default)]
-    image_512: Option<String>
+    image_512: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -89,8 +89,8 @@ pub fn run<'a>(pg: &'a PgPool) -> Pin<Box<dyn Future<Output = anyhow::Result<()>
             let mut modified_users = 0usize;
 
             loop {
-                let response = fetch_users_page(&http_client, &slack_token, cursor.as_deref())
-                    .await?;
+                let response =
+                    fetch_users_page(&http_client, &slack_token, cursor.as_deref()).await?;
 
                 if response.members.is_empty() {
                     info!(page, "slack page returned no users");
@@ -219,28 +219,42 @@ async fn upsert_users(pg: &PgPool, users: &[SlackUser]) -> anyhow::Result<u64> {
             .map(|user| {
                 let email = user.profile.email.clone();
                 let tz = user.tz.clone();
-                let real_name = user.real_name.clone().or_else(|| user.profile.real_name.clone());
+                let real_name = user
+                    .real_name
+                    .clone()
+                    .or_else(|| user.profile.real_name.clone());
                 let display_name_normalized = user.profile.display_name_normalized.clone();
                 let image_72 = user.profile.image_72.clone();
                 let image_512 = user.profile.image_512.clone();
 
-                Ok((user, email, tz, real_name, display_name_normalized, image_72, image_512))
+                Ok((
+                    user,
+                    email,
+                    tz,
+                    real_name,
+                    display_name_normalized,
+                    image_72,
+                    image_512,
+                ))
             })
             .collect::<Result<_, anyhow::Error>>()?;
 
-        qb.push_values(rows.iter(), |mut b, (user, email, tz, real_name, display_name_normalized, image_72, image_512)| {
-            b.push_bind(&user.id)
-                .push_bind(&user.team_id)
-                .push_bind(&user.name)
-                .push_bind(email.as_deref())
-                .push_bind(tz.as_deref())
-                .push_bind(real_name.as_deref())
-                .push_bind(display_name_normalized.as_deref())
-                .push_bind(user.deleted)
-                .push_bind(user.updated)
-                .push_bind(image_72.as_deref())
-                .push_bind(image_512.as_deref());
-        });
+        qb.push_values(
+            rows.iter(),
+            |mut b, (user, email, tz, real_name, display_name_normalized, image_72, image_512)| {
+                b.push_bind(&user.id)
+                    .push_bind(&user.team_id)
+                    .push_bind(&user.name)
+                    .push_bind(email.as_deref())
+                    .push_bind(tz.as_deref())
+                    .push_bind(real_name.as_deref())
+                    .push_bind(display_name_normalized.as_deref())
+                    .push_bind(user.deleted)
+                    .push_bind(user.updated)
+                    .push_bind(image_72.as_deref())
+                    .push_bind(image_512.as_deref());
+            },
+        );
 
         qb.push(
             " ON CONFLICT (slack_id) DO UPDATE SET \
