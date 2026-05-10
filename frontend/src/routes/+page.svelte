@@ -3,6 +3,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import Search from '@lucide/svelte/icons/search';
 	import LayoutGrid from '@lucide/svelte/icons/layout-grid';
+	import LayoutList from '@lucide/svelte/icons/layout-list';
 	import SearchView from '$lib/components/SearchView.svelte';
 	import CardsView from '$lib/components/CardsView.svelte';
 	import { API_BASE } from '$lib/search';
@@ -317,7 +318,7 @@
 					onclick={() => changeViewMode('search')}
 					data-umami-event="view-mode-search"
 				>
-					<Search class="h-4 w-4" />
+					<LayoutList class="h-4 w-4" />
 				</Button>
 				<Button
 					variant={viewMode === 'cards' ? 'default' : 'ghost'}
