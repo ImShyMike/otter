@@ -10,6 +10,7 @@ from typing import Optional, TypedDict
 import fines_notifier
 import requests
 from dotenv import load_dotenv
+from pathlib import Path
 from slack_bolt import App
 from slack_bolt.adapter.socket_mode import SocketModeHandler
 from slack_sdk.errors import SlackApiError
@@ -41,12 +42,15 @@ class ProjectItem(TypedDict, total=False):
     preview_blurhash: Optional[str]
 
 
-load_dotenv()
+_current_env = Path(__file__).resolve().parent / ".env"
+_root_env = Path(__file__).resolve().parents[1] / ".env"
+_env_file = _current_env if _current_env.exists() else _root_env
+load_dotenv(dotenv_path=str(_env_file))
 
 app = App(token=os.environ["SLACK_BOT_TOKEN"])
 
 API_BASE = os.environ.get("OTTER_API_BASE", "http://localhost:3000").rstrip("/")
-FRONTEND_BASE = os.environ.get("OTTER_FRONTEND_BASE", "http://localhost:5173").rstrip(
+FRONTEND_BASE = os.environ.get("FRONTEND_URL", "http://localhost:5173").rstrip(
     "/"
 )
 OTTER_OWNER_ID = os.environ.get("OTTER_OWNER_ID", "").strip()

@@ -158,7 +158,10 @@ def upload_file_with_comment(
 
 
 def main() -> int:
-    load_dotenv()
+    _current_env = Path(__file__).resolve().parent / ".env"
+    _root_env = Path(__file__).resolve().parents[1] / ".env"
+    _env_file = _current_env if _current_env.exists() else _root_env
+    load_dotenv(dotenv_path=str(_env_file))
 
     slack_token = required_env("SLACK_BOT_TOKEN")
     api_base = os.environ.get("OTTER_API_BASE", DEFAULT_API_BASE).rstrip("/")

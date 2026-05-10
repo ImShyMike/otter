@@ -54,6 +54,7 @@ async fn main() -> anyhow::Result<()> {
             JobKind::ShipsData,
             JobKind::AirbridgeData,
             JobKind::FinesData,
+            JobKind::SlackData,
         ];
         for job in startup_jobs {
             let pg_startup = pg.clone();

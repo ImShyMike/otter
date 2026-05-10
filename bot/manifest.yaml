@@ -26,6 +26,7 @@ oauth_config:
       - commands
       - users.profile:read
       - users:read
+      - users.read.email
       - channels:history
   pkce_enabled: false
 settings:

@@ -1,6 +1,7 @@
 mod airbridge_data;
 mod fines_data;
 mod ships_data;
+mod slack_data;
 
 use std::pin::Pin;
 
@@ -20,6 +21,7 @@ pub enum JobKind {
     ShipsData,
     AirbridgeData,
     FinesData,
+    SlackData,
 }
 
 impl JobKind {
@@ -27,6 +29,7 @@ impl JobKind {
         JobKind::ShipsData,
         JobKind::AirbridgeData,
         JobKind::FinesData,
+        JobKind::SlackData,
     ];
 
     fn lock_id(&self) -> i64 {
@@ -34,6 +37,7 @@ impl JobKind {
             JobKind::ShipsData => 1,
             JobKind::AirbridgeData => 2,
             JobKind::FinesData => 3,
+            JobKind::SlackData => 4,
         }
     }
 
@@ -42,6 +46,7 @@ impl JobKind {
             JobKind::ShipsData => "0 0 */3 * * *",
             JobKind::AirbridgeData => "0 0 */1 * * *",
             JobKind::FinesData => "0 0 */1 * * *",
+            JobKind::SlackData => "0 0 */6 * * *",
         }
     }
 
@@ -50,6 +55,7 @@ impl JobKind {
             JobKind::ShipsData => ships_data::run,
             JobKind::AirbridgeData => airbridge_data::run,
             JobKind::FinesData => fines_data::run,
+            JobKind::SlackData => slack_data::run,
         }
     }
 }
