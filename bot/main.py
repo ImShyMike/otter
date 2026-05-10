@@ -5,15 +5,16 @@ import re
 import threading
 import time
 import traceback
+from pathlib import Path
 from typing import Optional, TypedDict
 
-import fines_notifier
 import requests
 from dotenv import load_dotenv
-from pathlib import Path
 from slack_bolt import App
 from slack_bolt.adapter.socket_mode import SocketModeHandler
 from slack_sdk.errors import SlackApiError
+
+import fines_notifier
 
 FINES_NOTIFIER_INTERVAL_SECONDS = 60 * 60
 
@@ -50,9 +51,7 @@ load_dotenv(dotenv_path=str(_env_file))
 app = App(token=os.environ["SLACK_BOT_TOKEN"])
 
 API_BASE = os.environ.get("OTTER_API_BASE", "http://localhost:3000").rstrip("/")
-FRONTEND_BASE = os.environ.get("FRONTEND_URL", "http://localhost:5173").rstrip(
-    "/"
-)
+FRONTEND_BASE = os.environ.get("FRONTEND_URL", "http://localhost:5173").rstrip("/")
 OTTER_OWNER_ID = os.environ.get("OTTER_OWNER_ID", "").strip()
 
 USER_MENTION_RE = re.compile(r"<@([UW][A-Z0-9]+)(?:\|[^>]+)?>")
