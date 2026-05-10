@@ -210,7 +210,7 @@ async fn upsert_users(pg: &PgPool, users: &[SlackUser]) -> anyhow::Result<u64> {
 
     for chunk in users.chunks(PAGE_LIMIT) {
         let mut qb: QueryBuilder<Postgres> = QueryBuilder::new(
-            "INSERT INTO slack_users (slack_id, team_id, name, email, tz, real_name, display_name_normalized, deleted, updated_unix, image_72, image_512) ",
+            "INSERT INTO slack_users (slack_id, team_id, name, email, tz, real_name, display_name, display_name_normalized, deleted, updated_unix, image_72, image_512) ",
         );
 
         let rows: Vec<_> = chunk
@@ -223,6 +223,7 @@ async fn upsert_users(pg: &PgPool, users: &[SlackUser]) -> anyhow::Result<u64> {
                     .real_name
                     .clone()
                     .or_else(|| user.profile.real_name.clone());
+                let display_name = user.profile.display_name.clone();
                 let display_name_normalized = user.profile.display_name_normalized.clone();
                 let image_72 = user.profile.image_72.clone();
                 let image_512 = user.profile.image_512.clone();
@@ -232,6 +233,7 @@ async fn upsert_users(pg: &PgPool, users: &[SlackUser]) -> anyhow::Result<u64> {
                     email,
                     tz,
                     real_name,
+                    display_name,
                     display_name_normalized,
                     image_72,
                     image_512,
@@ -241,13 +243,24 @@ async fn upsert_users(pg: &PgPool, users: &[SlackUser]) -> anyhow::Result<u64> {
 
         qb.push_values(
             rows.iter(),
-            |mut b, (user, email, tz, real_name, display_name_normalized, image_72, image_512)| {
+            |mut b,
+             (
+                user,
+                email,
+                tz,
+                real_name,
+                display_name,
+                display_name_normalized,
+                image_72,
+                image_512,
+            )| {
                 b.push_bind(&user.id)
                     .push_bind(&user.team_id)
                     .push_bind(&user.name)
                     .push_bind(email.as_deref())
                     .push_bind(tz.as_deref())
                     .push_bind(real_name.as_deref())
+                    .push_bind(display_name.as_deref())
                     .push_bind(display_name_normalized.as_deref())
                     .push_bind(user.deleted)
                     .push_bind(user.updated)
@@ -263,6 +276,7 @@ async fn upsert_users(pg: &PgPool, users: &[SlackUser]) -> anyhow::Result<u64> {
                 email = EXCLUDED.email, \
                 tz = EXCLUDED.tz, \
                 real_name = EXCLUDED.real_name, \
+                display_name = EXCLUDED.display_name, \
                 display_name_normalized = EXCLUDED.display_name_normalized, \
                 deleted = EXCLUDED.deleted, \
                 updated_unix = EXCLUDED.updated_unix, \
@@ -274,6 +288,7 @@ async fn upsert_users(pg: &PgPool, users: &[SlackUser]) -> anyhow::Result<u64> {
                 OR slack_users.email IS DISTINCT FROM EXCLUDED.email \
                 OR slack_users.tz IS DISTINCT FROM EXCLUDED.tz \
                 OR slack_users.real_name IS DISTINCT FROM EXCLUDED.real_name \
+                OR slack_users.display_name IS DISTINCT FROM EXCLUDED.display_name \
                 OR slack_users.display_name_normalized IS DISTINCT FROM EXCLUDED.display_name_normalized \
                 OR slack_users.deleted IS DISTINCT FROM EXCLUDED.deleted \
                 OR slack_users.updated_unix IS DISTINCT FROM EXCLUDED.updated_unix \
