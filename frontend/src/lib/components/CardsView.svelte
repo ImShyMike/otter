@@ -15,7 +15,7 @@
 </script>
 
 <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-	{#each results as r (r.id)}
+	{#each results as r (r.airtable_id)}
 		<Card.Card class="flex flex-col">
 			<ExpandableImage
 				id={r.id}
