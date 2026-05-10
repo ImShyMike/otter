@@ -13,7 +13,7 @@
 	import Spinner from '$lib/components/ui/spinner/spinner.svelte';
 	import TableIcon from '@lucide/svelte/icons/table';
 	import X from '@lucide/svelte/icons/x';
-	import { SvelteURLSearchParams } from 'svelte/reactivity';
+	import { SvelteSet, SvelteURLSearchParams } from 'svelte/reactivity';
 	import { untrack } from 'svelte';
 	import Head from '$lib/components/Head.svelte';
 	import StarIcon from '@lucide/svelte/icons/star';
@@ -29,6 +29,15 @@
 
 	const LOW_SCORE_THRESHOLD = 0.25;
 
+	function dedupeByAirtableId(items: SearchResult[]) {
+		const seen = new SvelteSet<string>();
+		return items.filter((item) => {
+			if (seen.has(item.airtable_id)) return false;
+			seen.add(item.airtable_id);
+			return true;
+		});
+	}
+
 	const suggestedSearches: SuggestedSearch[] = [
 		{ label: 'DoomPDF', query: 'DoomPDF' },
 		{ label: 'VERT', query: 'VERT' },
@@ -43,10 +52,11 @@
 	let query = $state(page.url.searchParams.get('q') ?? '');
 	let results = $state<SearchResult[]>([]);
 	let showLowScore = $state(false);
+	let dedupedResults = $derived(dedupeByAirtableId(results));
 	let validResults = $derived(
 		showLowScore
-			? results
-			: results.filter((r) => r.score !== null && r.score >= LOW_SCORE_THRESHOLD)
+			? dedupedResults
+			: dedupedResults.filter((r) => r.score !== null && r.score >= LOW_SCORE_THRESHOLD)
 	);
 	let loading = $state(false);
 	let loadingMore = $state(false);
@@ -323,7 +333,7 @@
 		{#if !loading && results.length === 0}
 			<p class="py-12 text-center text-muted-foreground">No results found for "{query}"</p>
 		{:else if !loading && results.length > 0}
-			{@const displayResults = validResults.length > 0 ? validResults : results}
+			{@const displayResults = validResults.length > 0 ? validResults : dedupedResults}
 			{#if viewMode === 'search'}
 				<SearchView results={displayResults} />
 			{:else}
@@ -331,7 +341,7 @@
 			{/if}
 		{/if}
 
-		{@const hiddenCount = results.length - validResults.length}
+		{@const hiddenCount = dedupedResults.length - validResults.length}
 		{@const pageOffset = (currentPage - 1) * perPage}
 		{@const trueHiddenCount = Math.max(0, totalResults - pageOffset - validResults.length)}
 		{@const showHiddenResultsNotice = hiddenCount > 0 && validResults.length > 0}
