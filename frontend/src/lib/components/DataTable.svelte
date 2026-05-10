@@ -769,7 +769,7 @@
 					<select
 						bind:value={filter.field}
 						onchange={() => onFieldChange(filter)}
-						class="h-8 cursor-pointer rounded-lg border border-input bg-popover text-popover-foreground px-2.5 py-1 text-sm"
+						class="h-8 cursor-pointer rounded-lg border border-input bg-popover px-2.5 py-1 text-sm text-popover-foreground"
 					>
 						{#each Object.entries(FIELDS) as [key, meta] (key)}
 							<option value={key}>{meta.label}</option>
@@ -778,7 +778,7 @@
 					<select
 						bind:value={filter.op}
 						onchange={onFilterChange}
-						class="h-8 cursor-pointer rounded-lg border border-input bg-popover text-popover-foreground px-2.5 py-1 pr-7 text-sm"
+						class="h-8 cursor-pointer rounded-lg border border-input bg-popover px-2.5 py-1 pr-7 text-sm text-popover-foreground"
 					>
 						{#each getAvailableOps(filter.field) as op (op)}
 							<option value={op}>{OP_LABELS[op]}</option>
@@ -796,7 +796,7 @@
 							<select
 								bind:value={filter.value}
 								onchange={onFilterChange}
-								class="h-8 cursor-pointer rounded-lg border border-input bg-popover text-popover-foreground px-2.5 py-1 text-sm"
+								class="h-8 cursor-pointer rounded-lg border border-input bg-popover px-2.5 py-1 text-sm text-popover-foreground"
 							>
 								<option value="">Select…</option>
 								<option value="true">true</option>
@@ -939,7 +939,7 @@
 						id="page-size"
 						value={pagination.pageSize}
 						onchange={onPageSizeChange}
-						class="h-7 cursor-pointer rounded-lg border border-input bg-popover text-popover-foreground px-2.5 py-1 pr-8 text-sm"
+						class="h-7 cursor-pointer rounded-lg border border-input bg-popover px-2.5 py-1 pr-8 text-sm text-popover-foreground"
 					>
 						{#each PAGE_SIZE_OPTIONS as size (size)}
 							<option value={size}>{size}</option>
