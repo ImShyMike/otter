@@ -12,10 +12,10 @@
 			'@context': 'https://schema.org',
 			'@type': 'WebSite',
 			name: 'Otter',
-			alternateName: 'Otter — Search engine for all Hack Club projects',
+			alternateName: 'Otter · Search engine for all Hack Club projects',
 			url: `${siteOrigin}/`,
 			description:
-				'Semantic search engine for projects submitted to Hack Club YSWS (You Ship, We Ship) programs. Search thousands of teen-built apps, games, and hardware projects.',
+				'Semantic search engine for projects submitted to Hack Club YSWS (You Ship, We Ship) programs. Search thousands of teen-built websites, apps, games, and hardware projects.',
 			potentialAction: {
 				'@type': 'SearchAction',
 				target: {

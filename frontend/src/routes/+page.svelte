@@ -190,13 +190,13 @@
 	let trimmedQuery = $derived(query.trim());
 	let pageTitle = $derived(
 		trimmedQuery
-			? `${trimmedQuery} — Otter (Search engine for all Hack Club projects)`
-			: 'Otter — Search engine for all Hack Club projects'
+			? `${trimmedQuery} · Otter (Search engine for all Hack Club projects)`
+			: 'Otter · Search engine for all Hack Club projects'
 	);
 	let pageDescription = $derived(
 		trimmedQuery
 			? `Search results for "${trimmedQuery}" across thousands of Hack Club YSWS projects.`
-			: 'Semantic search engine for Hack Club YSWS projects. Find apps, games, and hardware built by teens around the world.'
+			: 'Semantic search engine for Hack Club YSWS projects. Find websites, apps, games, and hardware projects built by teens around the world.'
 	);
 </script>
 
@@ -206,10 +206,10 @@
 
 <p class="sr-only">
 	Otter is a free and open-source semantic search engine for Hack Club projects. It indexes the
-	Unified YSWS (You Ship, We Ship) database and lets you search thousands of teen-built apps, games,
-	websites, and hardware projects using vector embeddings, full-text, and trigram search. Filter
-	results by user with the user:username syntax, use "quoted phrases" for exact matches, or browse
-	every project on the explore page.
+	Unified YSWS (You Ship, We Ship) database and lets you search thousands of teen-built websites,
+	apps, games, websites, and hardware projects using vector embeddings, full-text, and trigram
+	search. Filter results by user with the user:username syntax, use "quoted phrases" for exact
+	matches, or browse every project on the explore page.
 </p>
 
 <div class="absolute top-4 left-4 z-50 sm:fixed sm:top-auto sm:bottom-4">
