@@ -6,9 +6,9 @@
 	import Code from '@lucide/svelte/icons/code';
 	import ExternalLink from '@lucide/svelte/icons/external-link';
 	import Star from '@lucide/svelte/icons/star';
-	import { scoreClass, title, truncate } from '$lib/search';
+	import { title, truncate } from '$lib/search';
 	import type { SearchResult } from '$lib/types';
-	import { formatHours, formatApproved, formatFloat, cn } from '$lib/utils';
+	import { formatHours, formatApproved } from '$lib/utils';
 	import { resolve } from '$app/paths';
 
 	let { results }: { results: SearchResult[] } = $props();
@@ -29,6 +29,18 @@
 			/>
 			<Card.Header>
 				<div class="flex flex-wrap items-center gap-2">
+					{#if r.slack_id}
+						<Avatar
+							slackId={r.slack_id}
+							alt={r.inferred_username ?? ''}
+							class="h-6 w-6 sm:hidden"
+						/>
+						<Avatar
+							slackId={r.slack_id}
+							alt={r.inferred_username}
+							class="ml-1 hidden h-6 w-6 sm:inline-block"
+						/>
+					{/if}
 					<Card.Title class="text-base"
 						><a
 							href={resolve('/project/[id]', { id: r.airtable_id })}
@@ -37,18 +49,11 @@
 							data-umami-event-project={r.airtable_id}>{title(r)}</a
 						></Card.Title
 					>
-					<Badge variant="secondary" class="text-xs">{r.ysws}</Badge>
 					{#if r.github_stars > 0}
 						<Badge variant="outline" class="text-xs">{r.github_stars} <Star /></Badge>
 					{/if}
-					{#if formatHours(r)}
-						<Badge variant="outline" class="text-xs">{formatHours(r)}</Badge>
-					{/if}
 					{#if r.inferred_username}
 						<div class="flex items-center gap-1">
-							{#if r.slack_id}
-								<Avatar slackId={r.slack_id} alt={r.inferred_username} class="ml-1" size="sm" />
-							{/if}
 							<a
 								class="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
 								href={`https://github.com/${r.inferred_username}`}
@@ -58,24 +63,19 @@
 						</div>
 					{/if}
 				</div>
-				{#if r.country || formatApproved(r.approved_at) || (r.score !== null && r.score <= 1)}
+				{#if formatApproved(r.approved_at) || (r.score !== null && r.score <= 1)}
 					<Card.Description
 						class="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground"
 					>
-						{r.country ?? ''}
-						{#if r.country && formatApproved(r.approved_at)}
-							·
+						<Badge variant="secondary" class="text-xs">{r.ysws}</Badge>
+						{#if formatHours(r)}
+							<Badge variant="outline" class="text-xs">{formatHours(r)}</Badge>
+						{/if}
+						{#if r.country}
+							<Badge variant="outline" class="text-xs">{r.country}</Badge>
 						{/if}
 						{#if formatApproved(r.approved_at)}
-							Approved {formatApproved(r.approved_at)}
-						{/if}
-						{#if r.country && formatApproved(r.approved_at) && r.score !== null && r.score <= 1}
-							·
-						{/if}
-						{#if r.score !== null && r.score <= 1}
-							<span class={cn('text-xs', scoreClass(r.score))} title="Search score"
-								>Score {formatFloat(r.score * 100, 1)}%</span
-							>
+							<span>Approved {formatApproved(r.approved_at)}</span>
 						{/if}
 					</Card.Description>
 				{/if}

@@ -3,10 +3,10 @@
 	import Code from '@lucide/svelte/icons/code';
 	import Globe from '@lucide/svelte/icons/globe';
 	import Star from '@lucide/svelte/icons/star';
-	import { scoreClass, title, truncate } from '$lib/search';
+	import { title, truncate } from '$lib/search';
 	import { ExpandableImage } from '$lib/components/ui/image';
 	import type { SearchResult } from '$lib/types';
-	import { formatHours, formatApproved, cn, formatFloat } from '$lib/utils';
+	import { formatHours, formatApproved } from '$lib/utils';
 	import { resolve } from '$app/paths';
 	import Avatar from './ui/image/avatar.svelte';
 
@@ -17,7 +17,20 @@
 	{#each results as r (r.airtable_id)}
 		<div class="flex gap-4">
 			<div class="flex min-w-0 flex-1 flex-col">
-				<div class="flex flex-wrap items-center gap-2">
+				<div class="flex flex-wrap items-center gap-1">
+					{#if r.slack_id}
+						<Avatar
+							slackId={r.slack_id}
+							alt={r.inferred_username ?? ''}
+							class="sm:hidden"
+							size="sm"
+						/>
+						<Avatar
+							slackId={r.slack_id}
+							alt={r.inferred_username}
+							class="ml-1 hidden sm:inline-block"
+						/>
+					{/if}
 					<h3 class="text-lg font-medium">
 						<a
 							href={resolve('/project/[id]', { id: r.airtable_id })}
@@ -26,21 +39,11 @@
 							data-umami-event-project={r.airtable_id}>{title(r)}</a
 						>
 					</h3>
-					<Badge variant="secondary" class="text-xs">{r.ysws}</Badge>
 					{#if r.github_stars > 0}
 						<Badge variant="outline" class="text-xs">{r.github_stars} <Star /></Badge>
 					{/if}
-					{#if formatHours(r)}
-						<Badge variant="outline" class="text-xs">{formatHours(r)}</Badge>
-					{/if}
-					{#if r.country}
-						<span class="text-xs text-muted-foreground">{r.country}</span>
-					{/if}
 					{#if r.inferred_username}
 						<div class="flex items-center gap-1">
-							{#if r.slack_id}
-								<Avatar slackId={r.slack_id} alt={r.inferred_username} class="ml-1" />
-							{/if}
 							<a
 								class="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
 								href={`https://github.com/${r.inferred_username}`}
@@ -49,8 +52,17 @@
 							>
 						</div>
 					{/if}
+					<div class="mt-1 flex w-full flex-wrap items-center gap-2 sm:mt-0 sm:contents">
+						<Badge variant="secondary" class="text-xs">{r.ysws}</Badge>
+						{#if formatHours(r)}
+							<Badge variant="outline" class="text-xs">{formatHours(r)}</Badge>
+						{/if}
+						{#if r.country}
+							<Badge variant="outline" class="text-xs">{r.country}</Badge>
+						{/if}
+					</div>
 				</div>
-				<p class="mt-1 text-sm wrap-break-word text-muted-foreground">{truncate(r.description)}</p>
+				<p class="mt-2 text-sm wrap-break-word text-muted-foreground">{truncate(r.description)}</p>
 				<div class="mt-auto flex flex-wrap gap-3 pt-2">
 					{#if r.demo_url}
 						<a
@@ -79,11 +91,6 @@
 					{#if formatApproved(r.approved_at)}
 						<span class="text-xs text-muted-foreground">
 							Approved {formatApproved(r.approved_at)}</span
-						>
-					{/if}
-					{#if r.score !== null && r.score <= 1}
-						<span class={cn('text-xs', scoreClass(r.score))} title="Search score"
-							>Score {formatFloat(r.score * 100, 1)}%</span
 						>
 					{/if}
 				</div>
