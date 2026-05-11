@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id, airtable_id, ysws, approved_at, code_url, country, demo_url, description, github_username, hours, true_hours, has_media AS \"has_media!\", github_stars, display_name, archived_demo, archived_repo, inferred_repo, inferred_username, preview_blurhash FROM projects WHERE deleted_at IS NULL AND airtable_id = $1 LIMIT 1",
+  "query": "SELECT id, airtable_id, ysws, approved_at, code_url, country, demo_url, description, slack_id, github_username, hours, true_hours, has_media AS \"has_media!\", github_stars, display_name, archived_demo, archived_repo, inferred_repo, inferred_username, is_github_url, preview_blurhash FROM projects WHERE deleted_at IS NULL AND id = $1 LIMIT 1",
   "describe": {
     "columns": [
       {
@@ -45,63 +45,73 @@
       },
       {
         "ordinal": 8,
-        "name": "github_username",
+        "name": "slack_id",
         "type_info": "Text"
       },
       {
         "ordinal": 9,
+        "name": "github_username",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 10,
         "name": "hours",
         "type_info": "Int4"
       },
       {
-        "ordinal": 10,
+        "ordinal": 11,
         "name": "true_hours",
         "type_info": "Float8"
       },
       {
-        "ordinal": 11,
+        "ordinal": 12,
         "name": "has_media!",
         "type_info": "Bool"
       },
       {
-        "ordinal": 12,
+        "ordinal": 13,
         "name": "github_stars",
         "type_info": "Int4"
       },
       {
-        "ordinal": 13,
+        "ordinal": 14,
         "name": "display_name",
         "type_info": "Text"
       },
       {
-        "ordinal": 14,
+        "ordinal": 15,
         "name": "archived_demo",
         "type_info": "Text"
       },
       {
-        "ordinal": 15,
+        "ordinal": 16,
         "name": "archived_repo",
         "type_info": "Text"
       },
       {
-        "ordinal": 16,
+        "ordinal": 17,
         "name": "inferred_repo",
         "type_info": "Text"
       },
       {
-        "ordinal": 17,
+        "ordinal": 18,
         "name": "inferred_username",
         "type_info": "Text"
       },
       {
-        "ordinal": 18,
+        "ordinal": 19,
+        "name": "is_github_url",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 20,
         "name": "preview_blurhash",
         "type_info": "Text"
       }
     ],
     "parameters": {
       "Left": [
-        "Text"
+        "Int4"
       ]
     },
     "nullable": [
@@ -116,6 +126,7 @@
       true,
       true,
       true,
+      true,
       false,
       false,
       true,
@@ -123,8 +134,9 @@
       true,
       true,
       true,
+      false,
       true
     ]
   },
-  "hash": "a70dccafe6d3d58fa35b9a957f8227388834e076425386c653361d1930889415"
+  "hash": "6dade69583d446bbe89658144edf5a444463baf91fa293b54ba7c4c827c3321a"
 }

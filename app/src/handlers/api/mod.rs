@@ -27,6 +27,7 @@ pub struct ProjectItem {
     pub country: Option<String>,
     pub demo_url: Option<String>,
     pub description: Option<String>,
+    pub slack_id: Option<String>,
     pub github_username: Option<String>,
     pub hours: Option<i32>,
     pub true_hours: Option<f64>,
@@ -37,6 +38,7 @@ pub struct ProjectItem {
     pub archived_repo: Option<String>,
     pub inferred_repo: Option<String>,
     pub inferred_username: Option<String>,
+    pub is_github_url: bool,
     pub preview_blurhash: Option<String>,
 }
 

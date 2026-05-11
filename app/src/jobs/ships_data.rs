@@ -6,6 +6,7 @@ use sqlx::{PgPool, Postgres, QueryBuilder};
 use time::OffsetDateTime;
 use tracing::{Instrument, error, info, instrument};
 
+use crate::utils::code_url::parse_code_url;
 use crate::utils::serde::{deserialize_null_int, deserialize_null_string, deserialize_timestamp};
 use crate::utils::{embeddings, http};
 
@@ -30,6 +31,8 @@ struct YswsEntry {
     demo_url: Option<String>,
     #[serde(deserialize_with = "deserialize_null_string")]
     description: Option<String>,
+    #[serde(deserialize_with = "deserialize_null_string")]
+    slack_id: Option<String>,
     #[serde(deserialize_with = "deserialize_null_string")]
     github_username: Option<String>,
     #[serde(deserialize_with = "deserialize_null_int")]
@@ -113,10 +116,15 @@ async fn upsert_projects(entries: &[YswsEntry], pg: &PgPool) -> anyhow::Result<(
 
     for chunk in entries.chunks(BATCH_SIZE) {
         let mut qb: QueryBuilder<Postgres> = QueryBuilder::new(
-            "INSERT INTO projects (airtable_id, ysws, approved_at, code_url, country, demo_url, description, github_username, hours, github_stars, display_name, archived_demo, archived_repo) ",
+            "INSERT INTO projects (airtable_id, ysws, approved_at, code_url, country, demo_url, description, slack_id, github_username, hours, github_stars, display_name, archived_demo, archived_repo, inferred_repo, inferred_username, is_github_url) ",
         );
 
         qb.push_values(chunk, |mut b, entry| {
+            let parsed = entry
+                .code_url
+                .as_deref()
+                .map(parse_code_url)
+                .unwrap_or_default();
             b.push_bind(&entry.id)
                 .push_bind(&entry.ysws)
                 .push_bind(entry.approved_at.map(|t| t.unix_timestamp()))
@@ -124,12 +132,16 @@ async fn upsert_projects(entries: &[YswsEntry], pg: &PgPool) -> anyhow::Result<(
                 .push_bind(&entry.country)
                 .push_bind(&entry.demo_url)
                 .push_bind(&entry.description)
+                .push_bind(&entry.slack_id)
                 .push_bind(&entry.github_username)
                 .push_bind(entry.hours)
                 .push_bind(entry.github_stars)
                 .push_bind(&entry.display_name)
                 .push_bind(&entry.archived_demo)
-                .push_bind(&entry.archived_repo);
+                .push_bind(&entry.archived_repo)
+                .push_bind(parsed.repo)
+                .push_bind(parsed.owner)
+                .push_bind(parsed.is_github);
         });
 
         qb.push(
@@ -140,12 +152,16 @@ async fn upsert_projects(entries: &[YswsEntry], pg: &PgPool) -> anyhow::Result<(
                 country = EXCLUDED.country, \
                 demo_url = EXCLUDED.demo_url, \
                 description = EXCLUDED.description, \
+                slack_id = EXCLUDED.slack_id, \
                 github_username = EXCLUDED.github_username, \
                 hours = EXCLUDED.hours, \
                 github_stars = EXCLUDED.github_stars, \
                 display_name = EXCLUDED.display_name, \
                 archived_demo = EXCLUDED.archived_demo, \
-                archived_repo = EXCLUDED.archived_repo \
+                archived_repo = EXCLUDED.archived_repo, \
+                inferred_repo = EXCLUDED.inferred_repo, \
+                inferred_username = EXCLUDED.inferred_username, \
+                is_github_url = EXCLUDED.is_github_url \
                 WHERE projects.deleted_at IS NULL \
                 AND (projects.ysws IS DISTINCT FROM EXCLUDED.ysws \
                 OR projects.approved_at IS DISTINCT FROM EXCLUDED.approved_at \
@@ -153,12 +169,16 @@ async fn upsert_projects(entries: &[YswsEntry], pg: &PgPool) -> anyhow::Result<(
                 OR projects.country IS DISTINCT FROM EXCLUDED.country \
                 OR projects.demo_url IS DISTINCT FROM EXCLUDED.demo_url \
                 OR projects.description IS DISTINCT FROM EXCLUDED.description \
+                OR projects.slack_id IS DISTINCT FROM EXCLUDED.slack_id \
                 OR projects.github_username IS DISTINCT FROM EXCLUDED.github_username \
                 OR projects.hours IS DISTINCT FROM EXCLUDED.hours \
                 OR projects.github_stars IS DISTINCT FROM EXCLUDED.github_stars \
                 OR projects.display_name IS DISTINCT FROM EXCLUDED.display_name \
                 OR projects.archived_demo IS DISTINCT FROM EXCLUDED.archived_demo \
-                OR projects.archived_repo IS DISTINCT FROM EXCLUDED.archived_repo)",
+                OR projects.archived_repo IS DISTINCT FROM EXCLUDED.archived_repo \
+                OR projects.inferred_repo IS DISTINCT FROM EXCLUDED.inferred_repo \
+                OR projects.inferred_username IS DISTINCT FROM EXCLUDED.inferred_username \
+                OR projects.is_github_url IS DISTINCT FROM EXCLUDED.is_github_url)",
         );
 
         let result = qb.build().execute(&mut *tx).await?;

@@ -31,6 +31,7 @@ enum Field {
     Ysws,
     Country,
     Description,
+    SlackId,
     GithubUsername,
     DisplayName,
     CodeUrl,
@@ -46,6 +47,7 @@ enum Field {
     HasMedia,
     InferredRepo,
     InferredUsername,
+    IsGithubUrl,
 }
 
 impl Field {
@@ -56,6 +58,7 @@ impl Field {
             Field::Ysws => FieldDef { column: "ysws", kind: FieldKind::Text },
             Field::Country => FieldDef { column: "country", kind: FieldKind::Text },
             Field::Description => FieldDef { column: "description", kind: FieldKind::Text },
+            Field::SlackId => FieldDef { column: "slack_id", kind: FieldKind::Text },
             Field::GithubUsername => FieldDef { column: "github_username", kind: FieldKind::Text },
             Field::DisplayName => FieldDef { column: "display_name", kind: FieldKind::Text },
             Field::CodeUrl => FieldDef { column: "code_url", kind: FieldKind::Text },
@@ -71,6 +74,7 @@ impl Field {
             Field::HasMedia => FieldDef { column: "has_media", kind: FieldKind::Bool },
             Field::InferredRepo => FieldDef { column: "inferred_repo", kind: FieldKind::Text },
             Field::InferredUsername => FieldDef { column: "inferred_username", kind: FieldKind::Text },
+            Field::IsGithubUrl => FieldDef { column: "is_github_url", kind: FieldKind::Bool },
         }
     }
 }
@@ -146,6 +150,7 @@ struct QueryRow {
     country: Option<String>,
     demo_url: Option<String>,
     description: Option<String>,
+    slack_id: Option<String>,
     github_username: Option<String>,
     hours: Option<i32>,
     true_hours: Option<f64>,
@@ -156,6 +161,7 @@ struct QueryRow {
     archived_repo: Option<String>,
     inferred_repo: Option<String>,
     inferred_username: Option<String>,
+    is_github_url: bool,
     preview_blurhash: Option<String>,
     _total: i64,
 }
@@ -188,9 +194,9 @@ pub async fn query(
 
     let mut qb: QueryBuilder<sqlx::Postgres> = QueryBuilder::new(
         "SELECT id, airtable_id, ysws, approved_at, code_url, country, \
-        demo_url, description, github_username, hours, true_hours, \
+        demo_url, description, slack_id, github_username, hours, true_hours, \
         has_media, github_stars, display_name, \
-        archived_demo, archived_repo, inferred_repo, inferred_username, preview_blurhash, \
+        archived_demo, archived_repo, inferred_repo, inferred_username, is_github_url, preview_blurhash, \
         COUNT(*) OVER() AS _total FROM projects WHERE deleted_at IS NULL",
     );
 
@@ -214,26 +220,19 @@ pub async fn query(
         if def.kind == FieldKind::Bool {
             match filter.op {
                 FilterOp::IsNull => {
-                    qb.push(format_args!(" AND {} IS NULL", def.column));
+                    qb.push(" AND FALSE");
                 }
                 FilterOp::IsNotNull => {
-                    qb.push(format_args!(" AND {} IS NOT NULL", def.column));
+                    qb.push(" AND TRUE");
                 }
                 FilterOp::Eq => {
                     let v = parse_bool(&filter.value)?;
-                    if v {
-                        qb.push(format_args!(" AND {} IS NOT NULL", def.column));
-                    } else {
-                        qb.push(format_args!(" AND {} IS NULL", def.column));
-                    }
+                    qb.push(format_args!(" AND {} = ", def.column)).push_bind(v);
                 }
                 FilterOp::Neq => {
                     let v = parse_bool(&filter.value)?;
-                    if v {
-                        qb.push(format_args!(" AND {} IS NULL", def.column));
-                    } else {
-                        qb.push(format_args!(" AND {} IS NOT NULL", def.column));
-                    }
+                    qb.push(format_args!(" AND {} <> ", def.column))
+                        .push_bind(v);
                 }
                 _ => {
                     return Err(AppError::bad_request(format!(
@@ -423,6 +422,7 @@ pub async fn query(
             country: r.country,
             demo_url: r.demo_url,
             description: r.description,
+            slack_id: r.slack_id,
             github_username: r.github_username,
             hours: r.hours,
             true_hours: r.true_hours,
@@ -433,6 +433,7 @@ pub async fn query(
             archived_repo: r.archived_repo,
             inferred_repo: r.inferred_repo,
             inferred_username: r.inferred_username,
+            is_github_url: r.is_github_url,
             preview_blurhash: r.preview_blurhash,
         })
         .collect();

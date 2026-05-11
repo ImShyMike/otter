@@ -8,6 +8,7 @@ use tokio::task::JoinSet;
 use tracing::{Instrument, error, info, instrument};
 
 use crate::utils::{
+    code_url::parse_code_url,
     http,
     serde::{deserialize_null_float, deserialize_null_string, deserialize_timestamp},
 };
@@ -172,17 +173,26 @@ async fn upsert_entries(entries: &[AirbridgeEntry], pg: &PgPool) -> anyhow::Resu
 
     for chunk in entries.chunks(BATCH_SIZE) {
         let mut qb: QueryBuilder<Postgres> = QueryBuilder::new(
-            "INSERT INTO projects (airtable_id, ysws, approved_at, code_url, demo_url, github_username, true_hours) ",
+            "INSERT INTO projects (airtable_id, ysws, approved_at, code_url, demo_url, github_username, true_hours, inferred_repo, inferred_username, is_github_url) ",
         );
 
         qb.push_values(chunk, |mut b, entry| {
+            let parsed = entry
+                .fields
+                .code_url
+                .as_deref()
+                .map(parse_code_url)
+                .unwrap_or_default();
             b.push_bind(&entry.id)
                 .push_bind(entry.fields.ysws_name.as_ref().unwrap())
                 .push_bind(entry.fields.approved_at.map(|t| t.unix_timestamp()))
                 .push_bind(&entry.fields.code_url)
                 .push_bind(&entry.fields.playable_url)
                 .push_bind(&entry.fields.github_username)
-                .push_bind(entry.fields.hours_spent);
+                .push_bind(entry.fields.hours_spent)
+                .push_bind(parsed.repo)
+                .push_bind(parsed.owner)
+                .push_bind(parsed.is_github);
         });
 
         qb.push(
@@ -193,6 +203,9 @@ async fn upsert_entries(entries: &[AirbridgeEntry], pg: &PgPool) -> anyhow::Resu
                 demo_url = EXCLUDED.demo_url, \
                 github_username = EXCLUDED.github_username, \
                 true_hours = EXCLUDED.true_hours, \
+                inferred_repo = EXCLUDED.inferred_repo, \
+                inferred_username = EXCLUDED.inferred_username, \
+                is_github_url = EXCLUDED.is_github_url, \
                 deleted_at = NULL \
                 WHERE projects.ysws IS DISTINCT FROM EXCLUDED.ysws \
                 OR projects.approved_at IS DISTINCT FROM EXCLUDED.approved_at \
@@ -200,6 +213,9 @@ async fn upsert_entries(entries: &[AirbridgeEntry], pg: &PgPool) -> anyhow::Resu
                 OR projects.demo_url IS DISTINCT FROM EXCLUDED.demo_url \
                 OR projects.github_username IS DISTINCT FROM EXCLUDED.github_username \
                 OR projects.true_hours IS DISTINCT FROM EXCLUDED.true_hours \
+                OR projects.inferred_repo IS DISTINCT FROM EXCLUDED.inferred_repo \
+                OR projects.inferred_username IS DISTINCT FROM EXCLUDED.inferred_username \
+                OR projects.is_github_url IS DISTINCT FROM EXCLUDED.is_github_url \
                 OR projects.deleted_at IS NOT NULL",
         );
 

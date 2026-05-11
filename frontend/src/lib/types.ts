@@ -16,6 +16,7 @@ export interface ProjectItem {
 	approved_at: number | null;
 	display_name: string | null;
 	description: string | null;
+	slack_id: string | null;
 	ysws: string;
 	country: string | null;
 	code_url: string | null;

@@ -79,6 +79,7 @@
 		ysws: { type: 'text', label: 'YSWS' },
 		country: { type: 'text', label: 'Country' },
 		description: { type: 'text', label: 'Description' },
+		slack_id: { type: 'text', label: 'Slack ID' },
 		github_username: { type: 'text', label: 'GitHub User' },
 		display_name: { type: 'text', label: 'Name' },
 		code_url: { type: 'text', label: 'Code URL' },
@@ -91,6 +92,7 @@
 		true_hours: { type: 'float', label: 'True Hours' },
 		github_stars: { type: 'int', label: 'Stars' },
 		approved_at: { type: 'timestamp', label: 'Approved At' },
+		is_github_url: { type: 'bool', label: 'Has GitHub URL' },
 		has_media: { type: 'bool', label: 'Has Media' }
 	};
 
@@ -384,6 +386,7 @@
 		ysws: 'ysws',
 		country: 'country',
 		description: 'description',
+		slack_id: 'slack_id',
 		github_username: 'github_username',
 		code_url: 'code_url',
 		demo_url: 'demo_url',
@@ -396,6 +399,7 @@
 		true_hours: 'true_hours',
 		has_media: 'has_media',
 		approved_at: 'approved_at',
+		is_github_url: 'is_github_url',
 		display_name: 'display_name'
 	};
 
@@ -567,6 +571,12 @@
 				const value = info.getValue() as number | null;
 				return value == null ? '—' : `${value.toFixed(1)}h`;
 			},
+			enableSorting: true
+		},
+		{
+			accessorKey: 'slack_id',
+			header: 'Slack ID',
+			cell: (info) => (info.getValue() as string | null) ?? '—',
 			enableSorting: true
 		},
 		{
