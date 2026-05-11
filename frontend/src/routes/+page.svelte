@@ -228,10 +228,7 @@
 
 <div class="overflow-none mx-auto flex min-h-screen max-w-4xl flex-col px-4 py-4 pt-8">
 	<div class="mb-8 text-center" class:mt-[20vh]={!searched} class:mt-0={searched}>
-		<a
-			href={resolve('/')}
-			aria-label="Otter — Search engine for all Hack Club projects home"
-		>
+		<a href={resolve('/')} aria-label="Otter — Search engine for all Hack Club projects home">
 			<h1
 				class="mb-2 text-3xl font-bold tracking-tight"
 				aria-label="Otter — Search engine for all Hack Club projects"
