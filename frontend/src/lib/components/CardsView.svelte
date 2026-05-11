@@ -2,7 +2,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Badge } from '$lib/components/ui/badge';
 	import * as Card from '$lib/components/ui/card';
-	import { ExpandableImage } from '$lib/components/ui/image';
+	import { Avatar, ExpandableImage } from '$lib/components/ui/image';
 	import Code from '@lucide/svelte/icons/code';
 	import ExternalLink from '@lucide/svelte/icons/external-link';
 	import Star from '@lucide/svelte/icons/star';
@@ -44,28 +44,32 @@
 					{#if formatHours(r)}
 						<Badge variant="outline" class="text-xs">{formatHours(r)}</Badge>
 					{/if}
-				</div>
-				{#if r.country || r.inferred_username || formatApproved(r.approved_at) || (r.score !== null && r.score <= 1)}
-					<Card.Description>
-						{r.country ?? ''}
-						{#if r.country && r.inferred_username}
-							·
-						{/if}
-						{#if r.inferred_username}
+					{#if r.inferred_username}
+						<div class="flex items-center gap-1">
+							{#if r.slack_id}
+								<Avatar slackId={r.slack_id} alt={r.inferred_username} class="ml-1" size="sm" />
+							{/if}
 							<a
 								class="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
 								href={`https://github.com/${r.inferred_username}`}
 								target="_blank"
 								rel="noopener external">@{r.inferred_username}</a
 							>
-						{/if}
-						{#if (r.country || r.inferred_username) && formatApproved(r.approved_at)}
+						</div>
+					{/if}
+				</div>
+				{#if r.country || formatApproved(r.approved_at) || (r.score !== null && r.score <= 1)}
+					<Card.Description
+						class="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground"
+					>
+						{r.country ?? ''}
+						{#if r.country && formatApproved(r.approved_at)}
 							·
 						{/if}
 						{#if formatApproved(r.approved_at)}
 							Approved {formatApproved(r.approved_at)}
 						{/if}
-						{#if (r.country || r.inferred_username) && formatApproved(r.approved_at) && r.score !== null && r.score <= 1}
+						{#if r.country && formatApproved(r.approved_at) && r.score !== null && r.score <= 1}
 							·
 						{/if}
 						{#if r.score !== null && r.score <= 1}

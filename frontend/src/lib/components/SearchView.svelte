@@ -8,6 +8,7 @@
 	import type { SearchResult } from '$lib/types';
 	import { formatHours, formatApproved, cn, formatFloat } from '$lib/utils';
 	import { resolve } from '$app/paths';
+	import Avatar from './ui/image/avatar.svelte';
 
 	let { results }: { results: SearchResult[] } = $props();
 </script>
@@ -36,12 +37,17 @@
 						<span class="text-xs text-muted-foreground">{r.country}</span>
 					{/if}
 					{#if r.inferred_username}
-						<a
-							class="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
-							href={`https://github.com/${r.inferred_username}`}
-							target="_blank"
-							rel="noopener external">@{r.inferred_username}</a
-						>
+						<div class="flex items-center gap-1">
+							{#if r.slack_id}
+								<Avatar slackId={r.slack_id} alt={r.inferred_username} class="ml-1" />
+							{/if}
+							<a
+								class="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+								href={`https://github.com/${r.inferred_username}`}
+								target="_blank"
+								rel="noopener external">@{r.inferred_username}</a
+							>
+						</div>
 					{/if}
 				</div>
 				<p class="mt-1 text-sm wrap-break-word text-muted-foreground">{truncate(r.description)}</p>
