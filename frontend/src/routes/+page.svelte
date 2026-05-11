@@ -186,11 +186,31 @@
 		if (!query) return;
 		query = '';
 	}
+
+	let trimmedQuery = $derived(query.trim());
+	let pageTitle = $derived(
+		trimmedQuery
+			? `${trimmedQuery} — Otter (Search engine for all Hack Club projects)`
+			: 'Otter — Search engine for all Hack Club projects'
+	);
+	let pageDescription = $derived(
+		trimmedQuery
+			? `Search results for "${trimmedQuery}" across thousands of Hack Club YSWS projects.`
+			: 'Semantic search engine for Hack Club YSWS projects. Find apps, games, and hardware built by teens around the world.'
+	);
 </script>
 
-<Head title="Otter" description="Search engine for Hack Club projects" />
+<Head title={pageTitle} description={pageDescription} />
 
 <Disclaimer />
+
+<p class="sr-only">
+	Otter is a free and open-source semantic search engine for Hack Club projects. It indexes the
+	Unified YSWS (You Ship, We Ship) database and lets you search thousands of teen-built apps, games,
+	websites, and hardware projects using vector embeddings, full-text, and trigram search. Filter
+	results by user with the user:username syntax, use "quoted phrases" for exact matches, or browse
+	every project on the explore page.
+</p>
 
 <div class="absolute top-4 left-4 z-50 sm:fixed sm:top-auto sm:bottom-4">
 	<a
@@ -208,8 +228,16 @@
 
 <div class="overflow-none mx-auto flex min-h-screen max-w-4xl flex-col px-4 py-4 pt-8">
 	<div class="mb-8 text-center" class:mt-[20vh]={!searched} class:mt-0={searched}>
-		<a href={resolve('/')}>
-			<h1 class="mb-2 text-3xl font-bold tracking-tight">Otter</h1>
+		<a
+			href={resolve('/')}
+			aria-label="Otter — Search engine for all Hack Club projects home"
+		>
+			<h1
+				class="mb-2 text-3xl font-bold tracking-tight"
+				aria-label="Otter — Search engine for all Hack Club projects"
+			>
+				Otter
+			</h1>
 		</a>
 		<p class="mb-6 text-sm text-muted-foreground">Search engine for Hack Club projects!</p>
 
