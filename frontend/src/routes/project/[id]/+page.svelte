@@ -50,13 +50,35 @@
 
 	let { data }: { data: PageData } = $props();
 	const project = $derived(data.project);
+
+	function plainTextDescription(p: NonNullable<typeof project>): string {
+		const raw = (p.description ?? '').trim();
+		if (raw) {
+			const html = marked.parse(raw, { async: false, gfm: true, breaks: true });
+			const text = html
+				.replace(/<[^>]+>/g, ' ')
+				.replace(/&nbsp;/g, ' ')
+				.replace(/&amp;/g, '&')
+				.replace(/&lt;/g, '<')
+				.replace(/&gt;/g, '>')
+				.replace(/&quot;/g, '"')
+				.replace(/&#39;/g, "'")
+				.replace(/\s+/g, ' ')
+				.trim();
+			if (text) return truncate(text, 200);
+		}
+
+		const author = p.inferred_username ?? p.github_username;
+		const parts = [`${title(p)} — a ${p.ysws} project`];
+		if (author) parts.push(`by @${author}`);
+		parts.push('on Otter, the Hack Club project search engine.');
+		return parts.join(' ');
+	}
 </script>
 
 <Head
 	title={project ? title(project) : 'Project'}
-	description={project
-		? truncate(project?.description ?? 'A Hack Club project', 200)
-		: 'Project not found'}
+	description={project ? plainTextDescription(project) : 'Project not found'}
 	twitterCard={project?.has_media ? 'summary_large_image' : 'summary'}
 	image={project?.has_media ? imageUrl(project.airtable_id) : undefined}
 />
