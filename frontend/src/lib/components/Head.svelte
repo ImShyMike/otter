@@ -1,5 +1,4 @@
 <script lang="ts">
-	import favicon from '$lib/assets/favicon.png';
 	import heroImage from '../assets/hero.png';
 	import { page } from '$app/state';
 
@@ -26,7 +25,6 @@
 </script>
 
 <svelte:head>
-	<link rel="icon" href={favicon} />
 	<title>{title}</title>
 	<meta name="description" content={description} />
 	<meta name="robots" content="index,follow" />
