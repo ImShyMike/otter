@@ -4,7 +4,7 @@
 	import xss from 'xss';
 	import type { PageData } from './$types';
 	import * as Card from '$lib/components/ui/card';
-	import { ExpandableImage } from '$lib/components/ui/image';
+	import { ExpandableImage, Avatar } from '$lib/components/ui/image';
 	import { Badge } from '$lib/components/ui/badge';
 	import { formatApproved, formatHours } from '$lib/utils';
 	import Star from '@lucide/svelte/icons/star';
@@ -106,37 +106,41 @@
 			</div>
 			<Card.Header>
 				<div class="flex flex-wrap items-center gap-2">
+					{#if p.slack_id}
+						<Avatar
+							slackId={p.slack_id}
+							alt={p.inferred_username ?? p.github_username ?? ''}
+							class="h-6 w-6"
+							size="sm"
+						/>
+					{/if}
 					<Card.Title class="text-base">{title(p)}</Card.Title>
-					<Badge variant="secondary" class="text-xs">{p.ysws}</Badge>
 					{#if p.github_stars > 0}
 						<Badge variant="outline" class="text-xs">{p.github_stars} <Star /></Badge>
 					{/if}
+					{#if p.inferred_username ?? p.github_username}
+						<a
+							class="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+							href={`https://github.com/${p.inferred_username ?? p.github_username}`}
+							target="_blank"
+							rel="noopener external">@{p.inferred_username ?? p.github_username}</a
+						>
+					{/if}
+				</div>
+				<Card.Description
+					class="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground"
+				>
+					<Badge variant="secondary" class="text-xs">{p.ysws}</Badge>
 					{#if formatHours(p)}
 						<Badge variant="outline" class="text-xs">{formatHours(p)}</Badge>
 					{/if}
-				</div>
-				{#if p.country || p.github_username || formatApproved(p.approved_at)}
-					<Card.Description>
-						{p.country ?? ''}
-						{#if p.country && p.github_username}
-							·
-						{/if}
-						{#if p.github_username}
-							<a
-								class="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
-								href={`https://github.com/${p.github_username}`}
-								target="_blank"
-								rel="noopener external">@{p.github_username}</a
-							>
-						{/if}
-						{#if (p.country || p.github_username) && formatApproved(p.approved_at)}
-							·
-						{/if}
-						{#if formatApproved(p.approved_at)}
-							Approved {formatApproved(p.approved_at)}
-						{/if}
-					</Card.Description>
-				{/if}
+					{#if p.country}
+						<Badge variant="outline" class="text-xs">{p.country}</Badge>
+					{/if}
+					{#if formatApproved(p.approved_at)}
+						<span>Approved {formatApproved(p.approved_at)}</span>
+					{/if}
+				</Card.Description>
 			</Card.Header>
 			<Card.Content class="flex-1">
 				<div class="prose prose-sm max-w-none text-muted-foreground dark:prose-invert">
