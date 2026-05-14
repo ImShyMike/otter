@@ -83,6 +83,8 @@
 	image={project?.has_media ? imageUrl(project.airtable_id) : undefined}
 />
 
+<p class="sr-only">{project ? plainTextDescription(project) : 'Project not found'}</p>
+
 <div class="mx-auto flex min-h-screen max-w-4xl flex-col px-4 py-6.5 sm:py-8">
 	<div class="mb-4 flex flex-row items-center justify-between text-center">
 		<button
