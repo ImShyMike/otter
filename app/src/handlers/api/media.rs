@@ -1,18 +1,96 @@
 use axum::Json;
-use axum::extract::{Path, State};
-use axum::response::Redirect;
+use axum::extract::{Path, Query, State};
+use axum::http::{HeaderValue, header};
+use axum::response::{IntoResponse, Redirect, Response};
 use deadpool_redis::redis::AsyncCommands;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::time::{SystemTime, UNIX_EPOCH};
 use tracing::instrument;
-use utoipa::ToSchema;
+use utoipa::{IntoParams, ToSchema};
 
 use crate::error::AppError;
 use crate::state::AppState;
 
 const NULL_MEDIA_SENTINEL: &str = "__NULL_MEDIA__";
-const CACHE_TTL_SECS: u64 = 60 * 60;
-const MAX_BATCH_IDS: usize = 100;
+const DEFAULT_CACHE_TTL_SECS: u64 = 60 * 60;
+const MIN_CACHE_TTL_SECS: u64 = 30;
+const MAX_CACHE_TTL_SECS: u64 = 60 * 60;
+const EXPIRY_SAFETY_MARGIN_SECS: u64 = 60;
+
+fn airtable_url_expiry_secs(url: &str) -> Option<u64> {
+    if !url.contains("airtableusercontent.com") {
+        return None;
+    }
+
+    let after_scheme = url.split_once("://").map(|(_, rest)| rest).unwrap_or(url);
+    let path_and_query = after_scheme.split_once('/').map(|(_, rest)| rest)?;
+    let path = path_and_query
+        .split_once('?')
+        .map(|(p, _)| p)
+        .unwrap_or(path_and_query);
+
+    path.split('/').find_map(|seg| {
+        let ms = seg.parse::<u64>().ok()?;
+        if ms >= 1_000_000_000_000 {
+            Some(ms / 1000)
+        } else {
+            None
+        }
+    })
+}
+
+fn now_secs() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0)
+}
+
+fn seconds_until_expiry(url: &str) -> Option<u64> {
+    let expiry = airtable_url_expiry_secs(url)?;
+    Some(expiry.saturating_sub(now_secs()))
+}
+
+fn cache_ttl_for_urls<'a, I: IntoIterator<Item = &'a str>>(urls: I) -> u64 {
+    let min_remaining = urls.into_iter().filter_map(seconds_until_expiry).min();
+
+    match min_remaining {
+        Some(0) => MIN_CACHE_TTL_SECS,
+        Some(remaining) => remaining
+            .saturating_sub(EXPIRY_SAFETY_MARGIN_SECS)
+            .clamp(MIN_CACHE_TTL_SECS, MAX_CACHE_TTL_SECS),
+        None => DEFAULT_CACHE_TTL_SECS,
+    }
+}
+
+fn full_item_urls(item: &MediaItem) -> impl Iterator<Item = &str> {
+    [
+        Some(item.url.as_str()),
+        item.thumb_small_url.as_deref(),
+        item.thumb_large_url.as_deref(),
+        item.thumb_full_url.as_deref(),
+    ]
+    .into_iter()
+    .flatten()
+}
+
+fn redirect_cache_control(target_url: &str) -> HeaderValue {
+    let remaining = match seconds_until_expiry(target_url) {
+        Some(r) => r,
+        None => DEFAULT_CACHE_TTL_SECS,
+    };
+
+    if remaining <= EXPIRY_SAFETY_MARGIN_SECS {
+        return HeaderValue::from_static("no-store");
+    }
+
+    let max_age = remaining
+        .saturating_sub(EXPIRY_SAFETY_MARGIN_SECS)
+        .min(MAX_CACHE_TTL_SECS);
+
+    HeaderValue::try_from(format!("public, max-age={max_age}, s-maxage={max_age}"))
+        .unwrap_or_else(|_| HeaderValue::from_static("no-store"))
+}
 
 #[derive(Serialize, Deserialize, ToSchema, Clone, Debug)]
 pub struct MediaItem {
@@ -49,16 +127,6 @@ pub struct MediaItem {
     pub thumb_full_height: Option<i32>,
 }
 
-#[derive(Serialize, Deserialize, ToSchema, Clone, Debug)]
-pub struct SlimMediaItem {
-    #[serde(skip_serializing)]
-    pub project_id: i32,
-    pub mime_type: String,
-    pub url: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub thumb_large_url: Option<String>,
-}
-
 #[utoipa::path(
     get,
     path = "/media/{id}",
@@ -79,11 +147,27 @@ pub async fn media(
     Ok(Json(items))
 }
 
+#[derive(Debug, Deserialize, ToSchema, IntoParams, Default)]
+pub struct MediaRedirectQuery {
+    #[serde(default)]
+    pub size: Option<MediaSize>,
+}
+
+#[derive(Debug, Deserialize, Serialize, ToSchema, Clone, Copy)]
+#[serde(rename_all = "lowercase")]
+pub enum MediaSize {
+    Small,
+    Large,
+    Full,
+    Original,
+}
+
 #[utoipa::path(
     get,
     path = "/media/{id}/r",
     params(
         ("id" = String, Path, description = "Project ID or Airtable ID"),
+        MediaRedirectQuery,
     ),
     responses(
         (status = 303, description = "Redirect to media URL"),
@@ -94,158 +178,34 @@ pub async fn media(
 pub async fn media_redirect(
     State(state): State<AppState>,
     Path(id): Path<String>,
-) -> Result<Redirect, AppError> {
+    Query(query): Query<MediaRedirectQuery>,
+) -> Result<Response, AppError> {
     let items = get_media_items(&state, &id).await?;
 
-    if let Some(first) = items.first() {
-        Ok(Redirect::to(&first.url))
-    } else {
-        Err(AppError::not_found(format!(
+    let Some(first) = items.first() else {
+        return Err(AppError::not_found(format!(
             "No image found for id: {}",
             id
-        )))
-    }
-}
-
-#[derive(Debug, Deserialize, ToSchema)]
-pub struct MediaBatchRequest {
-    pub ids: Vec<String>,
-}
-
-#[derive(Serialize, ToSchema)]
-pub struct MediaBatchResponse {
-    pub media: HashMap<String, Vec<SlimMediaItem>>,
-}
-#[utoipa::path(
-    post,
-    path = "/media/batch",
-    request_body = MediaBatchRequest,
-    responses(
-        (status = 200, description = "Media items grouped by requested id", body = MediaBatchResponse),
-        (status = 400, description = "Bad request"),
-    )
-)]
-#[instrument(skip(state, body), fields(ids = body.ids.len()))]
-pub async fn media_batch(
-    State(state): State<AppState>,
-    Json(body): Json<MediaBatchRequest>,
-) -> Result<Json<MediaBatchResponse>, AppError> {
-    if body.ids.is_empty() {
-        return Ok(Json(MediaBatchResponse {
-            media: HashMap::new(),
-        }));
-    }
-    if body.ids.len() > MAX_BATCH_IDS {
-        return Err(AppError::bad_request(format!(
-            "Too many ids (max {})",
-            MAX_BATCH_IDS
         )));
-    }
+    };
 
-    let mut conn = state.redis.get().await?;
-    let mut media: HashMap<String, Vec<SlimMediaItem>> = HashMap::with_capacity(body.ids.len());
-    let mut missing_int_ids: Vec<i32> = Vec::new();
-    let mut missing_airtable_ids: Vec<String> = Vec::new();
-    let mut int_origin: HashMap<i32, String> = HashMap::new();
-    let mut airtable_origin: HashMap<String, String> = HashMap::new();
+    let target = match query.size {
+        Some(MediaSize::Small) => first.thumb_small_url.as_deref().unwrap_or(&first.url),
+        Some(MediaSize::Large) => first.thumb_large_url.as_deref().unwrap_or(&first.url),
+        Some(MediaSize::Full) => first.thumb_full_url.as_deref().unwrap_or(&first.url),
+        Some(MediaSize::Original) | None => &first.url,
+    };
 
-    for id in &body.ids {
-        if media.contains_key(id) {
-            continue;
-        }
-        let cache_key = cache_key_for_slim(id);
-        match conn.get::<_, Option<String>>(&cache_key).await {
-            Ok(Some(cached)) if cached == NULL_MEDIA_SENTINEL => {
-                media.insert(id.clone(), Vec::new());
-                continue;
-            }
-            Ok(Some(cached)) => {
-                if let Ok(items) = serde_json::from_str::<Vec<SlimMediaItem>>(&cached) {
-                    media.insert(id.clone(), items);
-                    continue;
-                }
-            }
-            _ => {}
-        }
-
-        if let Ok(int_id) = id.parse::<i32>() {
-            missing_int_ids.push(int_id);
-            int_origin.insert(int_id, id.clone());
-        } else {
-            missing_airtable_ids.push(id.clone());
-            airtable_origin.insert(id.clone(), id.clone());
-        }
-    }
-
-    if !missing_int_ids.is_empty() {
-        let rows = sqlx::query_as!(
-            SlimMediaItem,
-            "SELECT project_id, mime_type, url, thumb_large_url \
-             FROM media WHERE project_id = ANY($1) ORDER BY project_id, id",
-            &missing_int_ids
-        )
-        .fetch_all(&state.pg)
-        .await?;
-
-        let mut grouped: HashMap<i32, Vec<SlimMediaItem>> = HashMap::new();
-        for row in rows {
-            grouped.entry(row.project_id).or_default().push(row);
-        }
-        for int_id in &missing_int_ids {
-            let items = grouped.remove(int_id).unwrap_or_default();
-            cache_slim_items(&mut conn, &cache_key_for_slim(&int_id.to_string()), &items).await?;
-            if let Some(origin) = int_origin.remove(int_id) {
-                media.insert(origin, items);
-            }
-        }
-    }
-
-    if !missing_airtable_ids.is_empty() {
-        let rows = sqlx::query!(
-            "SELECT m.project_id, m.mime_type, m.url, m.thumb_large_url, m.thumb_full_url, \
-             p.airtable_id AS project_airtable_id \
-             FROM media m INNER JOIN projects p ON p.id = m.project_id \
-             WHERE p.airtable_id = ANY($1) ORDER BY p.airtable_id, m.id",
-            &missing_airtable_ids
-        )
-        .fetch_all(&state.pg)
-        .await?;
-
-        let mut grouped: HashMap<String, Vec<SlimMediaItem>> = HashMap::new();
-        for row in rows {
-            grouped
-                .entry(row.project_airtable_id.clone())
-                .or_default()
-                .push(SlimMediaItem {
-                    project_id: row.project_id,
-                    mime_type: row.mime_type,
-                    url: row.url,
-                    thumb_large_url: row.thumb_large_url,
-                });
-        }
-        for airtable_id in &missing_airtable_ids {
-            let items = grouped.remove(airtable_id).unwrap_or_default();
-            cache_slim_items(&mut conn, &cache_key_for_slim(airtable_id), &items).await?;
-            if let Some(origin) = airtable_origin.remove(airtable_id) {
-                media.insert(origin, items);
-            }
-        }
-    }
-
-    Ok(Json(MediaBatchResponse { media }))
-}
-
-fn cache_key_for_full(id: &str) -> String {
-    format!("media_items:full:{}", id)
-}
-
-fn cache_key_for_slim(id: &str) -> String {
-    format!("media_items:slim:{}", id)
+    let mut response = Redirect::to(target).into_response();
+    response
+        .headers_mut()
+        .insert(header::CACHE_CONTROL, redirect_cache_control(target));
+    Ok(response)
 }
 
 #[instrument(skip(state))]
 async fn get_media_items(state: &AppState, id: &str) -> Result<Vec<MediaItem>, AppError> {
-    let cache_key = cache_key_for_full(id);
+    let cache_key = format!("media_items:{}", id);
     let mut conn = state.redis.get().await?;
 
     if let Ok(Some(cached)) = conn.get::<_, Option<String>>(&cache_key).await {
@@ -253,7 +213,10 @@ async fn get_media_items(state: &AppState, id: &str) -> Result<Vec<MediaItem>, A
             return Ok(Vec::new());
         }
         if let Ok(items) = serde_json::from_str::<Vec<MediaItem>>(&cached) {
-            return Ok(items);
+            if !any_urls_expired(items.iter().flat_map(full_item_urls)) {
+                return Ok(items);
+            }
+            let _: Result<(), _> = conn.del::<_, ()>(&cache_key).await;
         }
     }
 
@@ -293,25 +256,22 @@ async fn cache_full_items(
     cache_key: &str,
     items: &[MediaItem],
 ) -> Result<(), AppError> {
-    let payload = if items.is_empty() {
-        NULL_MEDIA_SENTINEL.to_string()
+    let (payload, ttl) = if items.is_empty() {
+        (NULL_MEDIA_SENTINEL.to_string(), DEFAULT_CACHE_TTL_SECS)
     } else {
-        serde_json::to_string(items).map_err(anyhow::Error::from)?
+        let ttl = cache_ttl_for_urls(items.iter().flat_map(full_item_urls));
+        let payload = serde_json::to_string(items).map_err(anyhow::Error::from)?;
+        (payload, ttl)
     };
-    let _: () = conn.set_ex(cache_key, payload, CACHE_TTL_SECS).await?;
+    let _: () = conn.set_ex(cache_key, payload, ttl).await?;
     Ok(())
 }
 
-async fn cache_slim_items(
-    conn: &mut deadpool_redis::Connection,
-    cache_key: &str,
-    items: &[SlimMediaItem],
-) -> Result<(), AppError> {
-    let payload = if items.is_empty() {
-        NULL_MEDIA_SENTINEL.to_string()
-    } else {
-        serde_json::to_string(items).map_err(anyhow::Error::from)?
-    };
-    let _: () = conn.set_ex(cache_key, payload, CACHE_TTL_SECS).await?;
-    Ok(())
+fn any_urls_expired<'a, I>(urls: I) -> bool
+where
+    I: IntoIterator<Item = &'a str>,
+{
+    urls.into_iter()
+        .filter_map(seconds_until_expiry)
+        .any(|remaining| remaining <= EXPIRY_SAFETY_MARGIN_SECS)
 }

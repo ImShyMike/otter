@@ -1,15 +1,3 @@
-export interface MediaItem {
-	project_id: number;
-	mime_type: string;
-	url: string;
-	thumb_small_url?: string;
-	thumb_large_url?: string;
-}
-
-export interface MediaBatchResponse {
-	media: Record<string, MediaItem[]>;
-}
-
 export interface ProjectItem {
 	id: number;
 	airtable_id: string;

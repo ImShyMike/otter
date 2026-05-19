@@ -2,7 +2,7 @@
 	import X from '@lucide/svelte/icons/x';
 	import { Image } from '$lib/components/ui/image';
 	import { cn } from '$lib/utils.js';
-	import { fullUrl, getMedia, thumbUrl, type MediaState } from '$lib/media';
+	import { imageUrl } from '$lib/search';
 
 	type DocumentWithViewTransition = Document & {
 		startViewTransition?: (updateCallback: () => void) => { finished: Promise<void> };
@@ -43,44 +43,16 @@
 	let preloadedFullSrc = $state<string | null>(null);
 	let fullImageReady = $state(false);
 
-	const mediaStore = $derived(airtableId && !missing ? getMedia(airtableId) : null);
-	let mediaState = $state<MediaState | null>(null);
-
-	$effect(() => {
-		mediaState = null;
-		const store = mediaStore;
-		if (!store) return;
-		const unsub = store.subscribe((value) => {
-			mediaState = value;
-		});
-		return unsub;
-	});
-
-	const firstItem = $derived.by(() => {
-		if (!mediaState || mediaState.status !== 'loaded') return null;
-		return mediaState.items[0] ?? null;
-	});
-
-	const effectiveMissing = $derived.by(() => {
-		if (missing) return true;
-		if (airtableId) {
-			if (!mediaState) return false; // still loading
-			if (mediaState.status === 'loaded' && !firstItem) return true;
-			if (mediaState.status === 'error') return true;
-		}
-		return false;
-	});
+	const effectiveMissing = $derived(missing);
 
 	const thumbSrc = $derived.by(() => {
-		if (firstItem) return thumbUrl(firstItem);
-		if (!airtableId) return src;
-		return undefined;
+		if (airtableId) return imageUrl(airtableId, 'large');
+		return src;
 	});
 
 	const fullSrc = $derived.by(() => {
-		if (firstItem) return fullUrl(firstItem);
-		if (!airtableId) return src;
-		return undefined;
+		if (airtableId) return imageUrl(airtableId);
+		return src;
 	});
 
 	$effect(() => {

@@ -18,8 +18,11 @@ export function scoreClass(score: number | null): string {
 	return SCORE_BRACKETS[SCORE_BRACKETS.length - 1][1];
 }
 
-export function imageUrl(airtable_id: string) {
-	return `${API_BASE}/api/v1/media/${airtable_id}/r`;
+export type ImageSize = 'small' | 'large' | 'full' | 'original';
+
+export function imageUrl(airtable_id: string, size?: ImageSize) {
+	const qs = size ? `?size=${size}` : '';
+	return `${API_BASE}/api/v1/media/${airtable_id}/r${qs}`;
 }
 
 export function title(r: ProjectItem) {
