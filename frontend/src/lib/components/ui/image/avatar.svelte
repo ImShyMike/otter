@@ -25,7 +25,7 @@
 <a
 	{href}
 	target="_blank"
-	rel="noopener noreferrer external"
+	rel="noopener noreferrer external nofollow"
 	class={cn(
 		'relative inline-block aspect-square shrink-0 overflow-hidden rounded-[9px] bg-muted',
 		className,
