@@ -103,10 +103,12 @@ async fn update_data(http_client: &reqwest::Client, pg: &PgPool) -> anyhow::Resu
 
 #[instrument(skip_all)]
 async fn fetch_ships_data(http_client: &reqwest::Client) -> anyhow::Result<String> {
-    Ok(http::fetch_with_retries(http_client, SHIPS_API_URL, 3)
-        .await?
-        .text()
-        .await?)
+    Ok(
+        http::fetch_with_retries(3, || http_client.get(SHIPS_API_URL))
+            .await?
+            .text()
+            .await?,
+    )
 }
 
 #[instrument(skip_all)]

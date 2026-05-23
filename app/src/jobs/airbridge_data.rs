@@ -160,10 +160,12 @@ pub fn run<'a>(pg: &'a PgPool) -> Pin<Box<dyn Future<Output = anyhow::Result<()>
 
 #[instrument(skip_all)]
 async fn fetch_airbridge_data(http_client: &reqwest::Client) -> anyhow::Result<String> {
-    Ok(http::fetch_with_retries(http_client, AIRBRIDGE_API_URL, 3)
-        .await?
-        .text()
-        .await?)
+    Ok(
+        http::fetch_with_retries(3, || http_client.get(AIRBRIDGE_API_URL))
+            .await?
+            .text()
+            .await?,
+    )
 }
 
 #[instrument(skip_all)]
@@ -528,7 +530,9 @@ fn is_preview_compatible_mime(mime: &str) -> bool {
 }
 
 async fn compute_blurhash_from_url(http_client: &reqwest::Client, url: &str) -> Option<String> {
-    let response = http::fetch_with_retries(http_client, url, 2).await.ok()?;
+    let response = http::fetch_with_retries(2, || http_client.get(url))
+        .await
+        .ok()?;
     let bytes = response.bytes().await.ok()?;
     if bytes.len() > PREVIEW_MAX_BYTES {
         return None;

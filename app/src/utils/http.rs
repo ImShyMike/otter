@@ -2,23 +2,20 @@ use std::time::Duration;
 
 use tracing::warn;
 
-/// Fetches the given URL with up to `retries` attempts and exponential backoff
-pub async fn fetch_with_retries(
-    client: &reqwest::Client,
-    url: &str,
+/// Sends a request with up to `retries` attempts and exponential backoff
+pub async fn fetch_with_retries<F>(
     retries: u32,
-) -> reqwest::Result<reqwest::Response> {
+    mut request: F,
+) -> reqwest::Result<reqwest::Response>
+where
+    F: FnMut() -> reqwest::RequestBuilder,
+{
     let mut last_err = None;
     for attempt in 1..=retries {
-        match client
-            .get(url)
-            .send()
-            .await
-            .and_then(|r| r.error_for_status())
-        {
+        match request().send().await.and_then(|r| r.error_for_status()) {
             Ok(resp) => return Ok(resp),
             Err(e) if attempt < retries => {
-                warn!(attempt, "fetch failed, retrying: {e}");
+                warn!(attempt, "request failed, retrying: {e}");
                 tokio::time::sleep(Duration::from_secs(2u64.pow(attempt))).await;
                 last_err = Some(e);
             }

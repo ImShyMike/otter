@@ -4,6 +4,8 @@ use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use tracing::debug;
 
+use crate::utils::http;
+
 const BATCH_SIZE: usize = 128;
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
 
@@ -24,23 +26,7 @@ fn config() -> anyhow::Result<&'static ApiConfig> {
                 let key = env::var("AI_API_KEY")?;
                 let model = env::var("AI_API_MODEL")?;
 
-                let api_host = reqwest::Url::parse(&url)?
-                    .host_str()
-                    .unwrap_or_default()
-                    .to_string();
-
-                let client = Client::builder()
-                    .timeout(REQUEST_TIMEOUT)
-                    .retry(
-                        reqwest::retry::for_host(api_host)
-                            .max_retries_per_request(3)
-                            .classify_fn(|req_rep| match req_rep.status() {
-                                Some(s) if s.is_server_error() => req_rep.retryable(),
-                                None => req_rep.retryable(),
-                                _ => req_rep.success(),
-                            }),
-                    )
-                    .build()?;
+                let client = Client::builder().timeout(REQUEST_TIMEOUT).build()?;
 
                 Ok(ApiConfig {
                     client,
@@ -83,20 +69,19 @@ pub async fn get_embeddings(texts: &[String]) -> anyhow::Result<(String, Vec<Vec
             "requesting api embeddings"
         );
 
-        let response_text = cfg
-            .client
-            .post(&cfg.url)
-            .header("Authorization", format!("Bearer {}", cfg.key))
-            .json(&RequestData {
-                input: batch.to_vec(),
-                model: cfg.model.clone(),
-                dimensions: 1024,
-            })
-            .send()
-            .await?
-            .error_for_status()?
-            .text()
-            .await?;
+        let response_text = http::fetch_with_retries(3, || {
+            cfg.client
+                .post(&cfg.url)
+                .header("Authorization", format!("Bearer {}", cfg.key))
+                .json(&RequestData {
+                    input: batch.to_vec(),
+                    model: cfg.model.clone(),
+                    dimensions: 1024,
+                })
+        })
+        .await?
+        .text()
+        .await?;
 
         let response: EmbeddingsResponse = serde_json::from_str(&response_text).map_err(|e| {
             anyhow::anyhow!(

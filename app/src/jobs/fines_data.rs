@@ -135,7 +135,7 @@ async fn fetch_transactions(
     page: i32,
 ) -> anyhow::Result<Vec<Transaction>> {
     let url = format!("{HCB_TRANSACTIONS_URL}{page}");
-    let body = http::fetch_with_retries(http_client, &url, 3)
+    let body = http::fetch_with_retries(3, || http_client.get(&url))
         .await?
         .text()
         .await?;

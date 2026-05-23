@@ -156,6 +156,13 @@ pub async fn get_embeddings(
             Ok((model, embeddings))
         }
         Err(e) => {
+            if env::var("DISABLE_LOCAL_FALLBACK")
+                .map(|v| v == "true")
+                .unwrap_or(false)
+            {
+                warn!(error = %e, "api embeddings failed and local fallback is disabled");
+                return Err(e);
+            }
             warn!(error = %e, "api embeddings failed, falling back to local");
             run_local(texts).await
         }
