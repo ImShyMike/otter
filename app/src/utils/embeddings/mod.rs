@@ -1,15 +1,17 @@
 mod api;
 pub mod local;
 
-use std::env;
+use std::{env, sync::OnceLock};
 
 use deadpool_redis::Pool;
 use serde::{Deserialize, Serialize};
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
+use tokio::sync::Semaphore;
 use tracing::{debug, info, instrument, warn};
 
 const CACHE_TTL_SECONDS: usize = 60 * 60 * 24; // 24 hours
+static LOCAL_EMBEDDINGS_SEMAPHORE: OnceLock<Semaphore> = OnceLock::new();
 
 #[derive(Serialize, Deserialize)]
 struct CachedEmbedding {
@@ -192,6 +194,11 @@ pub async fn get_embeddings(
 }
 
 async fn run_local(texts: &[String]) -> anyhow::Result<(String, Vec<Vec<f32>>)> {
+    let _permit = LOCAL_EMBEDDINGS_SEMAPHORE
+        .get_or_init(|| Semaphore::new(1))
+        .acquire()
+        .await?;
+
     let texts = texts.to_vec();
     let embeddings = tokio::task::spawn_blocking(move || local::get_embeddings(&texts)).await??;
     debug!(
