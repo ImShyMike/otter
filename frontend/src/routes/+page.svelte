@@ -69,8 +69,14 @@
 	let totalResults = $state(0);
 	let perPage = $state(20);
 	let timings = $state<SearchTimings | null>(null);
+	let searchError = $state<string | null>(null);
 	let hasMore = $derived(results.length < totalResults);
 	let sentinel = $state<HTMLDivElement | null>(null);
+
+	async function readSearchError(response: Response) {
+		const message = await response.text();
+		return message.trim() || `Search failed with HTTP ${response.status}`;
+	}
 
 	async function doSearch(q: string, page = 1, append = false) {
 		lastSearchedQuery = q;
@@ -81,6 +87,7 @@
 			totalResults = 0;
 			timings = null;
 			currentPage = 1;
+			searchError = null;
 			return;
 		}
 
@@ -90,16 +97,21 @@
 			loading = true;
 		}
 		searched = true;
+		searchError = null;
 		try {
 			const res = await fetch(
 				`${API_BASE}/api/v1/search?q=${encodeURIComponent(q)}&limit=${perPage}&page=${page}`
 			);
+			if (!res.ok) {
+				throw new Error(await readSearchError(res));
+			}
 			const body: SearchResults = await res.json();
 			results = append ? [...results, ...body.data] : body.data;
 			totalResults = body.total;
 			currentPage = body.page;
 			timings = body.timings;
-		} catch {
+		} catch (error) {
+			searchError = error instanceof Error ? error.message : 'Search failed. Please try again.';
 			if (!append) {
 				results = [];
 				totalResults = 0;
@@ -146,6 +158,9 @@
 		const q = query.trim();
 
 		if (q === lastSubmittedQuery) {
+			if (q && searchError) {
+				await doSearch(q, 1);
+			}
 			return;
 		}
 
@@ -174,6 +189,7 @@
 				searched = false;
 				lastSearchedQuery = '';
 				currentPage = 1;
+				searchError = null;
 			}
 		}
 	});
@@ -261,7 +277,8 @@
 			</div>
 			<Button
 				onclick={() => void submitSearch()}
-				disabled={loading || (query.trim() === lastSubmittedQuery && lastSubmittedQuery !== '')}
+				disabled={loading ||
+					(query.trim() === lastSubmittedQuery && lastSubmittedQuery !== '' && !searchError)}
 				size="lg"
 				data-umami-event="search-submit"
 			>
@@ -356,7 +373,15 @@
 			</div>
 		</div>
 
-		{#if !loading && results.length === 0}
+		{#if !loading && searchError && results.length === 0}
+			<div
+				role="alert"
+				class="rounded-md border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+			>
+				<p class="font-medium">Search failed</p>
+				<p class="mt-1 wrap-break-word">{searchError}</p>
+			</div>
+		{:else if !loading && results.length === 0}
 			<p class="py-12 text-center text-muted-foreground">No results found for "{query}"</p>
 		{:else if !loading && results.length > 0}
 			{@const displayResults = validResults.length > 0 ? validResults : dedupedResults}
@@ -365,6 +390,16 @@
 			{:else}
 				<CardsView results={displayResults} />
 			{/if}
+		{/if}
+
+		{#if !loading && searchError && results.length > 0}
+			<div
+				role="alert"
+				class="mt-6 rounded-md border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+			>
+				<p class="font-medium">Could not load more results</p>
+				<p class="mt-1 wrap-break-word">{searchError}</p>
+			</div>
 		{/if}
 
 		{@const hiddenCount = dedupedResults.length - validResults.length}
