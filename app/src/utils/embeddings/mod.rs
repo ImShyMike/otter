@@ -23,6 +23,15 @@ fn api_configured() -> bool {
         && env::var("AI_API_MODEL").is_ok()
 }
 
+fn local_fallback_disabled() -> bool {
+    env::var("DISABLE_LOCAL_FALLBACK")
+        .map(|v| {
+            let v = v.trim().to_ascii_lowercase();
+            v == "true" || v == "1"
+        })
+        .unwrap_or(false)
+}
+
 fn hash_text(text: &str) -> String {
     let mut hasher = DefaultHasher::new();
     text.hash(&mut hasher);
@@ -102,6 +111,12 @@ pub async fn get_embeddings_with_cache(
     let uncached_texts: Vec<String> = uncached_indices.iter().map(|&i| texts[i].clone()).collect();
 
     let (model, uncached_embeddings) = if !api_configured() {
+        if local_fallback_disabled() && !local_only {
+            warn!("api env vars not set and local fallback is disabled");
+            return Err(anyhow::anyhow!(
+                "api embeddings are not configured and local fallback is disabled"
+            ));
+        }
         debug!("api env vars not set, using local embeddings");
         run_local(&uncached_texts).await?
     } else if local_only {
@@ -110,6 +125,10 @@ pub async fn get_embeddings_with_cache(
         match api::get_embeddings(&uncached_texts).await {
             Ok(result) => result,
             Err(e) => {
+                if local_fallback_disabled() {
+                    warn!(error = %e, "api embeddings failed and local fallback is disabled");
+                    return Err(e);
+                }
                 warn!(error = %e, "api embeddings failed, falling back to local");
                 run_local(&uncached_texts).await?
             }
@@ -141,6 +160,12 @@ pub async fn get_embeddings(
     local_only: bool,
 ) -> anyhow::Result<(String, Vec<Vec<f32>>)> {
     if !api_configured() {
+        if local_fallback_disabled() && !local_only {
+            warn!("api env vars not set and local fallback is disabled");
+            return Err(anyhow::anyhow!(
+                "api embeddings are not configured and local fallback is disabled"
+            ));
+        }
         debug!("api env vars not set, using local embeddings");
         return run_local(texts).await;
     } else if local_only {
@@ -156,10 +181,7 @@ pub async fn get_embeddings(
             Ok((model, embeddings))
         }
         Err(e) => {
-            if env::var("DISABLE_LOCAL_FALLBACK")
-                .map(|v| v == "true")
-                .unwrap_or(false)
-            {
+            if local_fallback_disabled() {
                 warn!(error = %e, "api embeddings failed and local fallback is disabled");
                 return Err(e);
             }
