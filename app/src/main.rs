@@ -43,7 +43,7 @@ async fn main() -> anyhow::Result<()> {
 
     sqlx::migrate!("./migrations").run(&pg).await?;
 
-    jobs::schedule_all(&pg).await?;
+    let scheduler = jobs::schedule_all(&pg).await?;
 
     let run_jobs_on_startup = env::var("RUN_JOBS_ON_STARTUP")
         .map(|v| v == "true")
@@ -67,7 +67,11 @@ async fn main() -> anyhow::Result<()> {
         }
     }
 
-    let state = AppState { pg, redis };
+    let state = AppState {
+        pg,
+        redis,
+        _scheduler: scheduler,
+    };
     let app = routes::build().with_state(state);
 
     let listener = tokio::net::TcpListener::bind(&host).await?;

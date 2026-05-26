@@ -66,7 +66,7 @@ pub async fn run_job(pg: &PgPool, job: JobKind) -> anyhow::Result<()> {
 }
 
 /// Registers all scheduled jobs and starts the cron scheduler
-pub async fn schedule_all(pg: &PgPool) -> anyhow::Result<()> {
+pub async fn schedule_all(pg: &PgPool) -> anyhow::Result<JobScheduler> {
     let sched = JobScheduler::new().await?;
 
     for kind in JobKind::ALL {
@@ -86,7 +86,7 @@ pub async fn schedule_all(pg: &PgPool) -> anyhow::Result<()> {
     }
 
     sched.start().await?;
-    Ok(())
+    Ok(sched)
 }
 
 async fn with_lock(pg: &PgPool, lock_id: i64, f: JobFn) -> anyhow::Result<()> {
