@@ -1,0 +1,32 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT\n            ysws AS ysws,\n            COUNT(*) AS total_projects,\n            SUM(COALESCE(true_hours, hours, 0)) AS total_hours\n        FROM projects\n        WHERE ysws IS NOT NULL\n        GROUP BY ysws\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "ysws",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 1,
+        "name": "total_projects",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 2,
+        "name": "total_hours",
+        "type_info": "Float8"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      null,
+      null
+    ]
+  },
+  "hash": "01844bcee1dc7b5cd425559e54e3a94a5be5d934dfb688b622db76690124981f"
+}

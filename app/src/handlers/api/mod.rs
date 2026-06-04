@@ -46,6 +46,7 @@ pub fn router() -> OpenApiRouter<AppState> {
     OpenApiRouter::new()
         .routes(routes!(search::search))
         .routes(routes!(ysws::ysws_program_list))
+        .routes(routes!(ysws::ysws_program_list_details))
         .routes(routes!(query::query))
         .routes(routes!(fines::fines))
         .routes(routes!(media::media))

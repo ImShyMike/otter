@@ -10,6 +10,13 @@ use crate::state::AppState;
 #[derive(Serialize, ToSchema)]
 pub struct YSWSProgramsResponse(Vec<String>);
 
+#[derive(Serialize, ToSchema)]
+pub struct YSWSProgramDetailsResponse {
+    name: String,
+    total_projects: i64,
+    total_hours: f64,
+}
+
 #[utoipa::path(
     get,
     path = "/ysws/list",
@@ -28,4 +35,41 @@ pub async fn ysws_program_list(
     Ok(Json(YSWSProgramsResponse(
         row.into_iter().filter_map(Some).collect(),
     )))
+}
+
+#[utoipa::path(
+    get,
+    path = "/ysws/list/details",
+    responses(
+        (status = 200, description = "Detailed list of YSWS program names", body = Vec<YSWSProgramDetailsResponse>),
+    )
+)]
+#[instrument(skip(state))]
+pub async fn ysws_program_list_details(
+    State(state): State<AppState>,
+) -> Result<Json<Vec<YSWSProgramDetailsResponse>>, AppError> {
+    let rows = sqlx::query!(
+        r#"
+        SELECT
+            ysws AS ysws,
+            COUNT(*) AS total_projects,
+            SUM(COALESCE(true_hours, hours, 0)) AS total_hours
+        FROM projects
+        WHERE ysws IS NOT NULL
+        GROUP BY ysws
+        "#
+    )
+    .fetch_all(&state.pg)
+    .await?;
+
+    let response = rows
+        .into_iter()
+        .map(|row| YSWSProgramDetailsResponse {
+            name: row.ysws,
+            total_projects: row.total_projects.unwrap_or(0),
+            total_hours: row.total_hours.unwrap_or(0.0),
+        })
+        .collect();
+
+    Ok(Json(response))
 }
