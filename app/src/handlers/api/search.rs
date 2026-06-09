@@ -146,7 +146,7 @@ fn parse_filters(query: &str) -> ParsedFilters {
         user,
         cleaned_query,
         embedding_query,
-        semantic: query.split(' ').count() > 2 // enable semantic search if query has >2 words
+        semantic: query.split(' ').count() > 2, // enable semantic search if query has >2 words
     }
 }
 
