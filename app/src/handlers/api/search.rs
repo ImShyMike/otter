@@ -2,6 +2,7 @@ use std::time::Instant;
 
 use axum::Json;
 use axum::extract::{Query, State};
+use pgvector::Vector;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
@@ -25,6 +26,8 @@ pub struct SearchQuery {
     semantic_weight: Option<f32>,
     #[serde(default)]
     trigram_weight: Option<f32>,
+    #[serde(default)]
+    semantic: Option<bool>,
 }
 
 #[derive(Serialize, ToSchema)]
@@ -112,6 +115,7 @@ struct ParsedFilters {
     user: Option<String>,
     cleaned_query: String,
     embedding_query: String,
+    semantic: bool,
 }
 
 fn parse_filters(query: &str) -> ParsedFilters {
@@ -142,6 +146,7 @@ fn parse_filters(query: &str) -> ParsedFilters {
         user,
         cleaned_query,
         embedding_query,
+        semantic: query.contains(' '), // enable semantic search if query has multiple words
     }
 }
 
@@ -163,13 +168,17 @@ pub async fn search(
     let limit = params.limit.unwrap_or(10).min(100);
     let page = params.page.unwrap_or(1).max(1);
     let offset = (page - 1) * limit;
+    let semantic_enabled = params.semantic.unwrap_or(filters.semantic);
     let fts_weight = params.fts_weight.unwrap_or(0.7).max(0.0);
-    let semantic_weight = params.semantic_weight.unwrap_or(0.2).max(0.0);
+    let semantic_weight = if semantic_enabled {
+        params.semantic_weight.unwrap_or(0.2).max(0.0)
+    } else {
+        0.0
+    };
     let trigram_weight = params.trigram_weight.unwrap_or(0.1).max(0.0);
     let user_like = filters.user.as_ref().map(|u| format!("%{}%", u));
     let fts_candidate_limit = (limit * 10).clamp(100, 2000);
     let phrase_candidate_limit = (limit * 8).clamp(80, 1500);
-    let semantic_candidate_limit = (limit * 8).clamp(80, 1250);
     let trigram_candidate_limit = (limit * 15).clamp(150, 3000);
     let literal_candidate_limit = (limit * 12).clamp(120, 2500);
 
@@ -188,20 +197,34 @@ pub async fn search(
             semantic_weight / total_weight,
             trigram_weight / total_weight,
         )
-    } else {
+    } else if semantic_enabled {
         (0.7, 0.2, 0.1)
+    } else {
+        (0.875, 0.0, 0.125)
+    };
+    let use_semantic = semantic_enabled && semantic_weight > 0.0;
+    let semantic_candidate_limit = if use_semantic {
+        (limit * 8).clamp(80, 1250)
+    } else {
+        0
     };
 
-    // get embeddings
+    // get embeddings only when semantic search is enabled
     let embed_start = Instant::now();
-    let (_, embeddings) = embeddings::get_embeddings_with_cache(
-        std::slice::from_ref(&filters.embedding_query),
-        &state.redis,
-        local_only(),
-    )
-    .await?;
-    let query_embedding = &embeddings[0];
-    let embeddings_ms = embed_start.elapsed().as_secs_f64() * 1000.0;
+    let (query_embedding, embeddings_ms) = if use_semantic {
+        let (_, embeddings) = embeddings::get_embeddings_with_cache(
+            std::slice::from_ref(&filters.embedding_query),
+            &state.redis,
+            local_only(),
+        )
+        .await?;
+        (
+            Vector::from(embeddings[0].clone()),
+            embed_start.elapsed().as_secs_f64() * 1000.0,
+        )
+    } else {
+        (Vector::from(vec![0.0; 1024]), 0.0)
+    };
 
     // run query
     let query_start = Instant::now();
@@ -368,6 +391,7 @@ pub async fn search(
                 pe.project_id AS id,
                 pe.embedding <=> $2::vector AS distance
             FROM project_embeddings pe
+            WHERE $14::boolean
             ORDER BY pe.embedding <=> $2::vector
             LIMIT $8
         ),
@@ -498,6 +522,7 @@ pub async fn search(
     .bind(phrase_candidate_limit)
     .bind(literal_candidate_limit)
     .bind(offset)
+    .bind(use_semantic)
     .fetch_all(&state.pg)
     .await?;
     let query_ms = query_start.elapsed().as_secs_f64() * 1000.0;
