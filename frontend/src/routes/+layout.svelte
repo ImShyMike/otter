@@ -38,6 +38,12 @@
 <svelte:head>
 	<link rel="preconnect" href={API_BASE} />
 	<link rel="preconnect" href="https://airtableusercontent.com" />
+	<link
+		rel="search"
+		type="application/opensearchdescription+xml"
+		title="Otter"
+		href="/opensearch.xml"
+	/>
 	<!-- eslint-disable-next-line svelte/no-at-html-tags -->
 	{@html `${openTag}${websiteJsonLd}${closeTag}`}
 	<script>
