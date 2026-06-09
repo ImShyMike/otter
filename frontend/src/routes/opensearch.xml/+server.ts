@@ -1,4 +1,6 @@
-<?xml version="1.0" encoding="UTF-8"?>
+export function GET() {
+	return new Response(
+		`<?xml version="1.0" encoding="UTF-8"?>
 <OpenSearchDescription xmlns="http://a9.com/-/spec/opensearch/1.1/">
     <ShortName>Otter</ShortName>
     <LongName>Otter - Hack Club Projects Search</LongName>
@@ -9,4 +11,11 @@
     <Language>en-us</Language>
     <OutputEncoding>UTF-8</OutputEncoding>
     <InputEncoding>UTF-8</InputEncoding>
-</OpenSearchDescription>
+</OpenSearchDescription>`,
+		{
+			headers: {
+				'Content-Type': 'application/opensearchdescription+xml'
+			}
+		}
+	);
+}
