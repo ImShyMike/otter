@@ -170,7 +170,7 @@ pub async fn search(
     let offset = (page - 1) * limit;
     let semantic_enabled = params.semantic.unwrap_or(filters.semantic);
     let fts_weight = params.fts_weight.unwrap_or(0.7).max(0.0);
-    let semantic_weight = if semantic_enabled {
+    let mut semantic_weight = if semantic_enabled {
         params.semantic_weight.unwrap_or(0.2).max(0.0)
     } else {
         0.0
@@ -189,6 +189,52 @@ pub async fn search(
         return user_search(username, limit, page, &state).await;
     }
 
+    let mut use_semantic = semantic_enabled && semantic_weight > 0.0;
+
+    // get embeddings
+    let embed_start = Instant::now();
+    let (query_embedding, embeddings_ms) = if use_semantic {
+        match embeddings::get_embeddings_with_cache(
+            std::slice::from_ref(&filters.embedding_query),
+            &state.redis,
+            local_only(),
+        )
+        .await
+        {
+            Ok((_, embeddings)) => {
+                if let Some(embedding) = embeddings.into_iter().next() {
+                    (
+                        Vector::from(embedding),
+                        embed_start.elapsed().as_secs_f64() * 1000.0,
+                    )
+                } else {
+                    tracing::error!(
+                        "embedding fetch returned no embeddings; disabling semantic search"
+                    );
+                    use_semantic = false;
+                    (
+                        Vector::from(vec![0.0; 1024]),
+                        embed_start.elapsed().as_secs_f64() * 1000.0,
+                    )
+                }
+            }
+            Err(err) => {
+                tracing::error!(error = %err, "embedding fetch failed; disabling semantic search");
+                use_semantic = false;
+                (
+                    Vector::from(vec![0.0; 1024]),
+                    embed_start.elapsed().as_secs_f64() * 1000.0,
+                )
+            }
+        }
+    } else {
+        (Vector::from(vec![0.0; 1024]), 0.0)
+    };
+
+    if !use_semantic {
+        semantic_weight = 0.0;
+    }
+
     // normalize weights
     let total_weight = fts_weight + semantic_weight + trigram_weight;
     let (fts_weight, semantic_weight, trigram_weight) = if total_weight > 0.0 {
@@ -202,28 +248,10 @@ pub async fn search(
     } else {
         (0.875, 0.0, 0.125)
     };
-    let use_semantic = semantic_enabled && semantic_weight > 0.0;
     let semantic_candidate_limit = if use_semantic {
         (limit * 8).clamp(80, 1250)
     } else {
         0
-    };
-
-    // get embeddings only when semantic search is enabled
-    let embed_start = Instant::now();
-    let (query_embedding, embeddings_ms) = if use_semantic {
-        let (_, embeddings) = embeddings::get_embeddings_with_cache(
-            std::slice::from_ref(&filters.embedding_query),
-            &state.redis,
-            local_only(),
-        )
-        .await?;
-        (
-            Vector::from(embeddings[0].clone()),
-            embed_start.elapsed().as_secs_f64() * 1000.0,
-        )
-    } else {
-        (Vector::from(vec![0.0; 1024]), 0.0)
     };
 
     // run query
