@@ -12,7 +12,7 @@ pub struct RecentProjectsQuery {
     limit: Option<i64>,
 }
 
-#[utoipa::path(
+#[utoipa_ts::path(
     get,
     path = "/recent",
     responses(

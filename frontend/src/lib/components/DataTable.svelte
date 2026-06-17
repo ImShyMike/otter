@@ -31,7 +31,7 @@
 	import X from '@lucide/svelte/icons/x';
 	import lzString from 'lz-string';
 	import { API_BASE, title as projectTitle, imageUrl } from '$lib/search';
-	import type { ProjectItem } from '$lib/types';
+	import type { ProjectItem, QueryResults } from '$lib/types';
 	import { formatApproved } from '$lib/utils';
 	import { onMount, untrack } from 'svelte';
 	import { resolve } from '$app/paths';
@@ -50,13 +50,6 @@
 		sort_direction?: string;
 		limit: number;
 		page: number;
-	}
-
-	interface QueryResponse {
-		data: ProjectItem[];
-		total: number;
-		page: number;
-		per_page: number;
 	}
 
 	const _features = tableFeatures({
@@ -464,9 +457,9 @@
 			});
 
 			if (version !== fetchVersion) return;
-			const result: QueryResponse = await res.json();
-			data = result.data.map((d) => ({ ...d, score: 0 }));
-			total = result.total;
+			const result: QueryResults = await res.json();
+			data = result.data;
+			total = Number(result.total);
 		} catch {
 			if (version !== fetchVersion) return;
 			data = [];

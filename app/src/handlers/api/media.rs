@@ -92,7 +92,7 @@ fn redirect_cache_control(target_url: &str) -> HeaderValue {
         .unwrap_or_else(|_| HeaderValue::from_static("no-store"))
 }
 
-#[derive(Serialize, Deserialize, ToSchema, Clone, Debug)]
+#[derive(Serialize, Deserialize, ts_rs::TS, ToSchema, Clone, Debug)]
 pub struct MediaItem {
     pub id: i32,
     pub project_id: i32,
@@ -127,7 +127,7 @@ pub struct MediaItem {
     pub thumb_full_height: Option<i32>,
 }
 
-#[utoipa::path(
+#[utoipa_ts::path(
     get,
     path = "/media/{id}",
     params(
@@ -162,7 +162,7 @@ pub enum MediaSize {
     Original,
 }
 
-#[utoipa::path(
+#[utoipa_ts::path(
     get,
     path = "/media/{id}/r",
     params(

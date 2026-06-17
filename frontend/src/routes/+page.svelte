@@ -107,8 +107,8 @@
 			}
 			const body: SearchResults = await res.json();
 			results = append ? [...results, ...body.data] : body.data;
-			totalResults = body.total;
-			currentPage = body.page;
+			totalResults = Number(body.total);
+			currentPage = Number(body.page);
 			timings = body.timings;
 		} catch (error) {
 			searchError = error instanceof Error ? error.message : 'Search failed. Please try again.';

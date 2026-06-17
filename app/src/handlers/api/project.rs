@@ -6,7 +6,7 @@ use crate::error::AppError;
 use crate::handlers::api::ProjectItem;
 use crate::state::AppState;
 
-#[utoipa::path(
+#[utoipa_ts::path(
     get,
     path = "/project/{id}",
     params(

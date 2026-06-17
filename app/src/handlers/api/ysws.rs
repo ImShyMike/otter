@@ -7,17 +7,17 @@ use utoipa::ToSchema;
 use crate::error::AppError;
 use crate::state::AppState;
 
-#[derive(Serialize, ToSchema)]
+#[derive(Serialize, ts_rs::TS, ToSchema)]
 pub struct YSWSProgramsResponse(Vec<String>);
 
-#[derive(Serialize, ToSchema)]
+#[derive(Serialize, ts_rs::TS, ToSchema)]
 pub struct YSWSProgramDetailsResponse {
     name: String,
     total_projects: i64,
     total_hours: f64,
 }
 
-#[utoipa::path(
+#[utoipa_ts::path(
     get,
     path = "/ysws/list",
     responses(
@@ -37,7 +37,7 @@ pub async fn ysws_program_list(
     )))
 }
 
-#[utoipa::path(
+#[utoipa_ts::path(
     get,
     path = "/ysws/list/details",
     responses(

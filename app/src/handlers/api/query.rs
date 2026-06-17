@@ -24,7 +24,7 @@ enum FieldKind {
     Bool,
 }
 
-#[derive(Debug, Clone, Copy, Deserialize, Serialize, ToSchema)]
+#[derive(Debug, Clone, Copy, Deserialize, Serialize, ts_rs::TS, ToSchema)]
 #[serde(rename_all = "snake_case")]
 enum Field {
     AirtableId,
@@ -79,7 +79,7 @@ impl Field {
     }
 }
 
-#[derive(Debug, Deserialize, ToSchema)]
+#[derive(Debug, Deserialize, ts_rs::TS, ToSchema)]
 #[serde(rename_all = "snake_case")]
 enum FilterOp {
     Eq,
@@ -118,7 +118,7 @@ impl FilterOp {
     }
 }
 
-#[derive(Debug, Deserialize, ToSchema)]
+#[derive(Debug, Deserialize, ts_rs::TS, ToSchema)]
 pub struct Filter {
     field: Field,
     op: FilterOp,
@@ -126,7 +126,7 @@ pub struct Filter {
     value: Option<serde_json::Value>,
 }
 
-#[derive(Debug, Deserialize, ToSchema)]
+#[derive(Debug, Deserialize, ts_rs::TS, ToSchema)]
 pub struct QueryRequest {
     #[serde(default)]
     filters: Vec<Filter>,
@@ -166,7 +166,7 @@ struct QueryRow {
     _total: i64,
 }
 
-#[derive(Serialize, ToSchema)]
+#[derive(Serialize, ts_rs::TS, ToSchema)]
 pub struct QueryResults {
     data: Vec<ProjectItem>,
     total: i64,
@@ -174,7 +174,7 @@ pub struct QueryResults {
     per_page: i64,
 }
 
-#[utoipa::path(
+#[utoipa_ts::path(
     post,
     path = "/query",
     request_body = QueryRequest,

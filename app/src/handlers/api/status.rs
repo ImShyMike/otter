@@ -9,7 +9,7 @@ use tokio::sync::RwLock;
 
 use crate::state::AppState;
 
-#[derive(Serialize, ToSchema)]
+#[derive(Serialize, ts_rs::TS, ToSchema)]
 pub struct ServerStatus {
     pub last_refreshed_at: Option<i64>,
     pub total_projects: Option<i64>,
@@ -21,7 +21,7 @@ fn last_refreshed_at() -> &'static RwLock<Option<i64>> {
     LAST_REFRESHED_AT.get_or_init(|| RwLock::new(None))
 }
 
-#[utoipa::path(
+#[utoipa_ts::path(
     get,
     path = "/status",
     responses(

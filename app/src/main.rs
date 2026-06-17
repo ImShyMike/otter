@@ -18,6 +18,8 @@ const DEFAULT_DATABASE_URL: &str = "postgres://postgres:postgres@localhost:5432/
 const DEFAULT_REDIS_URL: &str = "redis://localhost:6379";
 const DEFAULT_HOST: &str = "0.0.0.0:3000";
 
+utoipa_ts::export!("../frontend/src/lib/types.ts");
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     dotenvy::dotenv().ok();

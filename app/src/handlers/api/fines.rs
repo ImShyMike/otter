@@ -33,7 +33,7 @@ struct FineProjectRow {
     archived_repo: Option<String>,
 }
 
-#[derive(Serialize, ToSchema)]
+#[derive(Serialize, ts_rs::TS, ToSchema)]
 pub struct ProjectSummary {
     pub id: i32,
     pub airtable_id: String,
@@ -51,7 +51,7 @@ pub struct ProjectSummary {
     pub archived_repo: Option<String>,
 }
 
-#[derive(Serialize, ToSchema)]
+#[derive(Serialize, ts_rs::TS, ToSchema)]
 pub struct FineItem {
     pub id: i32,
     pub transaction_id: String,
@@ -61,7 +61,7 @@ pub struct FineItem {
     pub projects: Vec<ProjectSummary>,
 }
 
-#[utoipa::path(
+#[utoipa_ts::path(
     get,
     path = "/fines",
     responses(

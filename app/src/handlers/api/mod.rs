@@ -17,7 +17,7 @@ use crate::utils::embeddings;
 use std::sync::OnceLock;
 use tracing::warn;
 
-#[derive(Serialize, ToSchema)]
+#[derive(Serialize, ts_rs::TS, ToSchema)]
 pub struct ProjectItem {
     pub id: i32,
     pub airtable_id: String,

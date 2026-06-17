@@ -11,9 +11,9 @@ export function formatFloat(num: number, decimals: number): string {
 	return Number(num.toFixed(decimals)).toString();
 }
 
-export function formatApproved(ts: number | null): string {
+export function formatApproved(ts: number | bigint | null): string {
 	if (!ts) return '—';
-	return new Date(ts * 1000).toLocaleDateString();
+	return new Date(Number(ts) * 1000).toLocaleDateString();
 }
 
 export function formatHours(r: ProjectItem): string {

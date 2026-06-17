@@ -5,16 +5,9 @@ import {
 	SITEMAP_CHUNK_SIZE,
 	escapeXml
 } from '$lib/sitemap-utils';
-import type { ProjectItem } from '$lib/types';
+import type { ProjectItem, QueryResults } from '$lib/types';
 import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-
-interface QueryResponse {
-	data: ProjectItem[];
-	total: number;
-	page: number;
-	per_page: number;
-}
 
 async function fetchChunk(fetcher: typeof fetch, chunkIndex: number): Promise<ProjectItem[]> {
 	const startOffset = chunkIndex * SITEMAP_CHUNK_SIZE;
@@ -38,7 +31,7 @@ async function fetchChunk(fetcher: typeof fetch, chunkIndex: number): Promise<Pr
 
 		if (!res.ok) break;
 
-		const body = (await res.json()) as QueryResponse;
+		const body = (await res.json()) as QueryResults;
 		if (!body.data?.length) break;
 
 		items.push(...body.data);
@@ -58,7 +51,7 @@ function buildProjectsSitemap(origin: string, projects: ProjectItem[]): string {
 ${projects
 	.map((p) => {
 		const lastmod = p.approved_at
-			? new Date(p.approved_at * 1000).toISOString().slice(0, 10)
+			? new Date(Number(p.approved_at) * 1000).toISOString().slice(0, 10)
 			: today;
 		return `	<url>
 		<loc>${escapeXml(`${origin}/project/${p.airtable_id}`)}</loc>

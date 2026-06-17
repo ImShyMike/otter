@@ -13,7 +13,7 @@ use crate::handlers::api::{ProjectItem, local_only};
 use crate::state::AppState;
 use crate::utils::embeddings;
 
-#[derive(Debug, Deserialize, IntoParams)]
+#[derive(Debug, Deserialize, ToSchema, IntoParams)]
 pub struct SearchQuery {
     q: String,
     #[serde(default)]
@@ -30,13 +30,13 @@ pub struct SearchQuery {
     semantic: Option<bool>,
 }
 
-#[derive(Serialize, ToSchema)]
+#[derive(Serialize, ts_rs::TS, ToSchema)]
 pub struct SearchTimings {
     embeddings_ms: f64,
     query_ms: f64,
 }
 
-#[derive(Serialize, ToSchema)]
+#[derive(Serialize, ts_rs::TS, ToSchema)]
 pub struct SearchResults {
     data: Vec<SearchResult>,
     total: i64,
@@ -45,7 +45,7 @@ pub struct SearchResults {
     timings: SearchTimings,
 }
 
-#[derive(Serialize, ToSchema)]
+#[derive(Serialize, ts_rs::TS, ToSchema)]
 pub struct SearchResult {
     #[serde(flatten)]
     pub item: ProjectItem,
@@ -150,7 +150,7 @@ fn parse_filters(query: &str) -> ParsedFilters {
     }
 }
 
-#[utoipa::path(
+#[utoipa_ts::path(
     get,
     path = "/search",
     params(SearchQuery),
