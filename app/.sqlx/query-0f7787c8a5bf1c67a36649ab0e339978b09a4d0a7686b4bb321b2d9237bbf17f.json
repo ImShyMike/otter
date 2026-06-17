@@ -6,107 +6,233 @@
       {
         "ordinal": 0,
         "name": "id",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "projects",
+            "name": "id"
+          }
+        }
       },
       {
         "ordinal": 1,
         "name": "airtable_id",
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "projects",
+            "name": "airtable_id"
+          }
+        }
       },
       {
         "ordinal": 2,
         "name": "ysws",
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "projects",
+            "name": "ysws"
+          }
+        }
       },
       {
         "ordinal": 3,
         "name": "approved_at",
-        "type_info": "Int8"
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "projects",
+            "name": "approved_at"
+          }
+        }
       },
       {
         "ordinal": 4,
         "name": "code_url",
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "projects",
+            "name": "code_url"
+          }
+        }
       },
       {
         "ordinal": 5,
         "name": "country",
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "projects",
+            "name": "country"
+          }
+        }
       },
       {
         "ordinal": 6,
         "name": "demo_url",
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "projects",
+            "name": "demo_url"
+          }
+        }
       },
       {
         "ordinal": 7,
         "name": "description",
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "projects",
+            "name": "description"
+          }
+        }
       },
       {
         "ordinal": 8,
         "name": "slack_id",
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "projects",
+            "name": "slack_id"
+          }
+        }
       },
       {
         "ordinal": 9,
         "name": "github_username",
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "projects",
+            "name": "github_username"
+          }
+        }
       },
       {
         "ordinal": 10,
         "name": "hours",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "projects",
+            "name": "hours"
+          }
+        }
       },
       {
         "ordinal": 11,
         "name": "true_hours",
-        "type_info": "Float8"
+        "type_info": "Float8",
+        "origin": {
+          "Table": {
+            "table": "projects",
+            "name": "true_hours"
+          }
+        }
       },
       {
         "ordinal": 12,
         "name": "has_media!",
-        "type_info": "Bool"
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "projects",
+            "name": "has_media"
+          }
+        }
       },
       {
         "ordinal": 13,
         "name": "github_stars",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "projects",
+            "name": "github_stars"
+          }
+        }
       },
       {
         "ordinal": 14,
         "name": "display_name",
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "projects",
+            "name": "display_name"
+          }
+        }
       },
       {
         "ordinal": 15,
         "name": "archived_demo",
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "projects",
+            "name": "archived_demo"
+          }
+        }
       },
       {
         "ordinal": 16,
         "name": "archived_repo",
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "projects",
+            "name": "archived_repo"
+          }
+        }
       },
       {
         "ordinal": 17,
         "name": "inferred_repo",
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "projects",
+            "name": "inferred_repo"
+          }
+        }
       },
       {
         "ordinal": 18,
         "name": "inferred_username",
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "projects",
+            "name": "inferred_username"
+          }
+        }
       },
       {
         "ordinal": 19,
         "name": "is_github_url",
-        "type_info": "Bool"
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "projects",
+            "name": "is_github_url"
+          }
+        }
       },
       {
         "ordinal": 20,
         "name": "preview_blurhash",
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "projects",
+            "name": "preview_blurhash"
+          }
+        }
       }
     ],
     "parameters": {

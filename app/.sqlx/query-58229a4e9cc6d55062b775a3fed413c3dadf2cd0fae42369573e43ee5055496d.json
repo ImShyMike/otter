@@ -6,92 +6,200 @@
       {
         "ordinal": 0,
         "name": "id",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "media",
+            "name": "id"
+          }
+        }
       },
       {
         "ordinal": 1,
         "name": "project_id",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "media",
+            "name": "project_id"
+          }
+        }
       },
       {
         "ordinal": 2,
         "name": "airtable_id",
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "media",
+            "name": "airtable_id"
+          }
+        }
       },
       {
         "ordinal": 3,
         "name": "filename",
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "media",
+            "name": "filename"
+          }
+        }
       },
       {
         "ordinal": 4,
         "name": "mime_type",
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "media",
+            "name": "mime_type"
+          }
+        }
       },
       {
         "ordinal": 5,
         "name": "size_bytes",
-        "type_info": "Int8"
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "media",
+            "name": "size_bytes"
+          }
+        }
       },
       {
         "ordinal": 6,
         "name": "width",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "media",
+            "name": "width"
+          }
+        }
       },
       {
         "ordinal": 7,
         "name": "height",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "media",
+            "name": "height"
+          }
+        }
       },
       {
         "ordinal": 8,
         "name": "url",
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "media",
+            "name": "url"
+          }
+        }
       },
       {
         "ordinal": 9,
         "name": "thumb_small_url",
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "media",
+            "name": "thumb_small_url"
+          }
+        }
       },
       {
         "ordinal": 10,
         "name": "thumb_small_width",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "media",
+            "name": "thumb_small_width"
+          }
+        }
       },
       {
         "ordinal": 11,
         "name": "thumb_small_height",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "media",
+            "name": "thumb_small_height"
+          }
+        }
       },
       {
         "ordinal": 12,
         "name": "thumb_large_url",
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "media",
+            "name": "thumb_large_url"
+          }
+        }
       },
       {
         "ordinal": 13,
         "name": "thumb_large_width",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "media",
+            "name": "thumb_large_width"
+          }
+        }
       },
       {
         "ordinal": 14,
         "name": "thumb_large_height",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "media",
+            "name": "thumb_large_height"
+          }
+        }
       },
       {
         "ordinal": 15,
         "name": "thumb_full_url",
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "media",
+            "name": "thumb_full_url"
+          }
+        }
       },
       {
         "ordinal": 16,
         "name": "thumb_full_width",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "media",
+            "name": "thumb_full_width"
+          }
+        }
       },
       {
         "ordinal": 17,
         "name": "thumb_full_height",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "media",
+            "name": "thumb_full_height"
+          }
+        }
       }
     ],
     "parameters": {
