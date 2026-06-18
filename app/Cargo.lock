@@ -4361,9 +4361,9 @@ dependencies = [
 
 [[package]]
 name = "utoipa-ts"
-version = "0.1.3"
+version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0b2b04837d0bb334d91df328259a03fa478a021242ceaf7fd83d22ce2fffcaa9"
+checksum = "5b4655fb1ac0be2d27130f981bbd93bbe7f23e15c5b9c774b0b8a0355daf77b0"
 dependencies = [
  "inventory",
  "ts-rs",
@@ -4373,9 +4373,9 @@ dependencies = [
 
 [[package]]
 name = "utoipa-ts-macros"
-version = "0.1.3"
+version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4d747899ef0f5941ce8cb94343ca3f8ad01ac70e9ff0927b130e10e4fe107d81"
+checksum = "3ec989e84703be995b984e308182d12efbfc4015d2cf7b238d10b6ac2f0505b4"
 dependencies = [
  "proc-macro2",
  "quote",
