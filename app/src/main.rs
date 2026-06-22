@@ -7,9 +7,11 @@ mod telemetry;
 mod utils;
 
 use std::env;
+use std::str::FromStr;
+use std::time::Duration;
 
 use deadpool_redis::{Config, Runtime};
-use sqlx::postgres::PgPoolOptions;
+use sqlx::postgres::{PgConnectOptions, PgPoolOptions};
 
 use jobs::JobKind;
 use state::AppState;
@@ -30,14 +32,18 @@ async fn main() -> anyhow::Result<()> {
     let redis_url = env::var("REDIS_URL").unwrap_or(DEFAULT_REDIS_URL.to_string());
     let host = env::var("HOST").unwrap_or(DEFAULT_HOST.to_string());
 
+    let pg_options = PgConnectOptions::from_str(&database_url)?.statement_cache_capacity(32);
     let pg = PgPoolOptions::new()
+        .max_connections(5)
+        .min_connections(1)
+        .acquire_timeout(Duration::from_secs(10))
         .after_connect(|conn, _meta| {
             Box::pin(async move {
                 sqlx::query("SET jit = off").execute(&mut *conn).await?;
                 Ok(())
             })
         })
-        .connect(&database_url)
+        .connect_with(pg_options)
         .await?;
 
     let cfg = Config::from_url(&redis_url);
@@ -52,21 +58,21 @@ async fn main() -> anyhow::Result<()> {
         .unwrap_or(true);
 
     if run_jobs_on_startup {
-        let startup_jobs = [
-            JobKind::ShipsData,
-            JobKind::AirbridgeData,
-            JobKind::FinesData,
-            JobKind::SlackData,
-        ];
-        for job in startup_jobs {
-            let pg_startup = pg.clone();
-            let job_name = format!("{job:?}").to_lowercase();
-            tokio::spawn(async move {
+        let pg_startup = pg.clone();
+        tokio::spawn(async move {
+            let startup_jobs = [
+                JobKind::ShipsData,
+                JobKind::AirbridgeData,
+                JobKind::FinesData,
+                JobKind::SlackData,
+            ];
+            for job in startup_jobs {
+                let job_name = format!("{job:?}").to_lowercase();
                 if let Err(e) = jobs::run_job(&pg_startup, job).await {
                     tracing::error!("startup {} failed: {e}", job_name);
                 }
-            });
-        }
+            }
+        });
     }
 
     let state = AppState {

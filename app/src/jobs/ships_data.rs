@@ -11,7 +11,7 @@ use crate::utils::serde::{deserialize_null_int, deserialize_null_string, deseria
 use crate::utils::{embeddings, http};
 
 const SHIPS_API_URL: &str = "https://ships.hackclub.com/api/v1/ysws_entries?all=true";
-const BATCH_SIZE: usize = 1000;
+const BATCH_SIZE: usize = 250;
 const EMBED_BATCH_SIZE: usize = 128;
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(120);
 const MIN_DESCRIPTION_SIZE: i32 = 35;
@@ -183,7 +183,7 @@ async fn upsert_projects(entries: &[YswsEntry], pg: &PgPool) -> anyhow::Result<(
                 OR projects.is_github_url IS DISTINCT FROM EXCLUDED.is_github_url)",
         );
 
-        let result = qb.build().execute(&mut *tx).await?;
+        let result = qb.build().persistent(false).execute(&mut *tx).await?;
         modified += result.rows_affected();
     }
 
@@ -227,19 +227,20 @@ async fn embed_new_projects(pg: &PgPool) -> anyhow::Result<()> {
             .collect();
 
         let (model_name, vectors) = embeddings::get_embeddings(&texts, false).await?;
+        let vectors: Vec<Vector> = vectors.into_iter().map(Vector::from).collect();
 
-        for (row, vec) in chunk.iter().zip(vectors) {
-            sqlx::query(
-                "INSERT INTO project_embeddings (project_id, embedding, model) \
-                 VALUES ($1, $2, $3) \
-                 ON CONFLICT (project_id) DO UPDATE SET embedding = $2, model = $3, updated_at = NOW()",
-            )
-            .bind(row.id)
-            .bind(Vector::from(vec))
-            .bind(&model_name)
-            .execute(pg)
-            .await?;
-        }
+        let mut qb: QueryBuilder<Postgres> =
+            QueryBuilder::new("INSERT INTO project_embeddings (project_id, embedding, model) ");
+
+        qb.push_values(chunk.iter().zip(vectors.iter()), |mut b, (row, vector)| {
+            b.push_bind(row.id).push_bind(vector).push_bind(&model_name);
+        });
+
+        qb.push(
+            " ON CONFLICT (project_id) DO UPDATE SET embedding = EXCLUDED.embedding, model = EXCLUDED.model, updated_at = NOW()",
+        );
+
+        qb.build().persistent(false).execute(pg).await?;
 
         let done = batch_idx * EMBED_BATCH_SIZE + chunk.len();
         info!("embedded {done}/{}", rows.len());

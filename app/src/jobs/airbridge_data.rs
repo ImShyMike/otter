@@ -17,7 +17,7 @@ const AIRBRIDGE_API_URL: &str =
     "https://api2.hackclub.com/v0.1/Unified%20YSWS%20Projects%20DB/Approved%20Projects";
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(180);
 const PREVIEW_REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
-const BATCH_SIZE: usize = 1000;
+const BATCH_SIZE: usize = 250;
 const PREVIEW_BATCH_SIZE: usize = 32;
 const PREVIEW_MAX_BYTES: usize = 5 * 1024 * 1024;
 const PREVIEW_SIZE_PX: u32 = 32;
@@ -221,7 +221,7 @@ async fn upsert_entries(entries: &[AirbridgeEntry], pg: &PgPool) -> anyhow::Resu
                 OR projects.deleted_at IS NOT NULL",
         );
 
-        let result = qb.build().execute(&mut *tx).await?;
+        let result = qb.build().persistent(false).execute(&mut *tx).await?;
         modified += result.rows_affected();
     }
 
@@ -424,7 +424,12 @@ async fn sync_media(entries: &[AirbridgeEntry], pg: &PgPool) -> anyhow::Result<(
                 OR media.thumb_full_url IS DISTINCT FROM EXCLUDED.thumb_full_url",
         );
 
-        upserted += qb.build().execute(&mut *tx).await?.rows_affected();
+        upserted += qb
+            .build()
+            .persistent(false)
+            .execute(&mut *tx)
+            .await?
+            .rows_affected();
     }
 
     let mut keep_project_ids: Vec<i32> = Vec::new();
@@ -475,7 +480,7 @@ async fn sync_media(entries: &[AirbridgeEntry], pg: &PgPool) -> anyhow::Result<(
             qb.push(
                 ") AS v(id, preview_blurhash_source_key, preview_blurhash) WHERE p.id = v.id AND p.deleted_at IS NULL",
             );
-            qb.build().execute(&mut *tx).await?;
+            qb.build().persistent(false).execute(&mut *tx).await?;
         }
     }
 

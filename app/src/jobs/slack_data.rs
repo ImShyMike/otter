@@ -3,10 +3,12 @@ use std::{env, pin::Pin, time::Duration};
 use serde::{Deserialize, Serialize};
 use sqlx::{PgPool, Postgres, QueryBuilder};
 use std::future::Future;
-use tracing::{Instrument, info, instrument, warn};
+use tracing::{Instrument, debug, info, instrument, warn};
 
 const SLACK_USERS_URL: &str = "https://slack.com/api/users.list";
 const PAGE_LIMIT: usize = 1000;
+const UPSERT_BATCH_SIZE: usize = 250;
+const PROGRESS_LOG_EVERY_PAGES: usize = 50;
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(60);
 const MAX_ATTEMPTS: usize = 6;
 
@@ -93,18 +95,25 @@ pub fn run<'a>(pg: &'a PgPool) -> Pin<Box<dyn Future<Output = anyhow::Result<()>
                     fetch_users_page(&http_client, &slack_token, cursor.as_deref()).await?;
 
                 if response.members.is_empty() {
-                    info!(page, "slack page returned no users");
+                    debug!(page, "slack page returned no users");
                 } else {
                     let upserted = upsert_users(pg, &response.members).await?;
                     total_users += response.members.len();
                     modified_users += upserted as usize;
-                    info!(
+                    debug!(
                         page,
                         fetched = response.members.len(),
                         modified = upserted,
                         total_users,
                         "imported slack users page"
                     );
+
+                    if page.is_multiple_of(PROGRESS_LOG_EVERY_PAGES) {
+                        info!(
+                            page,
+                            total_users, modified_users, "imported slack users progress"
+                        );
+                    }
                 }
 
                 let next_cursor = response
@@ -208,7 +217,7 @@ async fn upsert_users(pg: &PgPool, users: &[SlackUser]) -> anyhow::Result<u64> {
     let mut tx = pg.begin().await?;
     let mut modified = 0u64;
 
-    for chunk in users.chunks(PAGE_LIMIT) {
+    for chunk in users.chunks(UPSERT_BATCH_SIZE) {
         let mut qb: QueryBuilder<Postgres> = QueryBuilder::new(
             "INSERT INTO slack_users (slack_id, team_id, name, email, tz, real_name, display_name, display_name_normalized, deleted, updated_unix, image_72, image_512) ",
         );
@@ -296,7 +305,12 @@ async fn upsert_users(pg: &PgPool, users: &[SlackUser]) -> anyhow::Result<u64> {
                 OR slack_users.image_512 IS DISTINCT FROM EXCLUDED.image_512",
         );
 
-        modified += qb.build().execute(&mut *tx).await?.rows_affected();
+        modified += qb
+            .build()
+            .persistent(false)
+            .execute(&mut *tx)
+            .await?
+            .rows_affected();
     }
 
     tx.commit().await?;

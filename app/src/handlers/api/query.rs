@@ -408,7 +408,11 @@ pub async fn query(
     .push(" OFFSET ")
     .push_bind(offset);
 
-    let rows = qb.build_query_as::<QueryRow>().fetch_all(&state.pg).await?;
+    let rows = qb
+        .build_query_as::<QueryRow>()
+        .persistent(false)
+        .fetch_all(&state.pg)
+        .await?;
 
     let total = rows.first().map(|r| r._total).unwrap_or(0);
     let data = rows

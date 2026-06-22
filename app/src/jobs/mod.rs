@@ -5,7 +5,8 @@ mod slack_data;
 
 use std::pin::Pin;
 
-use sqlx::PgPool;
+use sqlx::postgres::PgConnection;
+use sqlx::{Connection, PgPool};
 use time::OffsetDateTime;
 use tokio_cron_scheduler::{Job, JobScheduler};
 
@@ -44,9 +45,9 @@ impl JobKind {
     fn cron(&self) -> &'static str {
         match self {
             JobKind::ShipsData => "0 0 */3 * * *",
-            JobKind::AirbridgeData => "0 0 */1 * * *",
-            JobKind::FinesData => "0 0 */1 * * *",
-            JobKind::SlackData => "0 0 */6 * * *",
+            JobKind::AirbridgeData => "0 10 */1 * * *",
+            JobKind::FinesData => "0 20 */1 * * *",
+            JobKind::SlackData => "0 30 */6 * * *",
         }
     }
 
@@ -90,21 +91,35 @@ pub async fn schedule_all(pg: &PgPool) -> anyhow::Result<JobScheduler> {
 }
 
 async fn with_lock(pg: &PgPool, lock_id: i64, f: JobFn) -> anyhow::Result<()> {
-    let mut tx = pg.begin().await?;
+    let connect_options = pg.connect_options();
+    let mut lock_conn = PgConnection::connect_with(connect_options.as_ref()).await?;
+    sqlx::query("SET jit = off").execute(&mut lock_conn).await?;
 
-    let acquired = sqlx::query_scalar!("SELECT pg_try_advisory_xact_lock($1)", lock_id)
-        .fetch_one(&mut *tx)
-        .await?
-        .unwrap_or(false);
+    let acquired: bool = sqlx::query_scalar("SELECT pg_try_advisory_lock($1)")
+        .bind(lock_id)
+        .fetch_one(&mut lock_conn)
+        .await?;
 
     if !acquired {
         return Ok(());
     }
 
-    f(pg).await?;
+    let result = f(pg).await;
 
-    set_last_refreshed_at(OffsetDateTime::now_utc()).await;
+    if result.is_ok() && matches!(lock_id, 1 | 2) {
+        set_last_refreshed_at(OffsetDateTime::now_utc()).await;
+    }
 
-    tx.commit().await?;
+    let unlock_result: anyhow::Result<bool> = sqlx::query_scalar("SELECT pg_advisory_unlock($1)")
+        .bind(lock_id)
+        .fetch_one(&mut lock_conn)
+        .await
+        .map_err(Into::into);
+
+    result?;
+    if !unlock_result? {
+        anyhow::bail!("failed to release advisory lock {lock_id}");
+    }
+
     Ok(())
 }

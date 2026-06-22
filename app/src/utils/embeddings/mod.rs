@@ -25,7 +25,7 @@ fn api_configured() -> bool {
         && env::var("AI_API_MODEL").is_ok()
 }
 
-fn local_fallback_disabled() -> bool {
+pub fn local_fallback_disabled() -> bool {
     env::var("DISABLE_LOCAL_FALLBACK")
         .map(|v| {
             let v = v.trim().to_ascii_lowercase();

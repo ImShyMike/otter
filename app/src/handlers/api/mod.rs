@@ -66,6 +66,11 @@ pub fn local_only() -> bool {
         let api_ai_model = std::env::var("AI_API_MODEL").ok();
         let local_model = embeddings::local::MODEL_NAME;
         if force_local {
+            if embeddings::local_fallback_disabled() {
+                warn!("API_FORCE_LOCAL is set but DISABLE_LOCAL_FALLBACK disables local embeddings, ignoring...");
+                return false;
+            }
+
             if api_ai_model.as_deref() != Some(local_model) {
                 warn!("API_FORCE_LOCAL is set but AI_API_MODEL does not match local model, ignoring...");
                 false
