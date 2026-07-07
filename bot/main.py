@@ -523,6 +523,7 @@ def handle_message_events(body, client):
         if not result["ok"]:
             print(result["error"])
 
+
 def main():
     """Main entry point"""
     handler = SocketModeHandler(app, os.environ["SLACK_APP_TOKEN"])

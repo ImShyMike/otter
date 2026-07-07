@@ -458,7 +458,9 @@ def run_once(
 
     pending = [fine for fine in hcb_fines if fine.get("id") not in already_sent]
 
-    for transaction in sorted(pending, key=lambda tx: (tx.get("date") or "", tx.get("id") or "")):
+    for transaction in sorted(
+        pending, key=lambda tx: (tx.get("date") or "", tx.get("id") or "")
+    ):
         otter_fine = otter_fines.get(str(transaction["id"]))
         slack_ts = post_fine(client, transaction, otter_fine)
         mark_sent(conn, transaction, slack_ts)
@@ -479,7 +481,9 @@ def main() -> int:
     client = WebClient(token=required_env("SLACK_BOT_TOKEN"), timeout=TIMEOUT_SECONDS)
     api_base = os.environ.get("OTTER_API_BASE", DEFAULT_API_BASE).rstrip("/")
     db_path = Path(os.environ.get("FINES_BOT_DB", DEFAULT_DB_PATH))
-    interval = int(os.environ.get("FINES_BOT_INTERVAL_SECONDS", DEFAULT_INTERVAL_SECONDS))
+    interval = int(
+        os.environ.get("FINES_BOT_INTERVAL_SECONDS", DEFAULT_INTERVAL_SECONDS)
+    )
     leaderboard_interval = int(
         os.environ.get(
             "FINES_BOT_LEADERBOARD_INTERVAL_SECONDS",
