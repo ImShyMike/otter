@@ -329,21 +329,23 @@ def leaderboard_comment(rows: list[dict[str, Any]]) -> str:
     if not rows:
         return "*Daily fines leaderboard*\nNo fines yet."
 
-    top = rows[0]
     changes = [row for row in rows if int(row["_change_cents"]) != 0]
-    lines = [
-        "*Daily fines leaderboard*",
-        f"Top YSWS: *{top['ysws']}* — ${top['total_dollars']}",
-    ]
+    lines = ["*Daily fines leaderboard*"]
+
+    for index, row in enumerate(rows[:10], start=1):
+        change = int(row["_change_cents"])
+        change_text = ""
+        if change != 0:
+            sign = "+" if change >= 0 else "-"
+            change_text = f" ({sign}${dollars_value(abs(change))})"
+        lines.append(f"{index}. *{row['ysws']}* - ${row['total_dollars']}{change_text}")
 
     if changes:
-        lines.append("Changes since last update:")
+        lines.append("Changes:")
         for row in changes[:10]:
             change = int(row["_change_cents"])
             sign = "+" if change >= 0 else "-"
             lines.append(f"• {row['ysws']}: {sign}${dollars_value(abs(change))}")
-    else:
-        lines.append("Changes since last update: none")
 
     return "\n".join(lines)
 
