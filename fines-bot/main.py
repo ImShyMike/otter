@@ -368,6 +368,10 @@ def maybe_post_leaderboard(
     if now - last_posted_at < interval_seconds:
         return
 
+    if current == previous:
+        print("Leaderboard unchanged; nothing posted.")
+        return
+
     rows = leaderboard_rows(current, previous)
     response = client.chat_postMessage(
         channel=FINES_CHANNEL_ID,
