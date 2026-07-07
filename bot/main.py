@@ -2,9 +2,6 @@
 
 import os
 import re
-import threading
-import time
-import traceback
 from pathlib import Path
 from typing import Optional, TypedDict
 
@@ -13,10 +10,6 @@ from dotenv import load_dotenv
 from slack_bolt import App
 from slack_bolt.adapter.socket_mode import SocketModeHandler
 from slack_sdk.errors import SlackApiError
-
-import fines_notifier
-
-FINES_NOTIFIER_INTERVAL_SECONDS = 60 * 60
 
 
 class ProjectItem(TypedDict, total=False):
@@ -530,22 +523,8 @@ def handle_message_events(body, client):
         if not result["ok"]:
             print(result["error"])
 
-
-def fines_notifier_loop():
-    """Run the fine notifier every hour"""
-    while True:
-        try:
-            fines_notifier.main()
-        except Exception:  # pylint: disable=broad-except
-            traceback.print_exc()
-        time.sleep(FINES_NOTIFIER_INTERVAL_SECONDS)
-
-
 def main():
     """Main entry point"""
-
-    threading.Thread(target=fines_notifier_loop, daemon=True).start()
-
     handler = SocketModeHandler(app, os.environ["SLACK_APP_TOKEN"])
     handler.start()
 

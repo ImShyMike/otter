@@ -6,7 +6,9 @@ export type Filter = { field: Field, op: FilterOp, value: JsonValue | null, };
 
 export type FilterOp = "eq" | "neq" | "gt" | "gte" | "lt" | "lte" | "contains" | "not_contains" | "starts_with" | "ends_with" | "is_null" | "is_not_null";
 
-export type FineItem = { id: number, transaction_id: string, amount_cents: number, ysws: string | null, date: string, projects: Array<ProjectSummary>, };
+export type FineItem = { id: number, transaction_id: string, amount_cents: number, ysws: string | null, memo: string, date: string, projects: Array<ProjectSummary>, };
+
+export type FinesResults = { data: Array<FineItem>, total: bigint, page: bigint, per_page: bigint, };
 
 export type JsonValue = number | string | boolean | Array<JsonValue> | { [key in string]: JsonValue } | null;
 
@@ -34,8 +36,12 @@ export type YSWSProgramDetailsResponse = { name: string, total_projects: bigint,
 
 export type Api = {
   "GET /fines": {
+    params: {
+      limit?: number;
+      page?: number;
+    };
     responses: {
-      200: Array<FineItem>;
+      200: FinesResults;
     };
   };
   "GET /media/{id}": {
