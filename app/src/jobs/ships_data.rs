@@ -148,39 +148,23 @@ async fn upsert_projects(entries: &[YswsEntry], pg: &PgPool) -> anyhow::Result<(
 
         qb.push(
             " ON CONFLICT (airtable_id) DO UPDATE SET \
-                ysws = EXCLUDED.ysws, \
-                approved_at = EXCLUDED.approved_at, \
-                code_url = EXCLUDED.code_url, \
                 country = EXCLUDED.country, \
-                demo_url = EXCLUDED.demo_url, \
                 description = EXCLUDED.description, \
                 slack_id = EXCLUDED.slack_id, \
-                github_username = EXCLUDED.github_username, \
                 hours = EXCLUDED.hours, \
                 github_stars = EXCLUDED.github_stars, \
                 display_name = EXCLUDED.display_name, \
                 archived_demo = EXCLUDED.archived_demo, \
-                archived_repo = EXCLUDED.archived_repo, \
-                inferred_repo = EXCLUDED.inferred_repo, \
-                inferred_username = EXCLUDED.inferred_username, \
-                is_github_url = EXCLUDED.is_github_url \
+                archived_repo = EXCLUDED.archived_repo \
                 WHERE projects.deleted_at IS NULL \
-                AND (projects.ysws IS DISTINCT FROM EXCLUDED.ysws \
-                OR projects.approved_at IS DISTINCT FROM EXCLUDED.approved_at \
-                OR projects.code_url IS DISTINCT FROM EXCLUDED.code_url \
-                OR projects.country IS DISTINCT FROM EXCLUDED.country \
-                OR projects.demo_url IS DISTINCT FROM EXCLUDED.demo_url \
+                AND (projects.country IS DISTINCT FROM EXCLUDED.country \
                 OR projects.description IS DISTINCT FROM EXCLUDED.description \
                 OR projects.slack_id IS DISTINCT FROM EXCLUDED.slack_id \
-                OR projects.github_username IS DISTINCT FROM EXCLUDED.github_username \
                 OR projects.hours IS DISTINCT FROM EXCLUDED.hours \
                 OR projects.github_stars IS DISTINCT FROM EXCLUDED.github_stars \
                 OR projects.display_name IS DISTINCT FROM EXCLUDED.display_name \
                 OR projects.archived_demo IS DISTINCT FROM EXCLUDED.archived_demo \
-                OR projects.archived_repo IS DISTINCT FROM EXCLUDED.archived_repo \
-                OR projects.inferred_repo IS DISTINCT FROM EXCLUDED.inferred_repo \
-                OR projects.inferred_username IS DISTINCT FROM EXCLUDED.inferred_username \
-                OR projects.is_github_url IS DISTINCT FROM EXCLUDED.is_github_url)",
+                OR projects.archived_repo IS DISTINCT FROM EXCLUDED.archived_repo)",
         );
 
         let result = qb.build().persistent(false).execute(&mut *tx).await?;
