@@ -3,10 +3,8 @@
 from __future__ import annotations
 
 import argparse
-import csv
 import os
 import sqlite3
-import tempfile
 import time
 import traceback
 from datetime import UTC, datetime
@@ -45,8 +43,8 @@ CSV_FIELDNAMES = [
 
 LEADERBOARD_FIELDNAMES = [
     "ysws",
-    "total_dollars",
-    "change_dollars",
+    "total",
+    "change",
 ]
 
 
@@ -233,17 +231,6 @@ def deleted_project_rows(fine: dict[str, Any] | None) -> list[dict[str, Any]]:
     ]
 
 
-def write_csv(rows: list[dict[str, Any]]) -> Path:
-    tmp = tempfile.NamedTemporaryFile(
-        mode="w", newline="", encoding="utf-8", suffix=".csv", delete=False
-    )
-    with tmp:
-        writer = csv.DictWriter(tmp, fieldnames=CSV_FIELDNAMES)
-        writer.writeheader()
-        writer.writerows(rows)
-    return Path(tmp.name)
-
-
 def load_leaderboard_snapshot(conn: sqlite3.Connection) -> dict[str, int]:
     return {
         row[0]: int(row[1])
@@ -303,8 +290,8 @@ def leaderboard_rows(
         rows.append(
             {
                 "ysws": ysws,
-                "total_dollars": dollars_value(total_cents),
-                "change_dollars": dollars_value(change_cents),
+                "total": dollars_value(total_cents),
+                "change": dollars_value(change_cents),
                 "_total_cents": total_cents,
                 "_change_cents": change_cents,
             }
@@ -312,42 +299,89 @@ def leaderboard_rows(
     return sorted(rows, key=lambda row: int(row["_total_cents"]), reverse=True)
 
 
-def write_leaderboard_csv(rows: list[dict[str, Any]]) -> Path:
-    tmp = tempfile.NamedTemporaryFile(
-        mode="w", newline="", encoding="utf-8", suffix=".csv", delete=False
-    )
-    with tmp:
-        writer = csv.DictWriter(
-            tmp, fieldnames=LEADERBOARD_FIELDNAMES, extrasaction="ignore"
+def new_fines_chart_blocks(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [
+        {
+            "type": "data_visualization",
+            "block_id": "viz-pie-new-fines",
+            "title": "New Fines",
+            "chart": {
+                "type": "pie",
+                "segments": [
+                    {
+                        "label": str(row["ysws"]),
+                        "value": int(row["_change_cents"]) / 100,
+                    }
+                    for row in rows
+                    if int(row["_change_cents"]) > 0
+                ],
+            },
+        }
+    ]
+
+
+def leaderboard_chart_blocks(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    data = [
+        {
+            "label": str(row["ysws"]),
+            "value": int(row["_total_cents"]) / 100,
+        }
+        for row in rows
+        if int(row["_total_cents"]) > 0
+    ]
+
+    return [
+        {
+            "type": "data_visualization",
+            "block_id": "viz-bar-fines-leaderboard",
+            "title": "Fines Leaderboard",
+            "chart": {
+                "type": "bar",
+                "series": [
+                    {
+                        "name": "Dollars",
+                        "data": data,
+                    }
+                ],
+                "axis_config": {
+                    "categories": [row["label"] for row in data],
+                    "x_label": "YSWS",
+                    "y_label": "Dollars",
+                },
+            },
+        }
+    ]
+
+
+def leaderboard_table_blocks(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    table_rows = [
+        [
+            {
+                "type": "raw_text",
+                "text": fieldname,
+            }
+            for fieldname in LEADERBOARD_FIELDNAMES
+        ]
+    ]
+
+    for row in rows:
+        table_rows.append(
+            [
+                {
+                    "type": "raw_text",
+                    "text": str(row.get(fieldname) or ""),
+                }
+                for fieldname in LEADERBOARD_FIELDNAMES
+            ]
         )
-        writer.writeheader()
-        writer.writerows(rows)
-    return Path(tmp.name)
 
-
-def leaderboard_comment(rows: list[dict[str, Any]]) -> str:
-    if not rows:
-        return "*Daily fines leaderboard*\nNo fines yet."
-
-    changes = [row for row in rows if int(row["_change_cents"]) != 0]
-    lines = ["*Daily fines leaderboard*"]
-
-    for index, row in enumerate(rows[:10], start=1):
-        change = int(row["_change_cents"])
-        change_text = ""
-        if change != 0:
-            sign = "+" if change >= 0 else "-"
-            change_text = f" ({sign}${dollars_value(abs(change))})"
-        lines.append(f"{index}. *{row['ysws']}* - ${row['total_dollars']}{change_text}")
-
-    if changes:
-        lines.append("Changes:")
-        for row in changes[:10]:
-            change = int(row["_change_cents"])
-            sign = "+" if change >= 0 else "-"
-            lines.append(f"• {row['ysws']}: {sign}${dollars_value(abs(change))}")
-
-    return "\n".join(lines)
+    return [
+        {
+            "type": "data_table",
+            "caption": "Fines Leaderboard",
+            "rows": table_rows,
+        }
+    ]
 
 
 def maybe_post_leaderboard(
@@ -377,23 +411,23 @@ def maybe_post_leaderboard(
     rows = leaderboard_rows(current, previous)
     response = client.chat_postMessage(
         channel=FINES_CHANNEL_ID,
-        text=leaderboard_comment(rows),
+        text="New fines",
+        blocks=new_fines_chart_blocks(rows),
     )
-    thread_ts = response.get("ts")
 
-    csv_path = write_leaderboard_csv(rows)
-    try:
-        timestamp = datetime.now(UTC).strftime("%Y%m%d-%H%M%SZ")
-        client.files_upload_v2(
-            channel=FINES_CHANNEL_ID,
-            thread_ts=thread_ts,
-            filename=f"fines-leaderboard-{timestamp}.csv",
-            title="fines-leaderboard.csv",
-            initial_comment="Full fines leaderboard CSV",
-            file=str(csv_path),
-        )
-    finally:
-        csv_path.unlink(missing_ok=True)
+    response = client.chat_postMessage(
+        channel=FINES_CHANNEL_ID,
+        text="Fines leaderboard",
+        blocks=leaderboard_chart_blocks(rows),
+    )
+    leaderboard_thread_ts = response.get("ts")
+
+    client.chat_postMessage(
+        channel=FINES_CHANNEL_ID,
+        thread_ts=leaderboard_thread_ts,
+        text="Full fines leaderboard",
+        blocks=leaderboard_table_blocks(rows),
+    )
 
     save_leaderboard_state(conn, current, now)
 
@@ -416,32 +450,117 @@ def fine_comment(transaction: dict[str, Any], otter_fine: dict[str, Any] | None)
     return "\n".join(lines)
 
 
+def fine_blocks(
+    transaction: dict[str, Any], otter_fine: dict[str, Any] | None
+) -> list[dict[str, Any]]:
+    amount_cents = int(transaction.get("amount_cents") or 0)
+    ysws = (otter_fine or {}).get("ysws") or "unknown"
+    projects = (otter_fine or {}).get("projects") or []
+    date = transaction.get("date") or (otter_fine or {}).get("date") or "unknown"
+    transaction_id = transaction["id"]
+    transaction_link = (
+        f"<https://hcbscan.3kh0.net/app/txn/{transaction_id}|Transaction>"
+    )
+    context_text = transaction_link
+
+    if projects:
+        project_word = "project" if len(projects) == 1 else "projects"
+        context_text = f"{len(projects)} {project_word} deleted\n\n{transaction_link}"
+
+    return [
+        {
+            "type": "container",
+            "block_id": f"fine_{transaction_id}",
+            "title": {
+                "type": "plain_text",
+                "text": ysws,
+            },
+            "subtitle": {
+                "type": "plain_text",
+                "text": date,
+            },
+            "has_header_divider": True,
+            "child_blocks": [
+                {
+                    "type": "header",
+                    "text": {
+                        "type": "plain_text",
+                        "text": amount_dollars(amount_cents),
+                        "emoji": True,
+                    },
+                    "level": 1,
+                },
+                {
+                    "type": "context",
+                    "block_id": "transaction_context",
+                    "elements": [
+                        {
+                            "type": "mrkdwn",
+                            "text": context_text,
+                        }
+                    ],
+                },
+            ],
+        }
+    ]
+
+
+def deleted_projects_table_blocks(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    table_rows = [
+        [
+            {
+                "type": "raw_text",
+                "text": fieldname,
+            }
+            for fieldname in CSV_FIELDNAMES
+        ]
+    ]
+
+    for row in rows:
+        table_rows.append(
+            [
+                {
+                    "type": "raw_text",
+                    "text": str(row.get(fieldname) or ""),
+                }
+                for fieldname in CSV_FIELDNAMES
+            ]
+        )
+
+    return [
+        {
+            "type": "data_table",
+            "caption": "Deleted Projects",
+            "rows": table_rows,
+        }
+    ]
+
+
 def post_fine(
     client: WebClient, transaction: dict[str, Any], otter_fine: dict[str, Any] | None
 ) -> str | None:
     rows = deleted_project_rows(otter_fine)
     comment = fine_comment(transaction, otter_fine)
 
-    if not rows:
-        response = client.chat_postMessage(
-            channel=FINES_CHANNEL_ID, text=comment, unfurl_links=False
-        )
-        return response.get("ts")
+    response = client.chat_postMessage(
+        channel=FINES_CHANNEL_ID,
+        text=comment,
+        blocks=fine_blocks(transaction, otter_fine),
+        unfurl_links=False,
+    )
+    thread_ts = response.get("ts")
 
-    csv_path = write_csv(rows)
-    timestamp = datetime.now(UTC).strftime("%Y%m%d-%H%M%SZ")
-    filename = f"deleted-projects-fine-{transaction['id']}-{timestamp}.csv"
-    try:
-        response = client.files_upload_v2(
-            channel=FINES_CHANNEL_ID,
-            filename=filename,
-            title=filename,
-            initial_comment=comment,
-            file=str(csv_path),
-        )
-        return (response.get("file") or {}).get("shares", {}).get("ts")
-    finally:
-        csv_path.unlink(missing_ok=True)
+    if not rows:
+        return thread_ts
+
+    client.chat_postMessage(
+        channel=FINES_CHANNEL_ID,
+        thread_ts=thread_ts,
+        text="Deleted projects",
+        blocks=deleted_projects_table_blocks(rows),
+        unfurl_links=False,
+    )
+    return thread_ts
 
 
 def run_once(
