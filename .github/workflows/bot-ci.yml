@@ -5,20 +5,24 @@ on:
     branches: [main]
     paths:
       - bot/**
+      - fines-bot/**
       - .github/workflows/bot-ci.yml
   pull_request:
     paths:
       - bot/**
+      - fines-bot/**
       - .github/workflows/bot-ci.yml
-
-defaults:
-  run:
-    working-directory: bot
 
 jobs:
   test:
-    name: Test
+    name: Test (${{ matrix.project }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        project:
+          - bot
+          - fines-bot
 
     steps:
       - name: Checkout repository
@@ -28,19 +32,24 @@ jobs:
         uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
-          cache-dependency-glob: bot/uv.lock
+          cache-dependency-glob: ${{ matrix.project }}/uv.lock
 
       - name: Set up Python
         run: uv python install
+        working-directory: ${{ matrix.project }}
 
       - name: Install dependencies
         run: uv sync --locked
+        working-directory: ${{ matrix.project }}
 
       - name: Syntax check
         run: uv run python -m compileall -q .
+        working-directory: ${{ matrix.project }}
 
       - name: Lint with ruff
         run: uvx ruff check .
+        working-directory: ${{ matrix.project }}
 
       - name: Check formatting with ruff
         run: uvx ruff format --check .
+        working-directory: ${{ matrix.project }}

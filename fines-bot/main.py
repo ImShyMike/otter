@@ -423,7 +423,9 @@ def post_fine(
     comment = fine_comment(transaction, otter_fine)
 
     if not rows:
-        response = client.chat_postMessage(channel=FINES_CHANNEL_ID, text=comment)
+        response = client.chat_postMessage(
+            channel=FINES_CHANNEL_ID, text=comment, unfurl_links=False
+        )
         return response.get("ts")
 
     csv_path = write_csv(rows)
