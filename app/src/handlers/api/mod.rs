@@ -25,6 +25,7 @@ pub struct ProjectItem {
     pub approved_at: Option<i64>,
     pub code_url: Option<String>,
     pub country: Option<String>,
+    pub country_code: Option<String>,
     pub demo_url: Option<String>,
     pub description: Option<String>,
     pub slack_id: Option<String>,

@@ -7,6 +7,7 @@ use time::OffsetDateTime;
 use tracing::{Instrument, error, info, instrument};
 
 use crate::utils::code_url::parse_code_url;
+use crate::utils::country::resolve_country;
 use crate::utils::serde::{deserialize_null_int, deserialize_null_string, deserialize_timestamp};
 use crate::utils::{embeddings, http};
 
@@ -118,7 +119,7 @@ async fn upsert_projects(entries: &[YswsEntry], pg: &PgPool) -> anyhow::Result<(
 
     for chunk in entries.chunks(BATCH_SIZE) {
         let mut qb: QueryBuilder<Postgres> = QueryBuilder::new(
-            "INSERT INTO projects (airtable_id, ysws, approved_at, code_url, country, demo_url, description, slack_id, github_username, hours, github_stars, display_name, archived_demo, archived_repo, inferred_repo, inferred_username, is_github_url) ",
+            "INSERT INTO projects (airtable_id, ysws, approved_at, code_url, country, country_code, demo_url, description, slack_id, github_username, hours, github_stars, display_name, archived_demo, archived_repo, inferred_repo, inferred_username, is_github_url) ",
         );
 
         qb.push_values(chunk, |mut b, entry| {
@@ -132,6 +133,7 @@ async fn upsert_projects(entries: &[YswsEntry], pg: &PgPool) -> anyhow::Result<(
                 .push_bind(entry.approved_at.map(|t| t.unix_timestamp()))
                 .push_bind(&entry.code_url)
                 .push_bind(&entry.country)
+                .push_bind(resolve_country(&entry.country))
                 .push_bind(&entry.demo_url)
                 .push_bind(&entry.description)
                 .push_bind(&entry.slack_id)
@@ -149,6 +151,7 @@ async fn upsert_projects(entries: &[YswsEntry], pg: &PgPool) -> anyhow::Result<(
         qb.push(
             " ON CONFLICT (airtable_id) DO UPDATE SET \
                 country = EXCLUDED.country, \
+                country_code = EXCLUDED.country_code, \
                 description = EXCLUDED.description, \
                 slack_id = EXCLUDED.slack_id, \
                 hours = EXCLUDED.hours, \
@@ -158,6 +161,7 @@ async fn upsert_projects(entries: &[YswsEntry], pg: &PgPool) -> anyhow::Result<(
                 archived_repo = EXCLUDED.archived_repo \
                 WHERE projects.deleted_at IS NULL \
                 AND (projects.country IS DISTINCT FROM EXCLUDED.country \
+                OR projects.country_code IS DISTINCT FROM EXCLUDED.country_code \
                 OR projects.description IS DISTINCT FROM EXCLUDED.description \
                 OR projects.slack_id IS DISTINCT FROM EXCLUDED.slack_id \
                 OR projects.hours IS DISTINCT FROM EXCLUDED.hours \

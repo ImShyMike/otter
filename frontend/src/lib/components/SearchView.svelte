@@ -11,6 +11,8 @@
 	import Avatar from './ui/image/avatar.svelte';
 
 	let { results }: { results: SearchResult[] } = $props();
+
+	const regionNames = new Intl.DisplayNames(["en"], { type: "region" });
 </script>
 
 <div class="flex flex-col gap-4">
@@ -57,8 +59,8 @@
 						{#if formatHours(r)}
 							<Badge variant="outline" class="text-xs">{formatHours(r)}</Badge>
 						{/if}
-						{#if r.country}
-							<Badge variant="outline" class="text-xs">{r.country}</Badge>
+						{#if r.country_code}
+							<Badge variant="outline" class="text-xs">{regionNames.of(r.country_code) ?? "Unknown"}</Badge>
 						{/if}
 					</div>
 				</div>

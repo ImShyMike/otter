@@ -71,6 +71,7 @@
 		airtable_id: { type: 'text', label: 'Airtable ID' },
 		ysws: { type: 'text', label: 'YSWS' },
 		country: { type: 'text', label: 'Country' },
+		country_code: { type: 'text', label: 'Country Code' },
 		description: { type: 'text', label: 'Description' },
 		slack_id: { type: 'text', label: 'Slack ID' },
 		github_username: { type: 'text', label: 'GitHub User' },
@@ -378,6 +379,7 @@
 		airtable_id: 'airtable_id',
 		ysws: 'ysws',
 		country: 'country',
+		country_code: 'country_code',
 		description: 'description',
 		slack_id: 'slack_id',
 		github_username: 'github_username',
@@ -539,6 +541,12 @@
 		{
 			accessorKey: 'country',
 			header: 'Country',
+			cell: (info) => (info.getValue() as string | null) ?? '—',
+			enableSorting: true
+		},
+		{
+			accessorKey: 'country_code',
+			header: 'Country Code',
 			cell: (info) => (info.getValue() as string | null) ?? '—',
 			enableSorting: true
 		},

@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id, airtable_id, ysws, approved_at, code_url, country, demo_url, description, slack_id, github_username, hours, true_hours, has_media AS \"has_media!\", github_stars, display_name, archived_demo, archived_repo, inferred_repo, inferred_username, is_github_url, preview_blurhash FROM projects WHERE deleted_at IS NULL ORDER BY created_at DESC LIMIT $1",
+  "query": "SELECT id, airtable_id, ysws, approved_at, code_url, country, country_code, demo_url, description, slack_id, github_username, hours, true_hours, has_media AS \"has_media!\", github_stars, display_name, archived_demo, archived_repo, inferred_repo, inferred_username, is_github_url, preview_blurhash FROM projects WHERE deleted_at IS NULL ORDER BY created_at DESC LIMIT $1",
   "describe": {
     "columns": [
       {
@@ -71,6 +71,17 @@
       },
       {
         "ordinal": 6,
+        "name": "country_code",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "projects",
+            "name": "country_code"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
         "name": "demo_url",
         "type_info": "Text",
         "origin": {
@@ -81,7 +92,7 @@
         }
       },
       {
-        "ordinal": 7,
+        "ordinal": 8,
         "name": "description",
         "type_info": "Text",
         "origin": {
@@ -92,7 +103,7 @@
         }
       },
       {
-        "ordinal": 8,
+        "ordinal": 9,
         "name": "slack_id",
         "type_info": "Text",
         "origin": {
@@ -103,7 +114,7 @@
         }
       },
       {
-        "ordinal": 9,
+        "ordinal": 10,
         "name": "github_username",
         "type_info": "Text",
         "origin": {
@@ -114,7 +125,7 @@
         }
       },
       {
-        "ordinal": 10,
+        "ordinal": 11,
         "name": "hours",
         "type_info": "Int4",
         "origin": {
@@ -125,7 +136,7 @@
         }
       },
       {
-        "ordinal": 11,
+        "ordinal": 12,
         "name": "true_hours",
         "type_info": "Float8",
         "origin": {
@@ -136,7 +147,7 @@
         }
       },
       {
-        "ordinal": 12,
+        "ordinal": 13,
         "name": "has_media!",
         "type_info": "Bool",
         "origin": {
@@ -147,7 +158,7 @@
         }
       },
       {
-        "ordinal": 13,
+        "ordinal": 14,
         "name": "github_stars",
         "type_info": "Int4",
         "origin": {
@@ -158,7 +169,7 @@
         }
       },
       {
-        "ordinal": 14,
+        "ordinal": 15,
         "name": "display_name",
         "type_info": "Text",
         "origin": {
@@ -169,7 +180,7 @@
         }
       },
       {
-        "ordinal": 15,
+        "ordinal": 16,
         "name": "archived_demo",
         "type_info": "Text",
         "origin": {
@@ -180,7 +191,7 @@
         }
       },
       {
-        "ordinal": 16,
+        "ordinal": 17,
         "name": "archived_repo",
         "type_info": "Text",
         "origin": {
@@ -191,7 +202,7 @@
         }
       },
       {
-        "ordinal": 17,
+        "ordinal": 18,
         "name": "inferred_repo",
         "type_info": "Text",
         "origin": {
@@ -202,7 +213,7 @@
         }
       },
       {
-        "ordinal": 18,
+        "ordinal": 19,
         "name": "inferred_username",
         "type_info": "Text",
         "origin": {
@@ -213,7 +224,7 @@
         }
       },
       {
-        "ordinal": 19,
+        "ordinal": 20,
         "name": "is_github_url",
         "type_info": "Bool",
         "origin": {
@@ -224,7 +235,7 @@
         }
       },
       {
-        "ordinal": 20,
+        "ordinal": 21,
         "name": "preview_blurhash",
         "type_info": "Text",
         "origin": {
@@ -253,6 +264,7 @@
       true,
       true,
       true,
+      true,
       false,
       false,
       true,
@@ -264,5 +276,5 @@
       true
     ]
   },
-  "hash": "0f7787c8a5bf1c67a36649ab0e339978b09a4d0a7686b4bb321b2d9237bbf17f"
+  "hash": "61023fab913658cb3378ae4c23efd00746d701b2df2d4554467ffeef2db2a1e5"
 }

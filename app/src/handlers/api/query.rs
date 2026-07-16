@@ -30,6 +30,7 @@ enum Field {
     AirtableId,
     Ysws,
     Country,
+    CountryCode,
     Description,
     SlackId,
     GithubUsername,
@@ -57,6 +58,7 @@ impl Field {
             Field::AirtableId => FieldDef { column: "airtable_id", kind: FieldKind::Text },
             Field::Ysws => FieldDef { column: "ysws", kind: FieldKind::Text },
             Field::Country => FieldDef { column: "country", kind: FieldKind::Text },
+            Field::CountryCode => FieldDef { column: "country_code", kind: FieldKind::Text },
             Field::Description => FieldDef { column: "description", kind: FieldKind::Text },
             Field::SlackId => FieldDef { column: "slack_id", kind: FieldKind::Text },
             Field::GithubUsername => FieldDef { column: "github_username", kind: FieldKind::Text },
@@ -148,6 +150,7 @@ struct QueryRow {
     approved_at: Option<i64>,
     code_url: Option<String>,
     country: Option<String>,
+    country_code: Option<String>,
     demo_url: Option<String>,
     description: Option<String>,
     slack_id: Option<String>,
@@ -193,7 +196,7 @@ pub async fn query(
     let offset = (page - 1) * limit;
 
     let mut qb: QueryBuilder<sqlx::Postgres> = QueryBuilder::new(
-        "SELECT id, airtable_id, ysws, approved_at, code_url, country, \
+        "SELECT id, airtable_id, ysws, approved_at, code_url, country, country_code, \
         demo_url, description, slack_id, github_username, hours, true_hours, \
         has_media, github_stars, display_name, \
         archived_demo, archived_repo, inferred_repo, inferred_username, is_github_url, preview_blurhash, \
@@ -424,6 +427,7 @@ pub async fn query(
             approved_at: r.approved_at,
             code_url: r.code_url,
             country: r.country,
+            country_code: r.country_code,
             demo_url: r.demo_url,
             description: r.description,
             slack_id: r.slack_id,

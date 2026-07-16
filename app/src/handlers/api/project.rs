@@ -25,7 +25,7 @@ pub async fn project_info(
     let project = if let Ok(project_id) = id.parse::<i32>() {
         sqlx::query_as!(
             ProjectItem,
-            "SELECT id, airtable_id, ysws, approved_at, code_url, country, demo_url, description, slack_id, github_username, hours, true_hours, has_media AS \"has_media!\", github_stars, display_name, archived_demo, archived_repo, inferred_repo, inferred_username, is_github_url, preview_blurhash FROM projects WHERE deleted_at IS NULL AND id = $1 LIMIT 1",
+            "SELECT id, airtable_id, ysws, approved_at, code_url, country, country_code, demo_url, description, slack_id, github_username, hours, true_hours, has_media AS \"has_media!\", github_stars, display_name, archived_demo, archived_repo, inferred_repo, inferred_username, is_github_url, preview_blurhash FROM projects WHERE deleted_at IS NULL AND id = $1 LIMIT 1",
             project_id
         )
         .fetch_optional(&state.pg)
@@ -33,7 +33,7 @@ pub async fn project_info(
     } else {
         sqlx::query_as!(
             ProjectItem,
-            "SELECT id, airtable_id, ysws, approved_at, code_url, country, demo_url, description, slack_id, github_username, hours, true_hours, has_media AS \"has_media!\", github_stars, display_name, archived_demo, archived_repo, inferred_repo, inferred_username, is_github_url, preview_blurhash FROM projects WHERE deleted_at IS NULL AND airtable_id = $1 LIMIT 1",
+            "SELECT id, airtable_id, ysws, approved_at, code_url, country, country_code, demo_url, description, slack_id, github_username, hours, true_hours, has_media AS \"has_media!\", github_stars, display_name, archived_demo, archived_repo, inferred_repo, inferred_username, is_github_url, preview_blurhash FROM projects WHERE deleted_at IS NULL AND airtable_id = $1 LIMIT 1",
             id
         )
         .fetch_optional(&state.pg)
