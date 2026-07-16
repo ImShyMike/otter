@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import argparse
-import json
 import os
 import sqlite3
 import time
@@ -303,13 +302,9 @@ def leaderboard_rows(
 
 
 def post_message(client: WebClient, **kwargs: Any) -> Any:
-    """Post to Slack, logging the full Block Kit payload before sending."""
+    """Post to Slack."""
     kwargs.setdefault("unfurl_links", False)
     kwargs.setdefault("unfurl_media", False)
-    blocks = kwargs.get("blocks")
-    if blocks is not None:
-        print("Block Kit payload:")
-        print(json.dumps(blocks, indent=2, default=str))
     return client.chat_postMessage(**kwargs)
 
 
