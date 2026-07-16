@@ -300,6 +300,18 @@ def leaderboard_rows(
 
 
 def new_fines_chart_blocks(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    segments = [
+        {
+            "label": str(row["ysws"]),
+            "value": int(row["_change_cents"]) / 100,
+        }
+        for row in rows
+        if int(row["_change_cents"]) > 0
+    ]
+
+    if not segments:
+        return []
+
     return [
         {
             "type": "data_visualization",
@@ -307,14 +319,7 @@ def new_fines_chart_blocks(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
             "title": "New Fines",
             "chart": {
                 "type": "pie",
-                "segments": [
-                    {
-                        "label": str(row["ysws"]),
-                        "value": int(row["_change_cents"]) / 100,
-                    }
-                    for row in rows
-                    if int(row["_change_cents"]) > 0
-                ],
+                "segments": segments,
             },
         }
     ]
@@ -409,11 +414,13 @@ def maybe_post_leaderboard(
         return
 
     rows = leaderboard_rows(current, previous)
-    response = client.chat_postMessage(
-        channel=FINES_CHANNEL_ID,
-        text="New fines",
-        blocks=new_fines_chart_blocks(rows),
-    )
+    new_fines_blocks = new_fines_chart_blocks(rows)
+    if new_fines_blocks:
+        client.chat_postMessage(
+            channel=FINES_CHANNEL_ID,
+            text="New fines",
+            blocks=new_fines_blocks,
+        )
 
     response = client.chat_postMessage(
         channel=FINES_CHANNEL_ID,
