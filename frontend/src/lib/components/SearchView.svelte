@@ -12,7 +12,7 @@
 
 	let { results }: { results: SearchResult[] } = $props();
 
-	const regionNames = new Intl.DisplayNames(["en"], { type: "region" });
+	const regionNames = new Intl.DisplayNames(['en'], { type: 'region' });
 </script>
 
 <div class="flex flex-col gap-4">
@@ -60,7 +60,9 @@
 							<Badge variant="outline" class="text-xs">{formatHours(r)}</Badge>
 						{/if}
 						{#if r.country_code}
-							<Badge variant="outline" class="text-xs">{regionNames.of(r.country_code) ?? "Unknown"}</Badge>
+							<Badge variant="outline" class="text-xs"
+								>{regionNames.of(r.country_code) ?? 'Unknown'}</Badge
+							>
 						{/if}
 					</div>
 				</div>

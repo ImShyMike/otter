@@ -13,7 +13,7 @@
 
 	let { results }: { results: SearchResult[] } = $props();
 
-	const regionNames = new Intl.DisplayNames(["en"], { type: "region" });
+	const regionNames = new Intl.DisplayNames(['en'], { type: 'region' });
 </script>
 
 <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -74,7 +74,9 @@
 							<Badge variant="outline" class="text-xs">{formatHours(r)}</Badge>
 						{/if}
 						{#if r.country_code}
-							<Badge variant="outline" class="text-xs">{regionNames.of(r.country_code) ?? "Unknown"}</Badge>
+							<Badge variant="outline" class="text-xs"
+								>{regionNames.of(r.country_code) ?? 'Unknown'}</Badge
+							>
 						{/if}
 						{#if formatApproved(r.approved_at)}
 							<span>Approved {formatApproved(r.approved_at)}</span>

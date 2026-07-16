@@ -16,7 +16,7 @@
 	import { goBack } from '$lib/back';
 	import Share2 from '@lucide/svelte/icons/share-2';
 
-	const regionNames = new Intl.DisplayNames(["en"], { type: "region" });
+	const regionNames = new Intl.DisplayNames(['en'], { type: 'region' });
 
 	let shareStatus = $state<'idle' | 'copied' | 'failed'>('idle');
 
@@ -161,7 +161,9 @@
 						<Badge variant="outline" class="text-xs">{formatHours(p)}</Badge>
 					{/if}
 					{#if p.country_code}
-						<Badge variant="outline" class="text-xs">{regionNames.of(p.country_code) ?? "Unknown"}</Badge>
+						<Badge variant="outline" class="text-xs"
+							>{regionNames.of(p.country_code) ?? 'Unknown'}</Badge
+						>
 					{/if}
 					{#if formatApproved(p.approved_at)}
 						<span>Approved {formatApproved(p.approved_at)}</span>
