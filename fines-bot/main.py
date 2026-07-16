@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import sqlite3
 import time
@@ -25,6 +26,8 @@ DEFAULT_DB_PATH = Path(__file__).resolve().parent / "fines-bot.sqlite3"
 TIMEOUT_SECONDS = 20
 PAGE_SIZE = 100
 FINES_CHANNEL_ID = "C0B1X3W6MHS"
+CHART_LABEL_MAX_LEN = 20
+CHART_MAX_SEGMENTS = 12
 
 CSV_FIELDNAMES = [
     "ysws",
@@ -299,15 +302,28 @@ def leaderboard_rows(
     return sorted(rows, key=lambda row: int(row["_total_cents"]), reverse=True)
 
 
+def post_message(client: WebClient, **kwargs: Any) -> Any:
+    """Post to Slack, logging the full Block Kit payload before sending."""
+    blocks = kwargs.get("blocks")
+    if blocks is not None:
+        print("Block Kit payload:")
+        print(json.dumps(blocks, indent=2, default=str))
+    return client.chat_postMessage(**kwargs)
+
+
+def chart_label(value: Any) -> str:
+    return str(value)[:CHART_LABEL_MAX_LEN]
+
+
 def new_fines_chart_blocks(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     segments = [
         {
-            "label": str(row["ysws"]),
+            "label": chart_label(row["ysws"]),
             "value": int(row["_change_cents"]) / 100,
         }
         for row in rows
         if int(row["_change_cents"]) > 0
-    ]
+    ][:CHART_MAX_SEGMENTS]
 
     if not segments:
         return []
@@ -328,12 +344,15 @@ def new_fines_chart_blocks(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
 def leaderboard_chart_blocks(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     data = [
         {
-            "label": str(row["ysws"]),
+            "label": chart_label(row["ysws"]),
             "value": int(row["_total_cents"]) / 100,
         }
         for row in rows
         if int(row["_total_cents"]) > 0
-    ]
+    ][:CHART_MAX_SEGMENTS]
+
+    if not data:
+        return []
 
     return [
         {
@@ -416,25 +435,30 @@ def maybe_post_leaderboard(
     rows = leaderboard_rows(current, previous)
     new_fines_blocks = new_fines_chart_blocks(rows)
     if new_fines_blocks:
-        client.chat_postMessage(
+        post_message(
+            client,
             channel=FINES_CHANNEL_ID,
             text="New fines",
             blocks=new_fines_blocks,
         )
 
-    response = client.chat_postMessage(
-        channel=FINES_CHANNEL_ID,
-        text="Fines leaderboard",
-        blocks=leaderboard_chart_blocks(rows),
-    )
-    leaderboard_thread_ts = response.get("ts")
+    leaderboard_blocks = leaderboard_chart_blocks(rows)
+    if leaderboard_blocks:
+        response = post_message(
+            client,
+            channel=FINES_CHANNEL_ID,
+            text="Fines leaderboard",
+            blocks=leaderboard_blocks,
+        )
+        leaderboard_thread_ts = response.get("ts")
 
-    client.chat_postMessage(
-        channel=FINES_CHANNEL_ID,
-        thread_ts=leaderboard_thread_ts,
-        text="Full fines leaderboard",
-        blocks=leaderboard_table_blocks(rows),
-    )
+        post_message(
+            client,
+            channel=FINES_CHANNEL_ID,
+            thread_ts=leaderboard_thread_ts,
+            text="Full fines leaderboard",
+            blocks=leaderboard_table_blocks(rows),
+        )
 
     save_leaderboard_state(conn, current, now)
 
@@ -549,7 +573,8 @@ def post_fine(
     rows = deleted_project_rows(otter_fine)
     comment = fine_comment(transaction, otter_fine)
 
-    response = client.chat_postMessage(
+    response = post_message(
+        client,
         channel=FINES_CHANNEL_ID,
         text=comment,
         blocks=fine_blocks(transaction, otter_fine),
@@ -560,7 +585,8 @@ def post_fine(
     if not rows:
         return thread_ts
 
-    client.chat_postMessage(
+    post_message(
+        client,
         channel=FINES_CHANNEL_ID,
         thread_ts=thread_ts,
         text="Deleted projects",
