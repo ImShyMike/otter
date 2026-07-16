@@ -304,6 +304,8 @@ def leaderboard_rows(
 
 def post_message(client: WebClient, **kwargs: Any) -> Any:
     """Post to Slack, logging the full Block Kit payload before sending."""
+    kwargs.setdefault("unfurl_links", False)
+    kwargs.setdefault("unfurl_media", False)
     blocks = kwargs.get("blocks")
     if blocks is not None:
         print("Block Kit payload:")
@@ -313,6 +315,11 @@ def post_message(client: WebClient, **kwargs: Any) -> Any:
 
 def chart_label(value: Any) -> str:
     return str(value)[:CHART_LABEL_MAX_LEN]
+
+
+def table_cell(value: Any) -> dict[str, str]:
+    text = str(value) if value not in (None, "") else "-"
+    return {"type": "raw_text", "text": text}
 
 
 def new_fines_chart_blocks(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -378,25 +385,11 @@ def leaderboard_chart_blocks(rows: list[dict[str, Any]]) -> list[dict[str, Any]]
 
 
 def leaderboard_table_blocks(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    table_rows = [
-        [
-            {
-                "type": "raw_text",
-                "text": fieldname,
-            }
-            for fieldname in LEADERBOARD_FIELDNAMES
-        ]
-    ]
+    table_rows = [[table_cell(fieldname) for fieldname in LEADERBOARD_FIELDNAMES]]
 
     for row in rows:
         table_rows.append(
-            [
-                {
-                    "type": "raw_text",
-                    "text": str(row.get(fieldname) or ""),
-                }
-                for fieldname in LEADERBOARD_FIELDNAMES
-            ]
+            [table_cell(row.get(fieldname)) for fieldname in LEADERBOARD_FIELDNAMES]
         )
 
     return [
@@ -537,25 +530,11 @@ def fine_blocks(
 
 
 def deleted_projects_table_blocks(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    table_rows = [
-        [
-            {
-                "type": "raw_text",
-                "text": fieldname,
-            }
-            for fieldname in CSV_FIELDNAMES
-        ]
-    ]
+    table_rows = [[table_cell(fieldname) for fieldname in CSV_FIELDNAMES]]
 
     for row in rows:
         table_rows.append(
-            [
-                {
-                    "type": "raw_text",
-                    "text": str(row.get(fieldname) or ""),
-                }
-                for fieldname in CSV_FIELDNAMES
-            ]
+            [table_cell(row.get(fieldname)) for fieldname in CSV_FIELDNAMES]
         )
 
     return [
@@ -578,7 +557,6 @@ def post_fine(
         channel=FINES_CHANNEL_ID,
         text=comment,
         blocks=fine_blocks(transaction, otter_fine),
-        unfurl_links=False,
     )
     thread_ts = response.get("ts")
 
@@ -591,7 +569,6 @@ def post_fine(
         thread_ts=thread_ts,
         text="Deleted projects",
         blocks=deleted_projects_table_blocks(rows),
-        unfurl_links=False,
     )
     return thread_ts
 
