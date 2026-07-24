@@ -1,4 +1,4 @@
-name = "otter-frontend"
+name = "otter"
 main = ".svelte-kit/cloudflare/_worker.js"
 compatibility_date = "2026-04-23"
 compatibility_flags = ["nodejs_compat"]
@@ -24,3 +24,6 @@ invocation_logs = true
 enabled = false
 persist = true
 head_sampling_rate = 1
+
+[cache]
+enabled = true
