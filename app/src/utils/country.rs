@@ -26,6 +26,7 @@ const ALIASES: &[(&str, &str)] = &[
     ("maroc", "MA"),
     ("cesko", "CZ"),
     ("ceska republika", "CZ"),
+    ("slovensko", "SK"),
     ("brasil", "BR"),
     ("italia", "IT"),
     ("estados unidos", "US"),
@@ -39,6 +40,8 @@ const ALIASES: &[(&str, &str)] = &[
     ("日本", "JP"),
     ("加拿大", "CA"),
     ("مصر", "EG"),
+    ("ελλάδα", "GR"),
+    ("aland", "AX"),
     // abbreviations
     ("uk", "GB"),
     ("uae", "AE"),
@@ -50,6 +53,15 @@ const ALIASES: &[(&str, &str)] = &[
     ("korea north", "KP"),
     ("moldova republic of", "MD"),
     ("china hksar", "HK"),
+    ("hksar", "HK"),
+    ("hong kong sar", "HK"),
+    ("hong kong sar china", "HK"),
+    ("bosna i herzegovina", "BA"),
+    ("bosna i hercegovina", "BA"),
+    ("republica dominicana", "DO"),
+    ("republic democratic of congo", "CD"),
+    ("democratic republic of congo", "CD"),
+    ("congo drc", "CD"),
     // constituent countries of the UK
     ("england", "GB"),
     ("scotland", "GB"),
@@ -102,20 +114,30 @@ fn clean(s: &str) -> String {
     out.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
-/// Resolves a country name or code to its alpha-2 code, falling back to fuzzy matching
-pub fn resolve_country(raw: &Option<String>) -> Option<String> {
-    let norm = normalize(raw.as_ref()?);
-    if JUNK.contains(&norm.as_str()) {
+/// Detects fields that have digits in the original text but almost no letters left after cleaning
+fn looks_like_postal_code(raw_norm: &str, cleaned: &str) -> bool {
+    let has_digit = raw_norm.chars().any(|c| c.is_ascii_digit());
+    let alpha_count = cleaned.chars().filter(|c| c.is_alphabetic()).count();
+    has_digit && alpha_count <= 4
+}
+
+fn code_lookup(token: &str) -> Option<String> {
+    let upper = token.to_uppercase();
+    if upper.len() != 2 && upper.len() != 3 {
         return None;
     }
 
-    let norm = clean(&norm);
-    if norm.is_empty() {
-        return None;
-    }
+    Country::get_countries().iter().find_map(|c| {
+        if c.alpha2.eq_ignore_ascii_case(&upper) || c.alpha3.eq_ignore_ascii_case(&upper) {
+            Some(c.alpha2.to_string())
+        } else {
+            None
+        }
+    })
+}
 
-    let target = strip_article(&norm);
-
+/// Resolves a country name or alias to its alpha-2 code
+fn resolve_named(target: &str) -> Option<String> {
     if let Some((_, code)) = ALIASES.iter().find(|(name, _)| *name == target) {
         return Some((*code).to_string());
     }
@@ -127,14 +149,64 @@ pub fn resolve_country(raw: &Option<String>) -> Option<String> {
     if let Ok(c) = Country::from_str(&target.replace(' ', "")) {
         return Some(c.alpha2.to_string());
     }
+    None
+}
 
-    // fuzzy fallback
+/// Full resolution for a standalone segment of text
+fn resolve_segment(raw_norm: &str) -> Option<String> {
+    let cleaned = clean(raw_norm);
+    if cleaned.is_empty() {
+        return None;
+    }
+    if looks_like_postal_code(raw_norm, &cleaned) {
+        return None;
+    }
+
+    let target = strip_article(&cleaned);
+
+    resolve_named(target).or_else(|| code_lookup(&cleaned.replace(' ', "")))
+}
+
+/// Resolves a country name or code to its alpha-2 code, falling back to fuzzy matching
+pub fn resolve_country(raw: &Option<String>) -> Option<String> {
+    let norm = normalize(raw.as_ref()?);
+    if JUNK.contains(&norm.as_str()) {
+        return None;
+    }
+
+    // composite entries
+    for part in norm.split(['/', ',', '|', '&']) {
+        if let Some(code) = resolve_segment(part) {
+            return Some(code);
+        }
+    }
+
+    let cleaned = clean(&norm);
+    if cleaned.is_empty() {
+        return None;
+    }
+    if looks_like_postal_code(&norm, &cleaned) {
+        return None;
+    }
+
+    // a country name buried in a longer sentence, one word at a time
+    for word in cleaned.split_whitespace() {
+        if word.len() < 3 {
+            continue;
+        }
+        if let Some(code) = resolve_named(word) {
+            return Some(code);
+        }
+    }
+
+    let target = strip_article(&cleaned);
     if target.len() < 5 {
         return None;
     }
 
     let squashed = target.replace(' ', "");
 
+    // fuzzy fallback
     Country::get_countries()
         .iter()
         .map(|c| {
