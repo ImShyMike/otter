@@ -7,7 +7,7 @@ use tracing::{Instrument, debug, info, instrument, warn};
 
 const SLACK_USERS_URL: &str = "https://slack.com/api/users.list";
 const PAGE_LIMIT: usize = 1000;
-const UPSERT_BATCH_SIZE: usize = 250;
+const UPSERT_BATCH_SIZE: usize = 150;
 const PROGRESS_LOG_EVERY_PAGES: usize = 50;
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(60);
 const MAX_ATTEMPTS: usize = 6;
