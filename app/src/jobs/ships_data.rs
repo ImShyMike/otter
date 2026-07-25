@@ -3,12 +3,9 @@ use std::{pin::Pin, time::Duration};
 use pgvector::Vector;
 use serde::Deserialize;
 use sqlx::{PgPool, Postgres, QueryBuilder};
-use time::OffsetDateTime;
 use tracing::{Instrument, error, info, instrument};
 
-use crate::utils::code_url::parse_code_url;
-use crate::utils::country::resolve_country;
-use crate::utils::serde::{deserialize_null_int, deserialize_null_string, deserialize_timestamp};
+use crate::utils::serde::{deserialize_null_int, deserialize_null_string};
 use crate::utils::{embeddings, http};
 
 const SHIPS_API_URL: &str = "https://ships.hackclub.com/api/v1/ysws_entries?all=true";
@@ -22,30 +19,14 @@ struct YswsEntry {
     id: String,
     #[serde(deserialize_with = "deserialize_null_string")]
     ysws: Option<String>,
-    #[serde(deserialize_with = "deserialize_timestamp")]
-    approved_at: Option<OffsetDateTime>,
-    #[serde(deserialize_with = "deserialize_null_string")]
-    code_url: Option<String>,
-    #[serde(deserialize_with = "deserialize_null_string")]
-    country: Option<String>,
-    #[serde(deserialize_with = "deserialize_null_string")]
-    demo_url: Option<String>,
-    #[serde(deserialize_with = "deserialize_null_string")]
-    description: Option<String>,
     #[serde(deserialize_with = "deserialize_null_string")]
     slack_id: Option<String>,
     #[serde(deserialize_with = "deserialize_null_string")]
     github_username: Option<String>,
     #[serde(deserialize_with = "deserialize_null_int")]
     hours: Option<i32>,
-    #[serde(default)]
-    github_stars: i32,
     #[serde(deserialize_with = "deserialize_null_string")]
     display_name: Option<String>,
-    #[serde(deserialize_with = "deserialize_null_string")]
-    archived_demo: Option<String>,
-    #[serde(deserialize_with = "deserialize_null_string")]
-    archived_repo: Option<String>,
 }
 
 #[derive(sqlx::FromRow)]
@@ -119,56 +100,27 @@ async fn upsert_projects(entries: &[YswsEntry], pg: &PgPool) -> anyhow::Result<(
 
     for chunk in entries.chunks(BATCH_SIZE) {
         let mut qb: QueryBuilder<Postgres> = QueryBuilder::new(
-            "INSERT INTO projects (airtable_id, ysws, approved_at, code_url, country, country_code, demo_url, description, slack_id, github_username, hours, github_stars, display_name, archived_demo, archived_repo, inferred_repo, inferred_username, is_github_url) ",
+            "INSERT INTO projects (airtable_id, ysws, slack_id, github_username, hours, display_name) ",
         );
 
         qb.push_values(chunk, |mut b, entry| {
-            let parsed = entry
-                .code_url
-                .as_deref()
-                .map(parse_code_url)
-                .unwrap_or_default();
             b.push_bind(&entry.id)
                 .push_bind(&entry.ysws)
-                .push_bind(entry.approved_at.map(|t| t.unix_timestamp()))
-                .push_bind(&entry.code_url)
-                .push_bind(&entry.country)
-                .push_bind(resolve_country(&entry.country))
-                .push_bind(&entry.demo_url)
-                .push_bind(&entry.description)
                 .push_bind(&entry.slack_id)
                 .push_bind(&entry.github_username)
                 .push_bind(entry.hours)
-                .push_bind(entry.github_stars)
-                .push_bind(&entry.display_name)
-                .push_bind(&entry.archived_demo)
-                .push_bind(&entry.archived_repo)
-                .push_bind(parsed.repo)
-                .push_bind(parsed.owner)
-                .push_bind(parsed.is_github);
+                .push_bind(&entry.display_name);
         });
 
         qb.push(
             " ON CONFLICT (airtable_id) DO UPDATE SET \
-                country = EXCLUDED.country, \
-                country_code = EXCLUDED.country_code, \
-                description = EXCLUDED.description, \
                 slack_id = EXCLUDED.slack_id, \
                 hours = EXCLUDED.hours, \
-                github_stars = EXCLUDED.github_stars, \
-                display_name = EXCLUDED.display_name, \
-                archived_demo = EXCLUDED.archived_demo, \
-                archived_repo = EXCLUDED.archived_repo \
+                display_name = EXCLUDED.display_name \
                 WHERE projects.deleted_at IS NULL \
-                AND (projects.country IS DISTINCT FROM EXCLUDED.country \
-                OR projects.country_code IS DISTINCT FROM EXCLUDED.country_code \
-                OR projects.description IS DISTINCT FROM EXCLUDED.description \
-                OR projects.slack_id IS DISTINCT FROM EXCLUDED.slack_id \
+                AND (projects.slack_id IS DISTINCT FROM EXCLUDED.slack_id \
                 OR projects.hours IS DISTINCT FROM EXCLUDED.hours \
-                OR projects.github_stars IS DISTINCT FROM EXCLUDED.github_stars \
-                OR projects.display_name IS DISTINCT FROM EXCLUDED.display_name \
-                OR projects.archived_demo IS DISTINCT FROM EXCLUDED.archived_demo \
-                OR projects.archived_repo IS DISTINCT FROM EXCLUDED.archived_repo)",
+                OR projects.display_name IS DISTINCT FROM EXCLUDED.display_name)",
         );
 
         let result = qb.build().persistent(false).execute(&mut *tx).await?;

@@ -9,8 +9,12 @@ use tracing::{Instrument, error, info, instrument};
 
 use crate::utils::{
     code_url::parse_code_url,
+    country::resolve_country,
     http,
-    serde::{deserialize_null_float, deserialize_null_string, deserialize_timestamp},
+    serde::{
+        deserialize_null_float, deserialize_null_int, deserialize_null_string,
+        deserialize_timestamp,
+    },
 };
 
 const AIRBRIDGE_API_URL: &str =
@@ -64,6 +68,36 @@ struct AirbridgeFields {
     ysws_name: Option<String>,
     #[serde(default, rename = "Screenshot")]
     screenshots: Vec<AirtableAttachment>,
+    #[serde(
+        default,
+        rename = "Country",
+        deserialize_with = "deserialize_null_string"
+    )]
+    country: Option<String>,
+    #[serde(
+        default,
+        rename = "Description",
+        deserialize_with = "deserialize_null_string"
+    )]
+    description: Option<String>,
+    #[serde(
+        default,
+        rename = "Repo - Star Count",
+        deserialize_with = "deserialize_null_int"
+    )]
+    github_stars: Option<i32>,
+    #[serde(
+        default,
+        rename = "Archive - Code URL",
+        deserialize_with = "deserialize_null_string"
+    )]
+    archived_repo: Option<String>,
+    #[serde(
+        default,
+        rename = "Archive - Live URL",
+        deserialize_with = "deserialize_null_string"
+    )]
+    archived_demo: Option<String>,
 }
 
 #[derive(Deserialize, Clone)]
@@ -175,7 +209,7 @@ async fn upsert_entries(entries: &[AirbridgeEntry], pg: &PgPool) -> anyhow::Resu
 
     for chunk in entries.chunks(BATCH_SIZE) {
         let mut qb: QueryBuilder<Postgres> = QueryBuilder::new(
-            "INSERT INTO projects (airtable_id, ysws, approved_at, code_url, demo_url, github_username, true_hours, inferred_repo, inferred_username, is_github_url) ",
+            "INSERT INTO projects (airtable_id, ysws, approved_at, description, code_url, demo_url, github_stars, country, country_code, archived_demo, archived_repo, github_username, true_hours, inferred_repo, inferred_username, is_github_url) ",
         );
 
         qb.push_values(chunk, |mut b, entry| {
@@ -188,8 +222,14 @@ async fn upsert_entries(entries: &[AirbridgeEntry], pg: &PgPool) -> anyhow::Resu
             b.push_bind(&entry.id)
                 .push_bind(entry.fields.ysws_name.as_ref().unwrap())
                 .push_bind(entry.fields.approved_at.map(|t| t.unix_timestamp()))
+                .push_bind(&entry.fields.description)
                 .push_bind(&entry.fields.code_url)
                 .push_bind(&entry.fields.playable_url)
+                .push_bind(entry.fields.github_stars.unwrap_or_default())
+                .push_bind(&entry.fields.country)
+                .push_bind(resolve_country(&entry.fields.country))
+                .push_bind(&entry.fields.archived_demo)
+                .push_bind(&entry.fields.archived_repo)
                 .push_bind(&entry.fields.github_username)
                 .push_bind(entry.fields.hours_spent)
                 .push_bind(parsed.repo)
@@ -201,8 +241,14 @@ async fn upsert_entries(entries: &[AirbridgeEntry], pg: &PgPool) -> anyhow::Resu
             " ON CONFLICT (airtable_id) DO UPDATE SET \
                 ysws = EXCLUDED.ysws, \
                 approved_at = EXCLUDED.approved_at, \
+                description = EXCLUDED.description, \
                 code_url = EXCLUDED.code_url, \
                 demo_url = EXCLUDED.demo_url, \
+                github_stars = EXCLUDED.github_stars, \
+                country = EXCLUDED.country, \
+                country_code = EXCLUDED.country_code, \
+                archived_demo = EXCLUDED.archived_demo, \
+                archived_repo = EXCLUDED.archived_repo, \
                 github_username = EXCLUDED.github_username, \
                 true_hours = EXCLUDED.true_hours, \
                 inferred_repo = EXCLUDED.inferred_repo, \
@@ -211,8 +257,14 @@ async fn upsert_entries(entries: &[AirbridgeEntry], pg: &PgPool) -> anyhow::Resu
                 deleted_at = NULL \
                 WHERE projects.ysws IS DISTINCT FROM EXCLUDED.ysws \
                 OR projects.approved_at IS DISTINCT FROM EXCLUDED.approved_at \
+                OR projects.description IS DISTINCT FROM EXCLUDED.description \
                 OR projects.code_url IS DISTINCT FROM EXCLUDED.code_url \
                 OR projects.demo_url IS DISTINCT FROM EXCLUDED.demo_url \
+                OR projects.github_stars IS DISTINCT FROM EXCLUDED.github_stars \
+                OR projects.country IS DISTINCT FROM EXCLUDED.country \
+                OR projects.country_code IS DISTINCT FROM EXCLUDED.country_code \
+                OR projects.archived_demo IS DISTINCT FROM EXCLUDED.archived_demo \
+                OR projects.archived_repo IS DISTINCT FROM EXCLUDED.archived_repo \
                 OR projects.github_username IS DISTINCT FROM EXCLUDED.github_username \
                 OR projects.true_hours IS DISTINCT FROM EXCLUDED.true_hours \
                 OR projects.inferred_repo IS DISTINCT FROM EXCLUDED.inferred_repo \
