@@ -13,7 +13,7 @@ use crate::utils::{
     http,
     serde::{
         deserialize_null_float, deserialize_null_int, deserialize_null_string,
-        deserialize_timestamp,
+        deserialize_sanitized_opt_string, deserialize_sanitized_string, deserialize_timestamp,
     },
 };
 
@@ -102,11 +102,17 @@ struct AirbridgeFields {
 
 #[derive(Deserialize, Clone)]
 pub struct AirtableAttachment {
+    #[serde(deserialize_with = "deserialize_sanitized_string")]
     pub id: String,
+    #[serde(deserialize_with = "deserialize_sanitized_string")]
     pub url: String,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_sanitized_opt_string")]
     pub filename: Option<String>,
-    #[serde(default, rename = "type")]
+    #[serde(
+        default,
+        rename = "type",
+        deserialize_with = "deserialize_sanitized_opt_string"
+    )]
     pub mime_type: Option<String>,
     #[serde(default)]
     pub size: Option<i64>,
@@ -130,6 +136,7 @@ pub struct AirtableThumbnails {
 
 #[derive(Deserialize, Clone)]
 pub struct AirtableThumbnail {
+    #[serde(deserialize_with = "deserialize_sanitized_string")]
     pub url: String,
     #[serde(default)]
     pub width: Option<i32>,
@@ -139,6 +146,7 @@ pub struct AirtableThumbnail {
 
 #[derive(Deserialize)]
 struct AirbridgeEntry {
+    #[serde(deserialize_with = "deserialize_sanitized_string")]
     id: String,
     fields: AirbridgeFields,
 }

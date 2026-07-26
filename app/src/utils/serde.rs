@@ -43,6 +43,15 @@ where
     }
 }
 
+/// Postgres text columns reject 0x00
+fn strip_null_bytes(s: String) -> String {
+    if s.contains('\0') {
+        s.replace('\0', "")
+    } else {
+        s
+    }
+}
+
 pub fn deserialize_null_string<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
 where
     D: serde::Deserializer<'de>,
@@ -52,17 +61,31 @@ where
             if s == "null" {
                 Ok(None)
             } else {
-                Ok(Some(s))
+                Ok(Some(strip_null_bytes(s)))
             }
         }
         Value::Array(v) => Ok(v
             .first()
             .and_then(|v| v.as_str())
             .filter(|s| *s != "null")
-            .map(String::from)),
+            .map(|s| strip_null_bytes(s.to_string()))),
         Value::Null => Ok(None),
         _ => Err(serde::de::Error::custom("expected string or null")),
     }
+}
+
+pub fn deserialize_sanitized_string<'de, D>(deserializer: D) -> Result<String, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    String::deserialize(deserializer).map(strip_null_bytes)
+}
+
+pub fn deserialize_sanitized_opt_string<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    Option::<String>::deserialize(deserializer).map(|opt| opt.map(strip_null_bytes))
 }
 
 pub fn deserialize_null_float<'de, D>(deserializer: D) -> Result<Option<f64>, D::Error>
