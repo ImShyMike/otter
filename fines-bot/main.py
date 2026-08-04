@@ -27,8 +27,12 @@ PAGE_SIZE = 100
 FINES_CHANNEL_ID = "C0B1X3W6MHS"
 CHART_LABEL_MAX_LEN = 20
 CHART_MAX_SEGMENTS = 12
-FINE_ICON_URL = "https://cdn.hackclub.com/019fcc78-cf47-7e97-a246-aa189e3547a9/1f7e5.png"
-REVERTED_FINE_ICON_URL = "https://cdn.hackclub.com/019fcc78-d708-7228-afda-ab5497cf97ad/1f7e9.png"
+FINE_ICON_URL = (
+    "https://cdn.hackclub.com/019fcc78-cf47-7e97-a246-aa189e3547a9/1f7e5.png"
+)
+REVERTED_FINE_ICON_URL = (
+    "https://cdn.hackclub.com/019fcc78-d708-7228-afda-ab5497cf97ad/1f7e9.png"
+)
 
 CSV_FIELDNAMES = [
     "ysws",
@@ -134,7 +138,7 @@ def fetch_hcb_fines() -> list[dict[str, Any]]:
         response.raise_for_status()
         transactions = response.json()
         if not isinstance(transactions, list):
-            raise RuntimeError("Unexpected HCB response: expected a JSON array")
+            raise TypeError("Unexpected HCB response: expected a JSON array")
         if not transactions:
             break
 
@@ -173,7 +177,7 @@ def fetch_otter_fines(api_base: str) -> dict[str, dict[str, Any]]:
             total = int(payload.get("total") or 0)
             per_page = int(payload.get("per_page") or PAGE_SIZE)
         else:
-            raise RuntimeError("Unexpected Otter fines response")
+            raise TypeError("Unexpected Otter fines response")
 
         for fine in data:
             transaction_id = fine.get("transaction_id")
@@ -642,7 +646,7 @@ def main() -> int:
         while True:
             try:
                 run_once(conn, client, api_base, leaderboard_interval)
-            except Exception:  # pylint: disable=broad-except
+            except Exception:  # pylint: disable=broad-except  # noqa: BLE001
                 traceback.print_exc()
                 if args.once:
                     return 1
