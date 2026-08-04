@@ -24,20 +24,24 @@ struct Transaction {
 /// - "Transfer from (Fines to )YSWS - ProjectName" → "ProjectName"
 /// - "Transfer from ProjectName - YSWS" → "ProjectName"
 /// - "Transfer from ProjectName" → "ProjectName"
+/// - "Transfer from Fines to Name" (reverted fine paid directly to a
+///   person, no YSWS/dash) → "Name"
 pub fn extract_ysws_from_memo(memo: &str) -> Option<String> {
-    memo.strip_prefix("Transfer from")
+    let rest = memo
+        .strip_prefix("Transfer from")
         .or_else(|| memo.strip_prefix("transfer from"))
+        .map(str::trim)?;
+
+    let rest = rest
+        .strip_prefix("Fines to")
+        .or_else(|| rest.strip_prefix("fines to"))
         .map(str::trim)
-        .and_then(|memo| {
-            memo.split(['-', '–'])
-                .map(str::trim)
-                .find(|part| {
-                    !part.is_empty()
-                        && !part.eq_ignore_ascii_case("ysws")
-                        && !part.eq_ignore_ascii_case("fines to ysws")
-                })
-                .map(str::to_string)
-        })
+        .unwrap_or(rest);
+
+    rest.split(['-', '–'])
+        .map(str::trim)
+        .find(|part| !part.is_empty() && !part.eq_ignore_ascii_case("ysws"))
+        .map(str::to_string)
 }
 
 fn parse_date(date: &str) -> anyhow::Result<Date> {

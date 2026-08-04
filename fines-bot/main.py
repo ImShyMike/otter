@@ -15,9 +15,6 @@ import requests
 from dotenv import load_dotenv
 from slack_sdk import WebClient
 
-HCB_TRANSACTIONS_URL = (
-    "https://hcb.hackclub.com/api/v3/organizations/org_NOuVez/transactions"
-)
 DEFAULT_API_BASE = "http://localhost:3000"
 DEFAULT_INTERVAL_SECONDS = 60 * 60
 DEFAULT_LEADERBOARD_INTERVAL_SECONDS = 24 * 60 * 60
@@ -105,7 +102,7 @@ def sent_ids(conn: sqlite3.Connection) -> set[str]:
 
 
 def mark_sent(
-    conn: sqlite3.Connection, transaction: dict[str, Any], slack_ts: str | None
+    conn: sqlite3.Connection, fine: dict[str, Any], slack_ts: str | None
 ) -> None:
     conn.execute(
         """
@@ -114,45 +111,15 @@ def mark_sent(
         VALUES (?, ?, ?, ?, ?, ?)
         """,
         (
-            transaction["id"],
-            int(transaction.get("amount_cents") or 0),
-            transaction.get("memo") or "",
-            transaction.get("date") or "",
+            fine["transaction_id"],
+            int(fine.get("amount_cents") or 0),
+            fine.get("memo") or "",
+            fine.get("date") or "",
             datetime.now(UTC).isoformat(),
             slack_ts,
         ),
     )
     conn.commit()
-
-
-def fetch_hcb_fines() -> list[dict[str, Any]]:
-    fines: list[dict[str, Any]] = []
-    page = 1
-
-    while True:
-        response = requests.get(
-            HCB_TRANSACTIONS_URL,
-            params={"per_page": PAGE_SIZE, "page": page},
-            timeout=TIMEOUT_SECONDS,
-        )
-        response.raise_for_status()
-        transactions = response.json()
-        if not isinstance(transactions, list):
-            raise TypeError("Unexpected HCB response: expected a JSON array")
-        if not transactions:
-            break
-
-        fines.extend(
-            transaction
-            for transaction in transactions
-            if int(transaction.get("amount_cents") or 0) != 0
-        )
-
-        if len(transactions) < PAGE_SIZE:
-            break
-        page += 1
-
-    return fines
 
 
 def fetch_otter_fines(api_base: str) -> dict[str, dict[str, Any]]:
@@ -198,9 +165,12 @@ def extract_ysws_from_memo(memo: str) -> str | None:
         return None
 
     rest = memo[len("Transfer from") :].strip()
+    if rest.lower().startswith("fines to"):
+        rest = rest[len("fines to") :].strip()
+
     for part in rest.replace("–", "-").split("-"):
         part = part.strip()
-        if part and part.lower() not in {"ysws", "fines to ysws"}:
+        if part and part.lower() != "ysws":
             return part
     return None
 
@@ -276,20 +246,18 @@ def save_leaderboard_state(
     conn.commit()
 
 
-def build_leaderboard(
-    hcb_fines: list[dict[str, Any]], otter_fines: dict[str, dict[str, Any]]
-) -> dict[str, int]:
+def fine_ysws(fine: dict[str, Any]) -> str:
+    return (
+        fine.get("ysws") or extract_ysws_from_memo(fine.get("memo") or "") or "unknown"
+    )
+
+
+def build_leaderboard(otter_fines: dict[str, dict[str, Any]]) -> dict[str, int]:
     leaderboard: dict[str, int] = {}
-    for transaction in hcb_fines:
-        transaction_id = str(transaction.get("id") or "")
-        otter_fine = otter_fines.get(transaction_id) or {}
-        ysws = (
-            otter_fine.get("ysws")
-            or extract_ysws_from_memo(transaction.get("memo") or "")
-            or "unknown"
-        )
+    for fine in otter_fines.values():
+        ysws = fine_ysws(fine)
         leaderboard[ysws] = leaderboard.get(ysws, 0) + int(
-            transaction.get("amount_cents") or 0
+            fine.get("amount_cents") or 0
         )
     return leaderboard
 
@@ -411,14 +379,13 @@ def leaderboard_table_blocks(rows: list[dict[str, Any]]) -> list[dict[str, Any]]
 def maybe_post_leaderboard(
     conn: sqlite3.Connection,
     client: WebClient,
-    hcb_fines: list[dict[str, Any]],
     otter_fines: dict[str, dict[str, Any]],
     interval_seconds: int,
 ) -> None:
     now = int(time.time())
     previous = load_leaderboard_snapshot(conn)
     last_posted_at = load_last_leaderboard_posted_at(conn)
-    current = build_leaderboard(hcb_fines, otter_fines)
+    current = build_leaderboard(otter_fines)
 
     if last_posted_at is None:
         save_leaderboard_state(conn, current, now)
@@ -463,18 +430,18 @@ def maybe_post_leaderboard(
     save_leaderboard_state(conn, current, now)
 
 
-def fine_comment(transaction: dict[str, Any], otter_fine: dict[str, Any] | None) -> str:
-    reverted = is_reverted_fine(transaction)
-    projects = [] if reverted else (otter_fine or {}).get("projects") or []
-    amount_cents = int(transaction.get("amount_cents") or 0)
-    ysws = (otter_fine or {}).get("ysws") or "unknown"
-    transaction_id = transaction["id"]
+def fine_comment(fine: dict[str, Any]) -> str:
+    reverted = is_reverted_fine(fine)
+    projects = [] if reverted else fine.get("projects") or []
+    amount_cents = int(fine.get("amount_cents") or 0)
+    ysws = fine_ysws(fine)
+    transaction_id = fine["transaction_id"]
 
     lines = [
         "*Fine reverted*" if reverted else "*New fine*",
         f"Amount: {amount_dollars(amount_cents)}",
         f"YSWS: {ysws}",
-        f"Date: {transaction.get('date') or (otter_fine or {}).get('date') or 'unknown'}",
+        f"Date: {fine.get('date') or 'unknown'}",
     ]
     if projects:
         lines.append(f"Deleted projects: {len(projects)}")
@@ -482,15 +449,13 @@ def fine_comment(transaction: dict[str, Any], otter_fine: dict[str, Any] | None)
     return "\n".join(lines)
 
 
-def fine_blocks(
-    transaction: dict[str, Any], otter_fine: dict[str, Any] | None
-) -> list[dict[str, Any]]:
-    reverted = is_reverted_fine(transaction)
-    amount_cents = int(transaction.get("amount_cents") or 0)
-    ysws = (otter_fine or {}).get("ysws") or "unknown"
-    projects = [] if reverted else (otter_fine or {}).get("projects") or []
-    date = transaction.get("date") or (otter_fine or {}).get("date") or "unknown"
-    transaction_id = transaction["id"]
+def fine_blocks(fine: dict[str, Any]) -> list[dict[str, Any]]:
+    reverted = is_reverted_fine(fine)
+    amount_cents = int(fine.get("amount_cents") or 0)
+    ysws = fine_ysws(fine)
+    projects = [] if reverted else fine.get("projects") or []
+    date = fine.get("date") or "unknown"
+    transaction_id = fine["transaction_id"]
     transaction_link = (
         f"<https://hcbscan.3kh0.net/app/txn/{transaction_id}|Transaction>"
     )
@@ -560,17 +525,15 @@ def deleted_projects_table_blocks(rows: list[dict[str, Any]]) -> list[dict[str, 
     ]
 
 
-def post_fine(
-    client: WebClient, transaction: dict[str, Any], otter_fine: dict[str, Any] | None
-) -> str | None:
-    rows = [] if is_reverted_fine(transaction) else deleted_project_rows(otter_fine)
-    comment = fine_comment(transaction, otter_fine)
+def post_fine(client: WebClient, fine: dict[str, Any]) -> str | None:
+    rows = [] if is_reverted_fine(fine) else deleted_project_rows(fine)
+    comment = fine_comment(fine)
 
     response = post_message(
         client,
         channel=FINES_CHANNEL_ID,
         text=comment,
-        blocks=fine_blocks(transaction, otter_fine),
+        blocks=fine_blocks(fine),
     )
     thread_ts = response.get("ts")
 
@@ -594,27 +557,31 @@ def run_once(
     leaderboard_interval_seconds: int,
 ) -> int:
     already_sent = sent_ids(conn)
-    hcb_fines = fetch_hcb_fines()
     otter_fines = fetch_otter_fines(api_base)
 
-    maybe_post_leaderboard(
-        conn, client, hcb_fines, otter_fines, leaderboard_interval_seconds
-    )
-
-    if not already_sent and hcb_fines:
-        for transaction in hcb_fines:
-            mark_sent(conn, transaction, None)
-        print(f"Seeded {len(hcb_fines)} existing fine(s); nothing posted.")
+    if not otter_fines:
+        print("Otter API returned no fines; skipping this run.")
         return 0
 
-    pending = [fine for fine in hcb_fines if fine.get("id") not in already_sent]
+    maybe_post_leaderboard(conn, client, otter_fines, leaderboard_interval_seconds)
 
-    for transaction in sorted(
-        pending, key=lambda tx: (tx.get("date") or "", tx.get("id") or "")
+    if not already_sent and otter_fines:
+        for fine in otter_fines.values():
+            mark_sent(conn, fine, None)
+        print(f"Seeded {len(otter_fines)} existing fine(s); nothing posted.")
+        return 0
+
+    pending = [
+        fine
+        for fine in otter_fines.values()
+        if fine.get("transaction_id") not in already_sent
+    ]
+
+    for fine in sorted(
+        pending, key=lambda f: (f.get("date") or "", f.get("transaction_id") or "")
     ):
-        otter_fine = otter_fines.get(str(transaction["id"]))
-        slack_ts = post_fine(client, transaction, otter_fine)
-        mark_sent(conn, transaction, slack_ts)
+        slack_ts = post_fine(client, fine)
+        mark_sent(conn, fine, slack_ts)
 
     print(f"Posted {len(pending)} fine(s).")
     return len(pending)
