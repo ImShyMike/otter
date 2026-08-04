@@ -3,7 +3,7 @@
 import os
 import re
 from pathlib import Path
-from typing import Optional, TypedDict
+from typing import TypedDict
 
 import requests
 from dotenv import load_dotenv
@@ -17,23 +17,23 @@ class ProjectItem(TypedDict, total=False):
 
     id: int
     airtable_id: str
-    approved_at: Optional[int]
-    display_name: Optional[str]
-    description: Optional[str]
+    approved_at: int | None
+    display_name: str | None
+    description: str | None
     ysws: str
-    country: Optional[str]
-    code_url: Optional[str]
-    demo_url: Optional[str]
-    github_username: Optional[str]
-    hours: Optional[int]
-    true_hours: Optional[float]
+    country: str | None
+    code_url: str | None
+    demo_url: str | None
+    github_username: str | None
+    hours: int | None
+    true_hours: float | None
     has_media: bool
     github_stars: int
-    archived_demo: Optional[str]
-    archived_repo: Optional[str]
-    inferred_repo: Optional[str]
-    inferred_username: Optional[str]
-    preview_blurhash: Optional[str]
+    archived_demo: str | None
+    archived_repo: str | None
+    inferred_repo: str | None
+    inferred_username: str | None
+    preview_blurhash: str | None
 
 
 _current_env = Path(__file__).resolve().parent / ".env"
@@ -65,7 +65,7 @@ def media_image_url(airtable_id: str | None) -> str | None:
     return f"{API_BASE}/api/v1/media/{airtable_id}/r"
 
 
-def pluralize(count: int, singular: str, plural: Optional[str] = None) -> str:
+def pluralize(count: int, singular: str, plural: str | None = None) -> str:
     """Return a pluralized string based on the count"""
     if count == 1:
         return singular
@@ -198,7 +198,7 @@ def send_projects_response(
         try:
             info = client.users_info(user=target_user_id)
             profile_resp = client.users_profile_get(user=target_user_id)
-        except Exception as exc:  # pylint: disable=broad-except
+        except Exception as exc:  # pylint: disable=broad-except  # noqa: BLE001
             return {
                 "ok": False,
                 "error_code": "user_lookup_failed",
