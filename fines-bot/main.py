@@ -27,6 +27,8 @@ PAGE_SIZE = 100
 FINES_CHANNEL_ID = "C0B1X3W6MHS"
 CHART_LABEL_MAX_LEN = 20
 CHART_MAX_SEGMENTS = 12
+FINE_ICON_URL = "https://cdn.hackclub.com/019fcc78-cf47-7e97-a246-aa189e3547a9/1f7e5.png"
+REVERTED_FINE_ICON_URL = "https://cdn.hackclub.com/019fcc78-d708-7228-afda-ab5497cf97ad/1f7e9.png"
 
 CSV_FIELDNAMES = [
     "ysws",
@@ -139,7 +141,7 @@ def fetch_hcb_fines() -> list[dict[str, Any]]:
         fines.extend(
             transaction
             for transaction in transactions
-            if int(transaction.get("amount_cents") or 0) > 0
+            if int(transaction.get("amount_cents") or 0) != 0
         )
 
         if len(transactions) < PAGE_SIZE:
@@ -200,7 +202,13 @@ def extract_ysws_from_memo(memo: str) -> str | None:
 
 
 def amount_dollars(amount_cents: int | None) -> str:
-    return f"${(amount_cents or 0) / 100:.2f}"
+    cents = amount_cents or 0
+    sign = "-" if cents < 0 else ""
+    return f"{sign}${abs(cents) / 100:.2f}"
+
+
+def is_reverted_fine(transaction: dict[str, Any]) -> bool:
+    return int(transaction.get("amount_cents") or 0) < 0
 
 
 def dollars_value(amount_cents: int) -> str:
@@ -452,13 +460,14 @@ def maybe_post_leaderboard(
 
 
 def fine_comment(transaction: dict[str, Any], otter_fine: dict[str, Any] | None) -> str:
-    projects = (otter_fine or {}).get("projects") or []
+    reverted = is_reverted_fine(transaction)
+    projects = [] if reverted else (otter_fine or {}).get("projects") or []
     amount_cents = int(transaction.get("amount_cents") or 0)
     ysws = (otter_fine or {}).get("ysws") or "unknown"
     transaction_id = transaction["id"]
 
     lines = [
-        "*New fine*",
+        "*Fine reverted*" if reverted else "*New fine*",
         f"Amount: {amount_dollars(amount_cents)}",
         f"YSWS: {ysws}",
         f"Date: {transaction.get('date') or (otter_fine or {}).get('date') or 'unknown'}",
@@ -472,9 +481,10 @@ def fine_comment(transaction: dict[str, Any], otter_fine: dict[str, Any] | None)
 def fine_blocks(
     transaction: dict[str, Any], otter_fine: dict[str, Any] | None
 ) -> list[dict[str, Any]]:
+    reverted = is_reverted_fine(transaction)
     amount_cents = int(transaction.get("amount_cents") or 0)
     ysws = (otter_fine or {}).get("ysws") or "unknown"
-    projects = (otter_fine or {}).get("projects") or []
+    projects = [] if reverted else (otter_fine or {}).get("projects") or []
     date = transaction.get("date") or (otter_fine or {}).get("date") or "unknown"
     transaction_id = transaction["id"]
     transaction_link = (
@@ -493,6 +503,11 @@ def fine_blocks(
             "title": {
                 "type": "plain_text",
                 "text": ysws,
+            },
+            "icon": {
+                "type": "image",
+                "image_url": REVERTED_FINE_ICON_URL if reverted else FINE_ICON_URL,
+                "alt_text": "Reverted Fine" if reverted else "Fine",
             },
             "subtitle": {
                 "type": "plain_text",
@@ -544,7 +559,7 @@ def deleted_projects_table_blocks(rows: list[dict[str, Any]]) -> list[dict[str, 
 def post_fine(
     client: WebClient, transaction: dict[str, Any], otter_fine: dict[str, Any] | None
 ) -> str | None:
-    rows = deleted_project_rows(otter_fine)
+    rows = [] if is_reverted_fine(transaction) else deleted_project_rows(otter_fine)
     comment = fine_comment(transaction, otter_fine)
 
     response = post_message(

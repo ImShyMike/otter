@@ -76,7 +76,7 @@ pub fn run<'a>(pg: &'a PgPool) -> Pin<Box<dyn Future<Output = anyhow::Result<()>
 
                 let inbound_transactions: Vec<&Transaction> = transactions
                     .iter()
-                    .filter(|transaction| transaction.amount_cents > 0)
+                    .filter(|transaction| transaction.amount_cents != 0)
                     .collect();
 
                 let ids: Vec<&str> = inbound_transactions
@@ -93,24 +93,21 @@ pub fn run<'a>(pg: &'a PgPool) -> Pin<Box<dyn Future<Output = anyhow::Result<()>
                 .into_iter()
                 .collect();
 
-                let stop_at = inbound_transactions
+                let new_transactions: Vec<&Transaction> = inbound_transactions
                     .iter()
-                    .position(|transaction| existing_ids.contains(&transaction.id))
-                    .unwrap_or(inbound_transactions.len());
-
-                let new_transactions = &inbound_transactions[..stop_at];
+                    .filter(|transaction| !existing_ids.contains(&transaction.id))
+                    .copied()
+                    .collect();
 
                 if !new_transactions.is_empty() {
-                    inserted += insert_transactions(new_transactions, pg).await?;
+                    inserted += insert_transactions(&new_transactions, pg).await?;
                     info!(
                         page,
                         inserted = new_transactions.len(),
                         "imported fines page"
                     );
-                }
-
-                if stop_at < transactions.len() {
-                    info!(page, "stopped at transaction already in database");
+                } else if !inbound_transactions.is_empty() {
+                    info!(page, "page fully caught up");
                     break;
                 }
 
