@@ -70,9 +70,37 @@ github_usernames: Array<string>,
  */
 display_names: Array<string>, ysws: Array<string>, total_projects: bigint, total_hours: number, total_stars: bigint, first_approved_at: bigint | null, last_approved_at: bigint | null, projects: Array<ProjectItem>, page: bigint, per_page: bigint, };
 
+export type UsernameSuggestion = { username: string, 
+/**
+ * Projects this username is attached to
+ */
+project_count: bigint, 
+/**
+ * True when the username is known to come from a GitHub URL
+ */
+is_github: boolean, };
+
 export type YSWSProgramDetailsResponse = { name: string, total_projects: bigint, total_hours: number, };
 
 export type Api = {
+  "GET /autocomplete/slack": {
+    params: {
+      q: string;
+      limit?: number;
+    };
+    responses: {
+      200: Array<SlackAccount>;
+    };
+  };
+  "GET /autocomplete/user": {
+    params: {
+      q: string;
+      limit?: number;
+    };
+    responses: {
+      200: Array<UsernameSuggestion>;
+    };
+  };
   "GET /fines": {
     params: {
       limit?: number;

@@ -6,7 +6,7 @@ use tracing::instrument;
 use utoipa::ToSchema;
 
 use crate::error::AppError;
-use crate::handlers::api::ProjectItem;
+use crate::handlers::api::{ProjectItem, escape_like};
 use crate::state::AppState;
 
 #[derive(Debug, Clone, Copy)]
@@ -496,10 +496,4 @@ fn parse_bool(value: &Option<serde_json::Value>) -> Result<bool, AppError> {
         },
         _ => Err(AppError::bad_request("Expected boolean value")),
     }
-}
-
-fn escape_like(s: &str) -> String {
-    s.replace('\\', "\\\\")
-        .replace('%', "\\%")
-        .replace('_', "\\_")
 }

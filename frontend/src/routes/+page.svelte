@@ -15,7 +15,15 @@
 	import TableIcon from '@lucide/svelte/icons/table';
 	import X from '@lucide/svelte/icons/x';
 	import { SvelteSet, SvelteURLSearchParams } from 'svelte/reactivity';
-	import { untrack } from 'svelte';
+	import { tick, untrack } from 'svelte';
+	import SearchSuggestions from '$lib/components/SearchSuggestions.svelte';
+	import {
+		activeToken,
+		applySuggestion,
+		fetchSuggestions,
+		type FilterKind,
+		type Suggestion
+	} from '$lib/autocomplete';
 	import Head from '$lib/components/Head.svelte';
 	import StarIcon from '@lucide/svelte/icons/star';
 	import ServerStatus from '$lib/components/ServerStatus.svelte';
@@ -29,6 +37,7 @@
 	};
 
 	const LOW_SCORE_THRESHOLD = 0.25;
+	const SUGGESTION_DEBOUNCE_MS = 120;
 
 	function dedupeByAirtableId(items: SearchResult[]) {
 		const seen = new SvelteSet<string>();
@@ -72,6 +81,74 @@
 	let searchError = $state<string | null>(null);
 	let hasMore = $derived(results.length < totalResults);
 	let sentinel = $state<HTMLDivElement | null>(null);
+	let searchInput = $state<HTMLInputElement | null>(null);
+	let suggestions = $state<Suggestion[]>([]);
+	let highlighted = $state(-1);
+	let suggestionsOpen = $derived(suggestions.length > 0);
+	let suggestionTimer: ReturnType<typeof setTimeout> | null = null;
+	let suggestionRequest: AbortController | null = null;
+
+	function closeSuggestions() {
+		if (suggestionTimer !== null) {
+			clearTimeout(suggestionTimer);
+			suggestionTimer = null;
+		}
+		suggestionRequest?.abort();
+		suggestionRequest = null;
+		suggestions = [];
+		highlighted = -1;
+	}
+
+	/** Look up the `user:`/`slack:` token the caret sits in and load its suggestions. */
+	function refreshSuggestions() {
+		const input = searchInput;
+		if (!input) return;
+
+		const token = activeToken(input.value, input.selectionStart ?? input.value.length);
+		if (!token || !token.value) {
+			closeSuggestions();
+			return;
+		}
+
+		if (suggestionTimer !== null) clearTimeout(suggestionTimer);
+		suggestionTimer = setTimeout(() => {
+			suggestionTimer = null;
+			void loadSuggestions(token.kind, token.value);
+		}, SUGGESTION_DEBOUNCE_MS);
+	}
+
+	async function loadSuggestions(kind: FilterKind, q: string) {
+		suggestionRequest?.abort();
+		const request = new AbortController();
+		suggestionRequest = request;
+
+		try {
+			const items = await fetchSuggestions(kind, q, request.signal);
+			if (request.signal.aborted) return;
+			suggestions = items;
+			highlighted = -1;
+		} catch (error) {
+			if (error instanceof DOMException && error.name === 'AbortError') return;
+			suggestions = [];
+			highlighted = -1;
+		}
+	}
+
+	async function selectSuggestion(suggestion: Suggestion) {
+		const input = searchInput;
+		if (!input) return;
+
+		const token = activeToken(input.value, input.selectionStart ?? input.value.length);
+		if (!token) return;
+
+		const next = applySuggestion(input.value, token, suggestion.insert);
+		query = next.value;
+		closeSuggestions();
+
+		await tick();
+		input.focus();
+		input.setSelectionRange(next.caret, next.caret);
+	}
 
 	async function readSearchError(response: Response) {
 		const message = await response.text();
@@ -156,6 +233,7 @@
 
 	async function submitSearch() {
 		const q = query.trim();
+		closeSuggestions();
 
 		if (q === lastSubmittedQuery) {
 			if (q && searchError) {
@@ -195,12 +273,41 @@
 	});
 
 	function handleKeydown(e: KeyboardEvent) {
+		if (suggestionsOpen) {
+			if (e.key === 'ArrowDown') {
+				e.preventDefault();
+				highlighted = (highlighted + 1) % suggestions.length;
+				return;
+			}
+			if (e.key === 'ArrowUp') {
+				e.preventDefault();
+				highlighted = (highlighted - 1 + suggestions.length) % suggestions.length;
+				return;
+			}
+			if (e.key === 'Escape') {
+				closeSuggestions();
+				return;
+			}
+			if ((e.key === 'Enter' || e.key === 'Tab') && highlighted >= 0) {
+				e.preventDefault();
+				void selectSuggestion(suggestions[highlighted]);
+				return;
+			}
+		}
+
 		if (e.key === 'Enter') void submitSearch();
+	}
+
+	/** Keys that move the caret change which token is being completed. */
+	function handleKeyup(e: KeyboardEvent) {
+		if (['ArrowDown', 'ArrowUp', 'Enter', 'Tab', 'Escape'].includes(e.key)) return;
+		refreshSuggestions();
 	}
 
 	function clearSearch() {
 		if (!query) return;
 		query = '';
+		closeSuggestions();
 	}
 
 	let trimmedQuery = $derived(query.trim());
@@ -256,15 +363,38 @@
 		<p class="mb-6 text-sm text-muted-foreground">Search engine for Hack Club projects!</p>
 
 		<div class="mx-auto flex max-w-xl gap-2">
-			<div class="relative w-full">
+			<div
+				class="relative w-full"
+				onfocusout={(e) => {
+					if (!e.currentTarget.contains(e.relatedTarget as Node)) closeSuggestions();
+				}}
+			>
 				<Input
+					bind:ref={searchInput}
 					type="text"
 					placeholder="Search projects…"
 					bind:value={query}
 					onkeydown={handleKeydown}
+					oninput={refreshSuggestions}
+					onclick={refreshSuggestions}
+					onkeyup={handleKeyup}
 					class="h-9 pr-9"
+					autocomplete="off"
+					role="combobox"
+					aria-expanded={suggestionsOpen}
+					aria-controls="search-suggestions"
+					aria-autocomplete="list"
+					aria-activedescendant={highlighted >= 0 ? `search-suggestion-${highlighted}` : undefined}
 					autofocus
 				/>
+				{#if suggestionsOpen}
+					<SearchSuggestions
+						items={suggestions}
+						{highlighted}
+						onselect={(suggestion) => void selectSuggestion(suggestion)}
+						onhighlight={(index) => (highlighted = index)}
+					/>
+				{/if}
 				{#if query}
 					<button
 						type="button"

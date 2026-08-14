@@ -9,7 +9,7 @@ use tracing::instrument;
 use utoipa::{IntoParams, ToSchema};
 
 use crate::error::AppError;
-use crate::handlers::api::ProjectItem;
+use crate::handlers::api::{ProjectItem, escape_like};
 use crate::state::AppState;
 
 /// Slack IDs look like `U012ABCDEF` / `W012ABCDEF`.
@@ -41,7 +41,7 @@ pub enum UserMatch {
     Username,
 }
 
-#[derive(Serialize, ts_rs::TS, ToSchema)]
+#[derive(Serialize, Deserialize, ts_rs::TS, ToSchema)]
 pub struct SlackAccount {
     pub slack_id: String,
     pub handle: Option<String>,
@@ -97,14 +97,14 @@ struct UserAggregate {
 }
 
 #[derive(sqlx::FromRow)]
-struct SlackAccountRow {
-    slack_id: String,
-    name: Option<String>,
-    display_name: Option<String>,
-    real_name: Option<String>,
-    image_512: Option<String>,
-    image_72: Option<String>,
-    project_count: i64,
+pub struct SlackAccountRow {
+    pub slack_id: String,
+    pub name: Option<String>,
+    pub display_name: Option<String>,
+    pub real_name: Option<String>,
+    pub image_512: Option<String>,
+    pub image_72: Option<String>,
+    pub project_count: i64,
 }
 
 impl From<&SlackAccountRow> for SlackAccount {
@@ -119,14 +119,6 @@ impl From<&SlackAccountRow> for SlackAccount {
             project_count: row.project_count,
         }
     }
-}
-
-/// Escape text for ILIKE statements
-fn escape_like(value: &str) -> String {
-    value
-        .replace('\\', "\\\\")
-        .replace('%', "\\%")
-        .replace('_', "\\_")
 }
 
 fn blank_to_none(value: Option<&str>) -> Option<String> {

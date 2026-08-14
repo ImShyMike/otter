@@ -12,9 +12,9 @@ use crate::error::AppError;
 use crate::state::AppState;
 
 const NULL_MEDIA_SENTINEL: &str = "__NULL_MEDIA__";
-const DEFAULT_CACHE_TTL_SECS: u64 = 60 * 60;
+const DEFAULT_CACHE_TTL_SECS: u64 = 60 * 5;
 const MIN_CACHE_TTL_SECS: u64 = 30;
-const MAX_CACHE_TTL_SECS: u64 = 60 * 60;
+const MAX_CACHE_TTL_SECS: u64 = 60 * 5;
 const EXPIRY_SAFETY_MARGIN_SECS: u64 = 60;
 
 fn airtable_url_expiry_secs(url: &str) -> Option<u64> {

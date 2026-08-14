@@ -10,7 +10,7 @@ use tracing::instrument;
 use utoipa::{IntoParams, ToSchema};
 
 use crate::error::AppError;
-use crate::handlers::api::{ProjectItem, local_only};
+use crate::handlers::api::{ProjectItem, escape_like, local_only};
 use crate::state::AppState;
 use crate::utils::embeddings;
 
@@ -187,7 +187,10 @@ pub async fn search(
         0.0
     };
     let trigram_weight = params.trigram_weight.unwrap_or(0.1).max(0.0);
-    let user_like = filters.user.as_ref().map(|u| format!("%{}%", u));
+    let user_like = filters
+        .user
+        .as_ref()
+        .map(|u| format!("%{}%", escape_like(u)));
     let fts_candidate_limit = (limit * 10).clamp(100, 2000);
     let phrase_candidate_limit = (limit * 8).clamp(80, 1500);
     let trigram_candidate_limit = (limit * 15).clamp(150, 3000);
@@ -305,11 +308,11 @@ pub async fn search(
             WHERE p.deleted_at IS NULL
               AND (
                     $10::text IS NULL OR
-                    p.github_username ILIKE $10 OR
-                    p.inferred_username ILIKE $10 OR
-                    p.display_name ILIKE $10 OR
-                    p.code_url ILIKE $10 OR
-                    p.inferred_repo ILIKE $10
+                    p.github_username ILIKE $10 ESCAPE '\' OR
+                    p.inferred_username ILIKE $10 ESCAPE '\' OR
+                    p.display_name ILIKE $10 ESCAPE '\' OR
+                    p.code_url ILIKE $10 ESCAPE '\' OR
+                    p.inferred_repo ILIKE $10 ESCAPE '\'
               )
               AND ($15::text IS NULL OR p.slack_id = $15)
         ),
@@ -636,11 +639,11 @@ pub async fn filter_search(
         WHERE p.deleted_at IS NULL
             AND (
             $1::text IS NULL
-            OR p.github_username ILIKE $1
-            OR p.inferred_username ILIKE $1
-            OR p.display_name ILIKE $1
-            OR p.inferred_repo ILIKE $1
-            OR p.code_url ILIKE $1
+            OR p.github_username ILIKE $1 ESCAPE '\'
+            OR p.inferred_username ILIKE $1 ESCAPE '\'
+            OR p.display_name ILIKE $1 ESCAPE '\'
+            OR p.inferred_repo ILIKE $1 ESCAPE '\'
+            OR p.code_url ILIKE $1 ESCAPE '\'
             )
             AND ($4::text IS NULL OR p.slack_id = $4)
         ORDER BY p.approved_at DESC
@@ -648,7 +651,7 @@ pub async fn filter_search(
         OFFSET $3
         "#,
     )
-    .bind(username.map(|u| format!("%{}%", u)))
+    .bind(username.map(|u| format!("%{}%", escape_like(u))))
     .bind(limit)
     .bind(offset)
     .bind(slack_id)

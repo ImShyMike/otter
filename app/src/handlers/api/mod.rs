@@ -1,3 +1,4 @@
+pub mod autocomplete;
 pub mod fines;
 pub mod media;
 pub mod project;
@@ -44,6 +45,14 @@ pub struct ProjectItem {
     pub preview_blurhash: Option<String>,
 }
 
+/// Escape text interpolated into a LIKE/ILIKE pattern
+pub fn escape_like(value: &str) -> String {
+    value
+        .replace('\\', "\\\\")
+        .replace('%', "\\%")
+        .replace('_', "\\_")
+}
+
 pub fn router() -> OpenApiRouter<AppState> {
     OpenApiRouter::new()
         .routes(routes!(search::search))
@@ -57,6 +66,8 @@ pub fn router() -> OpenApiRouter<AppState> {
         .routes(routes!(recent::recent_projects))
         .routes(routes!(status::data_refresh_status))
         .routes(routes!(user::user_profile))
+        .routes(routes!(autocomplete::autocomplete_user))
+        .routes(routes!(autocomplete::autocomplete_slack))
 }
 
 static LOCAL_ONLY: OnceLock<bool> = OnceLock::new();
