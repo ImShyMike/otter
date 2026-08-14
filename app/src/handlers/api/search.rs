@@ -1,3 +1,4 @@
+use std::sync::LazyLock;
 use std::time::Instant;
 
 use axum::Json;
@@ -115,22 +116,28 @@ impl From<SearchRow> for SearchResult {
 #[derive(Debug, Clone)]
 struct ParsedFilters {
     user: Option<String>,
+    slack_id: Option<String>,
     cleaned_query: String,
     embedding_query: String,
     semantic: bool,
 }
 
+static USER_FILTER_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\buser:(\S+)").unwrap());
+static SLACK_FILTER_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\bslack:(\S+)").unwrap());
+
+/// Pull the first `<prefix>:<value>` and trim the rest
+fn extract_filter(re: &Regex, query: &mut String) -> Option<String> {
+    let value = re.captures(query.as_str())?[1].to_string();
+    *query = re.replace_all(query.as_str(), "").trim().to_string();
+    Some(value)
+}
+
 fn parse_filters(query: &str) -> ParsedFilters {
-    let mut user = None;
     let mut cleaned_query = query.to_string();
 
-    // extract user:username pattern
-    if let Ok(re) = Regex::new(r"\buser:(\S+)")
-        && let Some(caps) = re.captures(&cleaned_query)
-    {
-        user = Some(caps[1].to_string());
-        cleaned_query = re.replace_all(&cleaned_query, "").trim().to_string();
-    }
+    // extract user:username and slack:U012ABCDEF patterns
+    let user = extract_filter(&USER_FILTER_RE, &mut cleaned_query);
+    let slack_id = extract_filter(&SLACK_FILTER_RE, &mut cleaned_query).map(|id| id.to_uppercase());
 
     let embedding_query = cleaned_query
         .replace('"', " ")
@@ -146,9 +153,11 @@ fn parse_filters(query: &str) -> ParsedFilters {
 
     ParsedFilters {
         user,
+        slack_id,
+        // enable semantic search if the query has >2 words
+        semantic: cleaned_query.split_whitespace().count() > 2,
         cleaned_query,
         embedding_query,
-        semantic: query.split(' ').count() > 2, // enable semantic search if query has >2 words
     }
 }
 
@@ -184,11 +193,16 @@ pub async fn search(
     let trigram_candidate_limit = (limit * 15).clamp(150, 3000);
     let literal_candidate_limit = (limit * 12).clamp(120, 2500);
 
-    // user-only search
-    if filters.cleaned_query.is_empty()
-        && let Some(username) = filters.user.as_deref()
-    {
-        return user_search(username, limit, page, &state).await;
+    // filter-only search
+    if filters.cleaned_query.is_empty() && (filters.user.is_some() || filters.slack_id.is_some()) {
+        return filter_search(
+            filters.user.as_deref(),
+            filters.slack_id.as_deref(),
+            limit,
+            page,
+            &state,
+        )
+        .await;
     }
 
     let mut use_semantic = semantic_enabled && semantic_weight > 0.0;
@@ -297,6 +311,7 @@ pub async fn search(
                     p.code_url ILIKE $10 OR
                     p.inferred_repo ILIKE $10
               )
+              AND ($15::text IS NULL OR p.slack_id = $15)
         ),
         fts_results AS (
             SELECT
@@ -351,20 +366,25 @@ pub async fn search(
         ),
         literal_candidates AS (
             SELECT p.id
-            FROM projects p
+            FROM projects p, query_terms qt
             WHERE p.deleted_at IS NULL
               AND (
                     p.inferred_repo % $1 OR
                     p.display_name % $1 OR
                     p.ysws % $1 OR
                     p.github_username % $1 OR
-                    p.inferred_username % $1
+                    p.inferred_username % $1 OR
+                    p.slack_id = upper(qt.raw_q)
               )
         ),
         literal_results AS (
             SELECT
                 p.id,
                 GREATEST(
+                    CASE
+                        WHEN qt.raw_q <> '' AND lower(COALESCE(p.slack_id, '')) = qt.raw_q THEN 4.0
+                        ELSE 0.0
+                    END,
                     CASE
                         WHEN qt.raw_q <> '' AND lower(COALESCE(p.inferred_repo, '')) = qt.raw_q THEN 4.0
                         ELSE 0.0
@@ -556,6 +576,7 @@ pub async fn search(
     .bind(literal_candidate_limit)
     .bind(offset)
     .bind(use_semantic)
+    .bind(filters.slack_id.as_deref())
     .fetch_all(&state.pg)
     .await?;
     let query_ms = query_start.elapsed().as_secs_f64() * 1000.0;
@@ -575,8 +596,9 @@ pub async fn search(
     }))
 }
 
-pub async fn user_search(
-    username: &str,
+pub async fn filter_search(
+    username: Option<&str>,
+    slack_id: Option<&str>,
     limit: i64,
     page: i64,
     state: &AppState,
@@ -613,20 +635,23 @@ pub async fn user_search(
         FROM projects p
         WHERE p.deleted_at IS NULL
             AND (
-            p.github_username ILIKE $1
+            $1::text IS NULL
+            OR p.github_username ILIKE $1
             OR p.inferred_username ILIKE $1
             OR p.display_name ILIKE $1
             OR p.inferred_repo ILIKE $1
             OR p.code_url ILIKE $1
             )
+            AND ($4::text IS NULL OR p.slack_id = $4)
         ORDER BY p.approved_at DESC
         LIMIT $2
         OFFSET $3
         "#,
     )
-    .bind(format!("%{}%", username))
+    .bind(username.map(|u| format!("%{}%", u)))
     .bind(limit)
     .bind(offset)
+    .bind(slack_id)
     .fetch_all(&state.pg)
     .await?;
     let query_ms = query_start.elapsed().as_secs_f64() * 1000.0;

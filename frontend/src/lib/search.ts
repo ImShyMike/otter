@@ -1,7 +1,9 @@
 import { env } from '$env/dynamic/public';
-import type { ProjectItem } from './types';
+import type { ProjectItem, UserProfile } from './types';
 
 export const API_BASE = (env.PUBLIC_API_BASE || 'http://localhost:3000').replace(/\/$/, '');
+
+export const USER_PROJECTS_PER_PAGE = 50;
 
 const SCORE_BRACKETS: [number, string][] = [
 	[0.25, 'text-destructive'],
@@ -32,4 +34,23 @@ export function title(r: ProjectItem) {
 export function truncate(s: string | null, len = 200) {
 	if (!s) return '';
 	return s.length > len ? s.slice(0, len) + '…' : s;
+}
+
+export function userIdentifier(r: ProjectItem): string | null {
+	return r.slack_id ?? r.inferred_username ?? r.github_username;
+}
+
+export function userDisplayName(u: UserProfile): string {
+	return (
+		u.slack?.display_name ??
+		u.slack?.real_name ??
+		u.slack?.handle ??
+		u.usernames[0] ??
+		u.display_names[0] ??
+		u.identifier
+	);
+}
+
+export function userSearchQuery(u: UserProfile): string {
+	return u.matched_by === 'slack_id' ? `slack:${u.identifier}` : `user:${u.identifier}`;
 }

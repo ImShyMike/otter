@@ -5,6 +5,7 @@ pub mod query;
 pub mod recent;
 pub mod search;
 pub mod status;
+pub mod user;
 pub mod ysws;
 
 use serde::Serialize;
@@ -17,7 +18,7 @@ use crate::utils::embeddings;
 use std::sync::OnceLock;
 use tracing::warn;
 
-#[derive(Serialize, ts_rs::TS, ToSchema)]
+#[derive(Serialize, ts_rs::TS, ToSchema, sqlx::FromRow)]
 pub struct ProjectItem {
     pub id: i32,
     pub airtable_id: String,
@@ -55,6 +56,7 @@ pub fn router() -> OpenApiRouter<AppState> {
         .routes(routes!(project::project_info))
         .routes(routes!(recent::recent_projects))
         .routes(routes!(status::data_refresh_status))
+        .routes(routes!(user::user_profile))
 }
 
 static LOCAL_ONLY: OnceLock<bool> = OnceLock::new();

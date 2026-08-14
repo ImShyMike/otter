@@ -224,8 +224,9 @@
 	Otter is a free and open-source semantic search engine for Hack Club projects. It indexes the
 	Unified YSWS (You Ship, We Ship) database and lets you search thousands of teen-built websites,
 	apps, games, websites, and hardware projects using vector embeddings, full-text, and trigram
-	search. Filter results by user with the user:username syntax, use "quoted phrases" for exact
-	matches, or browse every project on the explore page.
+	search. Filter results by user with the user:username syntax, by Slack account with the
+	slack:U012ABCDEF syntax, use "quoted phrases" for exact matches, or browse every project on the
+	explore page.
 </p>
 
 <div class="absolute top-4 left-4 z-50 sm:fixed sm:top-auto sm:bottom-4">
@@ -316,12 +317,17 @@
 					class="rounded bg-muted px-1 py-0.5 font-mono text-[11px] wrap-break-word whitespace-nowrap text-foreground"
 					>"quoted phrase"</span
 				>
-				<span class="opacity-70"> for exact phrase matches, and </span>
+				<span class="opacity-70"> for exact phrase matches, </span>
 				<span
 					class="rounded bg-muted px-1 py-0.5 font-mono text-[11px] wrap-break-word whitespace-nowrap text-foreground"
 					>user:username</span
 				>
-				<span class="opacity-70"> to search projects by user</span>
+				<span class="opacity-70"> to search by user, and </span>
+				<span
+					class="rounded bg-muted px-1 py-0.5 font-mono text-[11px] wrap-break-word whitespace-nowrap text-foreground"
+					>slack:U012ABCDEF</span
+				>
+				<span class="opacity-70"> to search by Slack account</span>
 			</p>
 			<a
 				href={resolve('/explore')}

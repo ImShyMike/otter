@@ -32,6 +32,44 @@ export type SearchTimings = { embeddings_ms: number, query_ms: number, };
 
 export type ServerStatus = { last_refreshed_at: bigint, total_projects: bigint, };
 
+export type SlackAccount = { slack_id: string, handle: string | null, display_name: string | null, real_name: string | null, image: string | null, project_count: bigint, };
+
+export type UserMatch = "slack_id" | "username";
+
+export type UserProfile = { 
+/**
+ * The identifier that was looked up, normalized (Slack IDs are uppercased)
+ */
+identifier: string, matched_by: UserMatch, 
+/**
+ * The Slack account this page represents, when one can be picked confidently
+ */
+slack: SlackAccount | null, 
+/**
+ * True when the identifier maps to more than one Slack account
+ */
+ambiguous: boolean, 
+/**
+ * Total number of distinct Slack accounts behind the matched projects
+ */
+total_slack_accounts: bigint, 
+/**
+ * Every Slack account behind the matched projects, most projects first
+ */
+slack_accounts: Array<SlackAccount>, 
+/**
+ * Every GitHub + inferred username across the matched projects, most common first
+ */
+usernames: Array<string>, 
+/**
+ * Subset of `usernames` known to come from a GitHub URL
+ */
+github_usernames: Array<string>, 
+/**
+ * Every Airtable display name across the matched projects, most common first
+ */
+display_names: Array<string>, ysws: Array<string>, total_projects: bigint, total_hours: number, total_stars: bigint, first_approved_at: bigint | null, last_approved_at: bigint | null, projects: Array<ProjectItem>, page: bigint, per_page: bigint, };
+
 export type YSWSProgramDetailsResponse = { name: string, total_projects: bigint, total_hours: number, };
 
 export type Api = {
@@ -96,6 +134,17 @@ export type Api = {
   "GET /status": {
     responses: {
       200: ServerStatus;
+    };
+  };
+  "GET /user/{id}": {
+    params: {
+      id: string;
+      limit?: number;
+      page?: number;
+    };
+    responses: {
+      200: UserProfile;
+      404: never;
     };
   };
   "GET /ysws/list": {

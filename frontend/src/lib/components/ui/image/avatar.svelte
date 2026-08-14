@@ -5,27 +5,38 @@
 	const sizeMap = {
 		sm: 'h-6 w-6',
 		md: 'h-8 w-8',
-		lg: 'h-12 w-12'
+		lg: 'h-12 w-12',
+		hg: 'h-24 w-24'
 	};
 
 	let {
 		slackId,
 		alt = 'Avatar',
 		size = 'md',
+		href,
+		src: srcOverride,
 		class: className,
 		...restProps
-	}: Omit<HTMLImgAttributes, 'src'> & { slackId: string; size?: keyof typeof sizeMap } = $props();
+	}: Omit<HTMLImgAttributes, 'src'> & {
+		slackId: string;
+		size?: keyof typeof sizeMap;
+		/** Internal link to use instead of the Slack profile. */
+		href?: string;
+		src?: string;
+	} = $props();
 
 	let loaded = $state(false);
 
-	const src = $derived(`https://cachet.dunkirk.sh/users/${slackId}/r`);
-	const href = $derived(`https://hackclub.slack.com/team/${slackId}`);
+	const src = $derived(srcOverride ?? `https://cachet.dunkirk.sh/users/${slackId}/r`);
+	const external = $derived(href === undefined);
+	const resolvedHref = $derived(href ?? `https://hackclub.slack.com/team/${slackId}`);
 </script>
 
+<!-- eslint-disable svelte/no-navigation-without-resolve -->
 <a
-	{href}
-	target="_blank"
-	rel="noopener noreferrer external nofollow"
+	href={resolvedHref}
+	target={external ? '_blank' : undefined}
+	rel={external ? 'noopener noreferrer external nofollow' : undefined}
 	class={cn(
 		'relative inline-block aspect-square shrink-0 overflow-hidden rounded-[9px] bg-muted',
 		className,

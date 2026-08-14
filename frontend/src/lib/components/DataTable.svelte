@@ -30,7 +30,7 @@
 	import Share2 from '@lucide/svelte/icons/share-2';
 	import X from '@lucide/svelte/icons/x';
 	import lzString from 'lz-string';
-	import { API_BASE, title as projectTitle, imageUrl } from '$lib/search';
+	import { API_BASE, title as projectTitle, imageUrl, userIdentifier } from '$lib/search';
 	import type { ProjectItem, QueryResults } from '$lib/types';
 	import { formatApproved } from '$lib/utils';
 	import { onMount, untrack } from 'svelte';
@@ -577,7 +577,7 @@
 		{
 			accessorKey: 'slack_id',
 			header: 'Slack ID',
-			cell: (info) => (info.getValue() as string | null) ?? '—',
+			cell: (info) => renderSnippet(slackIdSnippet, info.getValue() as string | null),
 			enableSorting: true
 		},
 		{
@@ -698,15 +698,29 @@
 	{/if}
 {/snippet}
 
+{#snippet slackIdSnippet(slackId: string | null)}
+	{#if slackId}
+		<a
+			href={resolve('/user/[id]', { id: slackId })}
+			class="text-muted-foreground underline underline-offset-2 hover:text-foreground"
+			data-umami-event="explore-slack-click"
+			data-umami-event-slack={slackId}
+		>
+			{slackId}
+		</a>
+	{:else}
+		—
+	{/if}
+{/snippet}
+
 {#snippet usernameSnippet(r: ProjectItem)}
 	{@const username = r.inferred_username || r.github_username}
-	{#if username}
+	{@const owner = userIdentifier(r)}
+	{#if username && owner}
 		<a
-			href={`https://github.com/${username}`}
-			target="_blank"
-			rel="noopener external"
+			href={resolve('/user/[id]', { id: owner })}
 			class="text-muted-foreground underline underline-offset-2 hover:text-foreground"
-			data-umami-event="explore-github-click"
+			data-umami-event="explore-user-click"
 			data-umami-event-username={username}
 		>
 			{r.display_name

@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { imageUrl, title, truncate } from '$lib/search';
+	import { imageUrl, title, truncate, userIdentifier } from '$lib/search';
+	import { resolve } from '$app/paths';
 	import { marked } from 'marked';
 	import xss from 'xss';
 	import type { PageData } from './$types';
@@ -131,11 +132,13 @@
 				/>
 			</div>
 			<Card.Header>
+				{@const owner = userIdentifier(p)}
 				<div class="flex flex-wrap items-center gap-2">
 					{#if p.slack_id}
 						<Avatar
 							slackId={p.slack_id}
 							alt={p.inferred_username ?? p.github_username ?? ''}
+							href={resolve('/user/[id]', { id: p.slack_id })}
 							class="h-6 w-6"
 							size="sm"
 						/>
@@ -144,12 +147,12 @@
 					{#if p.github_stars > 0}
 						<Badge variant="outline" class="text-xs">{p.github_stars} <Star /></Badge>
 					{/if}
-					{#if p.inferred_username ?? p.github_username}
+					{#if owner && (p.inferred_username ?? p.github_username)}
 						<a
 							class="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
-							href={`https://github.com/${p.inferred_username ?? p.github_username}`}
-							target="_blank"
-							rel="noopener external">@{p.inferred_username ?? p.github_username}</a
+							href={resolve('/user/[id]', { id: owner })}
+							data-umami-event="project-user"
+							data-umami-event-user={owner}>@{p.inferred_username ?? p.github_username}</a
 						>
 					{/if}
 				</div>

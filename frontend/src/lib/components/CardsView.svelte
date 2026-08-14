@@ -6,7 +6,7 @@
 	import Code from '@lucide/svelte/icons/code';
 	import ExternalLink from '@lucide/svelte/icons/external-link';
 	import Star from '@lucide/svelte/icons/star';
-	import { title, truncate } from '$lib/search';
+	import { title, truncate, userIdentifier } from '$lib/search';
 	import type { SearchResult } from '$lib/types';
 	import { formatHours, formatApproved } from '$lib/utils';
 	import { resolve } from '$app/paths';
@@ -18,6 +18,7 @@
 
 <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
 	{#each results as r (r.airtable_id)}
+		{@const owner = userIdentifier(r)}
 		<Card.Card class="flex flex-col">
 			<ExpandableImage
 				id={r.id}
@@ -32,14 +33,17 @@
 			<Card.Header>
 				<div class="flex flex-wrap items-center gap-2">
 					{#if r.slack_id}
+						{@const profileHref = resolve('/user/[id]', { id: r.slack_id })}
 						<Avatar
 							slackId={r.slack_id}
 							alt={r.inferred_username ?? ''}
+							href={profileHref}
 							class="h-6 w-6 sm:hidden"
 						/>
 						<Avatar
 							slackId={r.slack_id}
 							alt={r.inferred_username}
+							href={profileHref}
 							class="ml-1 hidden h-6 w-6 sm:inline-block"
 						/>
 					{/if}
@@ -54,13 +58,13 @@
 					{#if r.github_stars > 0}
 						<Badge variant="outline" class="text-xs">{r.github_stars} <Star /></Badge>
 					{/if}
-					{#if r.inferred_username}
+					{#if r.inferred_username && owner}
 						<div class="flex items-center gap-1">
 							<a
 								class="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
-								href={`https://github.com/${r.inferred_username}`}
-								target="_blank"
-								rel="noopener external">@{r.inferred_username}</a
+								href={resolve('/user/[id]', { id: owner })}
+								data-umami-event="card-user-click"
+								data-umami-event-user={owner}>@{r.inferred_username}</a
 							>
 						</div>
 					{/if}
