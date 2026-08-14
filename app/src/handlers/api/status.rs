@@ -11,14 +11,14 @@ use crate::state::AppState;
 
 #[derive(Serialize, ts_rs::TS, ToSchema)]
 pub struct ServerStatus {
-    pub last_refreshed_at: Option<i64>,
-    pub total_projects: Option<i64>,
+    pub last_refreshed_at: i64,
+    pub total_projects: i64,
 }
 
-static LAST_REFRESHED_AT: OnceLock<RwLock<Option<i64>>> = OnceLock::new();
+static LAST_REFRESHED_AT: OnceLock<RwLock<i64>> = OnceLock::new();
 
-fn last_refreshed_at() -> &'static RwLock<Option<i64>> {
-    LAST_REFRESHED_AT.get_or_init(|| RwLock::new(None))
+fn last_refreshed_at() -> &'static RwLock<i64> {
+    LAST_REFRESHED_AT.get_or_init(|| RwLock::new(OffsetDateTime::now_utc().unix_timestamp()))
 }
 
 #[utoipa_ts::path(
@@ -38,10 +38,10 @@ pub async fn data_refresh_status(State(state): State<AppState>) -> Json<ServerSt
             .await;
 
     let total_projects = match total_projects {
-        Ok(count) => count,
+        Ok(count) => count.unwrap_or(0),
         Err(e) => {
             tracing::error!("Failed to fetch total projects count: {:?}", e);
-            None
+            0
         }
     };
 
@@ -52,5 +52,5 @@ pub async fn data_refresh_status(State(state): State<AppState>) -> Json<ServerSt
 }
 
 pub async fn set_last_refreshed_at(ts: OffsetDateTime) {
-    *last_refreshed_at().write().await = Some(ts.unix_timestamp());
+    *last_refreshed_at().write().await = ts.unix_timestamp();
 }

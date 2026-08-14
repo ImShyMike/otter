@@ -30,7 +30,7 @@ export type SearchResults = { data: Array<SearchResult>, total: bigint, page: bi
 
 export type SearchTimings = { embeddings_ms: number, query_ms: number, };
 
-export type ServerStatus = { last_refreshed_at: bigint | null, total_projects: bigint | null, };
+export type ServerStatus = { last_refreshed_at: bigint, total_projects: bigint, };
 
 export type YSWSProgramDetailsResponse = { name: string, total_projects: bigint, total_hours: number, };
 
