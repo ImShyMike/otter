@@ -20,6 +20,10 @@ const DEFAULT_DATABASE_URL: &str = "postgres://postgres:postgres@localhost:5432/
 const DEFAULT_REDIS_URL: &str = "redis://localhost:6379";
 const DEFAULT_HOST: &str = "0.0.0.0:3000";
 
+#[cfg(not(target_env = "msvc"))]
+#[global_allocator]
+static GLOBAL: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
+
 utoipa_ts::export!("../frontend/src/lib/types.ts");
 
 #[tokio::main]
