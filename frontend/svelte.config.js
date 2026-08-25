@@ -9,6 +9,14 @@ const config = {
 	kit: {
 		// Cloudflare Pages/Workers adapter
 		adapter: adapter()
+	},
+	vitePlugin: {
+		inspector: {
+			toggleKeyCombo: 'meta-shift',
+			holdMode: true,
+			showToggleButton: 'always',
+			toggleButtonPos: 'top-right'
+		}
 	}
 };
 
