@@ -325,7 +325,7 @@
 
 <Head
 	title="Stats · Otter"
-	description="Site-wide statistics for Hack Club YSWS programs: shippers, projects, hours, countries, and fines."
+	description="Hack Club YSWS program stats: shippers, projects, hours, countries, fines, etc..."
 />
 
 <div class="mx-auto flex min-h-screen max-w-5xl flex-col px-4 py-6.5 sm:py-8">
