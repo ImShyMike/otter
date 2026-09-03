@@ -13,6 +13,7 @@
 	import { resolve } from '$app/paths';
 	import Spinner from '$lib/components/ui/spinner/spinner.svelte';
 	import TableIcon from '@lucide/svelte/icons/table';
+	import ChartLine from '@lucide/svelte/icons/chart-line';
 	import X from '@lucide/svelte/icons/x';
 	import { SvelteSet, SvelteURLSearchParams } from 'svelte/reactivity';
 	import { tick, untrack } from 'svelte';
@@ -459,13 +460,22 @@
 				>
 				<span class="opacity-70"> to search by Slack account</span>
 			</p>
-			<a
-				href={resolve('/explore')}
-				class="mt-2 inline-flex items-center gap-1 text-sm text-muted-foreground underline underline-offset-2 hover:text-foreground"
-				data-umami-event="explore-link"
-			>
-				<TableIcon class="h-3 w-3" /> Explore all projects
-			</a>
+			<div class="mt-2 flex items-center gap-4">
+				<a
+					href={resolve('/explore')}
+					class="inline-flex items-center gap-1 text-sm text-muted-foreground underline underline-offset-2 hover:text-foreground"
+					data-umami-event="explore-link"
+				>
+					<TableIcon class="h-3 w-3" /> Explore
+				</a>
+				<a
+					href={resolve('/stats')}
+					class="inline-flex items-center gap-1 text-sm text-muted-foreground underline underline-offset-2 hover:text-foreground"
+					data-umami-event="stats-link"
+				>
+					<ChartLine class="h-3 w-3" /> Stats
+				</a>
+			</div>
 		</div>
 	</div>
 

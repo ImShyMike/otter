@@ -11,7 +11,9 @@
 		"@sveltejs/vite-plugin-svelte": "^7.0.0",
 		"@tailwindcss/typography": "^0.5.19",
 		"@tailwindcss/vite": "^4.2.4",
+		"@types/d3-geo": "^3.1.1",
 		"@types/node": "^24.12.2",
+		"@types/topojson-client": "^3.1.5",
 		"bits-ui": "^2.16.3",
 		"clsx": "^2.1.1",
 		"eslint": "^10.2.1",
@@ -48,8 +50,15 @@
 		"@sveltejs/adapter-cloudflare": "^7.2.8",
 		"@tanstack/svelte-table": "9.0.0-alpha.33",
 		"blurhash": "^2.0.5",
+		"chart.js": "^4.5.1",
+		"chartjs-plugin-datalabels": "^2.2.0",
+		"chartjs-plugin-zoom": "^2.2.0",
+		"d3-geo": "^3.1.1",
+		"i18n-iso-countries": "^7.14.0",
 		"lz-string": "^1.5.0",
 		"marked": "^18.0.2",
+		"topojson-client": "^3.1.0",
+		"world-atlas": "^2.0.2",
 		"xss": "^1.0.15"
 	}
 }

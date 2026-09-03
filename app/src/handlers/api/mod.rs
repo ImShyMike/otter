@@ -5,6 +5,7 @@ pub mod project;
 pub mod query;
 pub mod recent;
 pub mod search;
+pub mod stats;
 pub mod status;
 pub mod user;
 pub mod ysws;
@@ -64,6 +65,9 @@ pub fn router() -> OpenApiRouter<AppState> {
         .routes(routes!(media::media_redirect))
         .routes(routes!(project::project_info))
         .routes(routes!(recent::recent_projects))
+        .routes(routes!(stats::stats))
+        .routes(routes!(stats::stats_projects_by_time))
+        .routes(routes!(stats::stats_country_breakdown))
         .routes(routes!(status::data_refresh_status))
         .routes(routes!(user::user_profile))
         .routes(routes!(autocomplete::autocomplete_user))

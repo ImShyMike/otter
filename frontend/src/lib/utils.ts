@@ -16,6 +16,17 @@ export function formatApproved(ts: number | bigint | null): string {
 	return new Date(Number(ts) * 1000).toLocaleDateString();
 }
 
+const regionNames = new Intl.DisplayNames(['en'], { type: 'region' });
+
+/** Full country name for an ISO 3166-1 alpha-2 code, falling back to the code itself. */
+export function countryName(code: string): string {
+	try {
+		return regionNames.of(code.toUpperCase()) ?? code;
+	} catch {
+		return code;
+	}
+}
+
 export function formatHours(r: ProjectItem): string {
 	if (r.hours != null) {
 		if (r.true_hours != null) {
