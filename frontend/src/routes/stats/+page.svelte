@@ -103,6 +103,7 @@
 	let countryYsws = $state<string>(ALL);
 	let overTimeYsws = $state<string>(ALL);
 	let overTimeGranularity = $state<Granularity>('month');
+	let overTimeCumulative = $state(false);
 	let yswsFilter = $state('');
 	let countryFilter = $state('');
 	let yswsMetric = $state<Metric>('total_projects');
@@ -661,6 +662,15 @@
 							<option value={program}>{program}</option>
 						{/each}
 					</select>
+					<button
+						type="button"
+						class="cursor-pointer"
+						onclick={() => (overTimeCumulative = !overTimeCumulative)}
+					>
+						<Badge variant={overTimeCumulative ? 'default' : 'secondary'} class="cursor-pointer text-xs">
+							Cumulative
+						</Badge>
+					</button>
 				</div>
 			</div>
 
@@ -681,6 +691,7 @@
 							getValue={(r) => Number(r.total_projects)}
 							formatValue={(n) => Math.round(n).toLocaleString()}
 							label="Projects"
+							cumulative={overTimeCumulative}
 						/>
 					{/if}
 				</div>
@@ -700,6 +711,7 @@
 							getValue={(r) => r.total_hours / 10}
 							formatValue={(n) => formatFloat(n, 1)}
 							label="WPs"
+							cumulative={overTimeCumulative}
 						/>
 					{/if}
 				</div>
@@ -716,7 +728,7 @@
 						getValue={(r) => Number(r.amount_cents) / 100}
 						formatValue={currency}
 						label="Net fines"
-						cumulative
+						cumulative={overTimeCumulative}
 					/>
 				</div>
 			</div>
