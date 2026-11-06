@@ -1,4 +1,9 @@
-use std::{collections::HashMap, fmt::Write as _, pin::Pin, time::Duration};
+use std::{
+    collections::{HashMap, HashSet},
+    fmt::Write as _,
+    pin::Pin,
+    time::Duration,
+};
 
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
@@ -19,7 +24,9 @@ use crate::utils::{
 
 const AIRBRIDGE_API_URL: &str =
     "https://api2.hackclub.com/v0.1/Unified%20YSWS%20Projects%20DB/Approved%20Projects";
-const REQUEST_TIMEOUT: Duration = Duration::from_secs(180);
+/// airtable record ids are "rec" + base62, used to split the table into ranges
+const RECORD_ID_CHARS: &str = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+const REQUEST_TIMEOUT: Duration = Duration::from_secs(60);
 const PREVIEW_REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
 const BATCH_SIZE: usize = 250;
 const PREVIEW_BATCH_SIZE: usize = 32;
@@ -165,15 +172,7 @@ pub fn run<'a>(pg: &'a PgPool) -> Pin<Box<dyn Future<Output = anyhow::Result<()>
                 .timeout(REQUEST_TIMEOUT)
                 .build()?;
 
-            let body = fetch_airbridge_data(&http_client).await?;
-
-            let entries: Vec<AirbridgeEntry> = tracing::info_span!("deserialize_entries")
-                .in_scope(|| {
-                    serde_json::from_str(&body).map_err(|e| {
-                        error!("deserialization failed at byte {}: {e}", e.column());
-                        e
-                    })
-                })?;
+            let entries = fetch_airbridge_data(&http_client).await?;
 
             let entries_count = entries.len();
             let all_airtable_ids: Vec<String> = entries.iter().map(|e| e.id.clone()).collect();
@@ -200,14 +199,56 @@ pub fn run<'a>(pg: &'a PgPool) -> Pin<Box<dyn Future<Output = anyhow::Result<()>
     )
 }
 
+/// airbridge's gateway times out before it can return the whole table,
+/// so fetch it one record id range at a time. any failed range fails the
+/// whole fetch, otherwise soft_delete_missing would delete its projects
 #[instrument(skip_all)]
-async fn fetch_airbridge_data(http_client: &reqwest::Client) -> anyhow::Result<String> {
-    Ok(
-        http::fetch_with_retries(3, || http_client.get(AIRBRIDGE_API_URL))
+async fn fetch_airbridge_data(
+    http_client: &reqwest::Client,
+) -> anyhow::Result<Vec<AirbridgeEntry>> {
+    let mut entries: Vec<AirbridgeEntry> = Vec::new();
+    let mut seen: HashSet<String> = HashSet::new();
+
+    for formula in record_id_range_formulas() {
+        let select = serde_json::json!({ "filterByFormula": formula }).to_string();
+        let url = reqwest::Url::parse_with_params(AIRBRIDGE_API_URL, [("select", &select)])?;
+
+        let body = http::fetch_with_retries(3, || http_client.get(url.clone()))
             .await?
             .text()
-            .await?,
-    )
+            .await?;
+
+        let range_entries: Vec<AirbridgeEntry> = serde_json::from_str(&body).map_err(|e| {
+            error!(%formula, "deserialization failed at byte {}: {e}", e.column());
+            e
+        })?;
+
+        entries.extend(
+            range_entries
+                .into_iter()
+                .filter(|e| seen.insert(e.id.clone())),
+        );
+    }
+
+    Ok(entries)
+}
+
+/// first and last ranges are open-ended so every record id lands in one
+fn record_id_range_formulas() -> Vec<String> {
+    let bounds: Vec<String> = RECORD_ID_CHARS
+        .chars()
+        .skip(1)
+        .map(|c| format!("rec{c}"))
+        .collect();
+
+    let mut formulas = vec![format!("RECORD_ID() < '{}'", bounds[0])];
+    formulas.extend(
+        bounds
+            .windows(2)
+            .map(|w| format!("AND(RECORD_ID() >= '{}', RECORD_ID() < '{}')", w[0], w[1])),
+    );
+    formulas.push(format!("RECORD_ID() >= '{}'", bounds[bounds.len() - 1]));
+    formulas
 }
 
 #[instrument(skip_all)]
