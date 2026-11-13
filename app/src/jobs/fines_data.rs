@@ -122,7 +122,9 @@ pub fn run<'a>(pg: &'a PgPool) -> Pin<Box<dyn Future<Output = anyhow::Result<()>
                 page += 1;
             }
 
-            info!(inserted, "done");
+            let renamed = canonicalize_ysws_names(pg).await?;
+
+            info!(inserted, renamed, "done");
 
             Ok(())
         }
@@ -142,6 +144,70 @@ async fn fetch_transactions(
         .await?;
 
     Ok(serde_json::from_str(&body)?)
+}
+
+/// HCB org names that differ from the YSWS name by more than case and
+/// punctuation, as (name in the memo, name used by projects).
+const YSWS_ALIASES: &[(&str, &str)] = &[
+    ("Athena Initiative", "Athena Award"),
+    ("Fairytale", "Folktale"),
+    ("Fallout IRL Projects", "Fallout Shenzhen"),
+    ("FixHackClub", "PullQuests"),
+    ("HCTG", "Hack Club: The Game"),
+    ("Minecraft Modding", "Hackcraft Mod Edition"),
+    ("Raspapi2", "RaspAPI V2"),
+    ("The Carnival", "Carnival"),
+    ("TimeZone", "Future"),
+    ("YSWS Cubed", "Cubed"),
+];
+
+/// Rewrites fine YSWS names to the spelling used by projects, since memos are
+/// typed by hand ("terra", "Off Track") and everything else matches on the
+/// exact project name ("Terra", "Off-Track"). Names are compared ignoring
+/// case and punctuation, then `YSWS_ALIASES` covers the ones that are named
+/// differently (a real project name always wins over an alias). Runs every
+/// time so fines imported before a YSWS had any projects get fixed up later.
+#[instrument(skip_all)]
+async fn canonicalize_ysws_names(pg: &PgPool) -> anyhow::Result<u64> {
+    let (alias_names, alias_targets): (Vec<&str>, Vec<&str>) = YSWS_ALIASES.iter().copied().unzip();
+
+    let result = sqlx::query(
+        r#"
+        WITH canonical AS (
+          SELECT
+            regexp_replace(lower(ysws), '[^a-z0-9]', '', 'g') AS key,
+            mode() WITHIN GROUP (ORDER BY ysws) AS ysws
+          FROM projects
+          WHERE ysws IS NOT NULL
+          GROUP BY 1
+        ),
+        names AS (
+          SELECT key, ysws FROM canonical
+          UNION ALL
+          SELECT a.key, a.ysws
+          FROM (
+            SELECT
+              regexp_replace(lower(alias), '[^a-z0-9]', '', 'g') AS key,
+              target AS ysws
+            FROM UNNEST($1::text[], $2::text[]) AS t(alias, target)
+          ) a
+          WHERE NOT EXISTS (SELECT 1 FROM canonical c WHERE c.key = a.key)
+        )
+        UPDATE fines f
+        SET ysws = n.ysws
+        FROM names n
+        WHERE f.ysws IS NOT NULL
+          AND n.key <> ''
+          AND regexp_replace(lower(f.ysws), '[^a-z0-9]', '', 'g') = n.key
+          AND f.ysws <> n.ysws
+        "#,
+    )
+    .bind(&alias_names)
+    .bind(&alias_targets)
+    .execute(pg)
+    .await?;
+
+    Ok(result.rows_affected())
 }
 
 #[instrument(skip_all)]
